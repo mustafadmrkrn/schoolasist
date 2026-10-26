@@ -305,9 +305,16 @@ function denemeAnaliziYap(girdi) {
     });
   }
 
+  var ogrAnaliz = yksOgrenciAnalizi(ogrenciler, dersler, oturumlar, {
+    yks: yks, yanlisKatsayi: k, alan: girdi.alan, alanlar: girdi.alanlar
+  });
+
   return {
     gecerli: true,
+    yks: yks,
     yanlisKatsayi: k,
+    tahmini: yks ? { turler: ogrAnaliz.turler, ozet: ogrAnaliz.ozet, eksikTestler: ogrAnaliz.eksikTestler } : null,
+    ogrenciler: ogrAnaliz.ogrenciler,
     puanlar: {
       turler: puanSutunlari.map(function (j) { return puanTurleri[j]; }),
       ogrenciler: puanOgrencileri
@@ -380,3 +387,310 @@ function denemeOturumAnalizi(o, ad, dersler, ogrenciler) {
   });
   return sonuc;
 }
+
+/* ======================================================================
+ * YKS tahmini puanları ve öğrenci analizi
+ *
+ * ÖSYM puanları standart puanla hesaplar (tüm adayların ortalaması ve
+ * sapması kullanılır), bu yüzden okulda birebir hesaplanamaz. Burada
+ * kılavuzdaki test ağırlıklarıyla 100-500 ölçeğinde ham puan tahmini yapılır:
+ *   katsayı = ağırlık × 400 / testin soru sayısı
+ *   puan    = 100 + Σ katsayı × test neti
+ * Örn. TYT Türkçe: 0,33 × 400 / 40 = 3,3 puan/net; AYT Matematik SAY: 0,30 × 400 / 40 = 3,0.
+ * Puan hesaplanma şartı (kılavuz): TYT için Türkçe veya Temel Matematikte en az 0,5 net;
+ * alan puanları için TYT puanı ve ilgili AYT testlerinin en az birinde 0,5 net.
+ * ====================================================================== */
+var YKS_TESTLER = {
+  tyt_tur: { ad: 'TYT Türkçe', soru: 40 },
+  tyt_sos: { ad: 'TYT Sosyal Bilimler', soru: 20 },
+  tyt_mat: { ad: 'TYT Temel Matematik', soru: 40 },
+  tyt_fen: { ad: 'TYT Fen Bilimleri', soru: 20 },
+  ede: { ad: 'AYT Edebiyat', soru: 24 },
+  tar1: { ad: 'AYT Tarih-1', soru: 10 },
+  cog1: { ad: 'AYT Coğrafya-1', soru: 6 },
+  tar2: { ad: 'AYT Tarih-2', soru: 11 },
+  cog2: { ad: 'AYT Coğrafya-2', soru: 11 },
+  fel: { ad: 'AYT Felsefe Grubu', soru: 12 },
+  din: { ad: 'AYT Din Kültürü', soru: 6 },
+  mat: { ad: 'AYT Matematik', soru: 40 },
+  fiz: { ad: 'AYT Fizik', soru: 14 },
+  kim: { ad: 'AYT Kimya', soru: 13 },
+  biy: { ad: 'AYT Biyoloji', soru: 13 },
+  ydt: { ad: 'YDT Yabancı Dil', soru: 80 }
+};
+var YKS_TYT_PAYI = { tyt_tur: 0.13, tyt_sos: 0.07, tyt_mat: 0.13, tyt_fen: 0.07 };
+var YKS_AGIRLIK = {
+  TYT: { tyt_tur: 0.33, tyt_sos: 0.17, tyt_mat: 0.33, tyt_fen: 0.17 },
+  SAY: { mat: 0.30, fiz: 0.10, kim: 0.10, biy: 0.10 },
+  EA: { mat: 0.30, ede: 0.18, tar1: 0.07, cog1: 0.05 },
+  'SÖZ': { ede: 0.18, tar1: 0.07, cog1: 0.05, tar2: 0.08, cog2: 0.08, fel: 0.09, din: 0.05 },
+  'DİL': { ydt: 0.60 }
+};
+var YKS_ALANLAR = ['SAY', 'EA', 'SÖZ', 'DİL'];
+
+/** Puan türündeki tüm testlerin katsayıları (TYT payı dahil). */
+function yksKatsayilar(tur) {
+  var w = {};
+  var ekle = function (t, a) { w[t] = a * 400 / YKS_TESTLER[t].soru; };
+  if (tur === 'TYT') {
+    Object.keys(YKS_AGIRLIK.TYT).forEach(function (t) { ekle(t, YKS_AGIRLIK.TYT[t]); });
+  } else {
+    Object.keys(YKS_TYT_PAYI).forEach(function (t) { ekle(t, YKS_TYT_PAYI[t]); });
+    Object.keys(YKS_AGIRLIK[tur]).forEach(function (t) { ekle(t, YKS_AGIRLIK[tur][t]); });
+  }
+  return w;
+}
+
+/** Bir deneme dersinin hangi YKS testine sayıldığı. */
+function yksTestKodu(d) {
+  var k = denemeBuyuk(d.kod);
+  var on = function (dizi) { return dizi.some(function (x) { return k.indexOf(x) === 0; }); };
+  if (d.oturum === 0) {
+    if (on(['TÜR', 'TUR'])) return 'tyt_tur';
+    if (on(['TAR', 'COĞ', 'COG', 'FEL', 'DİN', 'DIN', 'DKAB', 'SOS'])) return 'tyt_sos';
+    if (on(['MAT', 'GEO'])) return 'tyt_mat';
+    if (on(['FİZ', 'FIZ', 'KİM', 'KIM', 'BİY', 'BIY', 'FEN'])) return 'tyt_fen';
+    return null;
+  }
+  var ikinci = /-2$/.test(d.kisa || '');
+  if (on(['TÜR', 'TUR', 'EDE', 'EDB'])) return 'ede';
+  if (on(['TAR'])) return ikinci ? 'tar2' : 'tar1';
+  if (on(['COĞ', 'COG'])) return ikinci ? 'cog2' : 'cog1';
+  if (on(['FEL'])) return 'fel';
+  if (on(['DİN', 'DIN', 'DKAB'])) return 'din';
+  if (on(['MAT', 'GEO'])) return 'mat';
+  if (on(['FİZ', 'FIZ'])) return 'fiz';
+  if (on(['KİM', 'KIM'])) return 'kim';
+  if (on(['BİY', 'BIY'])) return 'biy';
+  if (on(['İNG', 'ING', 'YDİL', 'YDIL', 'YDT', 'ALM', 'FRA', 'ARA', 'RUS'])) return 'ydt';
+  return null;
+}
+
+/** Sınıf adından alan: 12-TM → EA, 12-MF / 12 FEN → SAY, 12-TS → SÖZ, 12-DİL → DİL. */
+function yksSiniftanAlan(sinif) {
+  var m = /([A-ZÇĞİÖŞÜ]+)\s*$/.exec(denemeBuyuk(sinif).replace(/[^A-ZÇĞİÖŞÜ0-9 ]/g, ' '));
+  if (!m) return null;
+  var s = m[1];
+  if (s === 'TM' || s === 'EA' || s === 'EŞİT') return 'EA';
+  if (s === 'MF' || s === 'FEN' || s === 'SAY' || s === 'SAYISAL') return 'SAY';
+  if (s === 'TS' || s === 'SÖZ' || s === 'SOZ' || s === 'SÖZEL') return 'SÖZ';
+  if (s === 'DİL' || s === 'DIL' || s === 'YD') return 'DİL';
+  return null;
+}
+
+/**
+ * Tahmini puanlar ve öğrenci bazında analiz.
+ * secim: { alan: 'oto' | 'SAY' | 'EA' | 'SÖZ' | 'DİL', alanlar: { 'Öğrenci Adı': 'SAY' } }
+ */
+function yksOgrenciAnalizi(ogrenciler, dersler, oturumlar, secim) {
+  secim = secim || {};
+  var yks = !!secim.yks;
+  var k = secim.yanlisKatsayi > 0 ? secim.yanlisKatsayi : 0;
+  var ozel = secim.alanlar || {};
+  dersler.forEach(function (d) { d.test = yks ? yksTestKodu(d) : null; });
+  var varTestler = {};
+  dersler.forEach(function (d) { if (d.test) varTestler[d.test] = true; });
+  var dilVar = !!varTestler.ydt;
+  var turler = yks ? ['TYT'].concat(YKS_ALANLAR.filter(function (t) { return t !== 'DİL' || dilVar; })) : [];
+  var katsayi = {};
+  turler.forEach(function (t) { katsayi[t] = yksKatsayilar(t); });
+
+  var ogrSonuc = ogrenciler.map(function (g) {
+    // Test netleri ve cevaplanan soru sayıları
+    var net = {};
+    var cevap = {};
+    var aytGirdi = !!g.oturumlar[1];
+    for (var o = 0; o < g.oturumlar.length; o++) {
+      if (!g.oturumlar[o]) continue;
+      var grup = dersler.filter(function (d) { return d.oturum === o; });
+      grup.forEach(function (d, j) {
+        if (!d.test) return;
+        var x = g.oturumlar[o][j];
+        net[d.test] = (net[d.test] || 0) + x.net;
+        cevap[d.test] = (cevap[d.test] || 0) + x.d + x.y;
+      });
+    }
+    var tytVar = yks && !!g.oturumlar[0] && ((net.tyt_tur || 0) >= 0.5 || (net.tyt_mat || 0) >= 0.5);
+    var puan = {};
+    turler.forEach(function (t) {
+      if (!tytVar) { puan[t] = null; return; }
+      if (t !== 'TYT') {
+        if (!aytGirdi) { puan[t] = null; return; }
+        var ilgili = Object.keys(YKS_AGIRLIK[t]);
+        if (!ilgili.some(function (x) { return (net[x] || 0) >= 0.5; })) { puan[t] = null; return; }
+      }
+      var p = 100;
+      Object.keys(katsayi[t]).forEach(function (x) { p += Math.max(0, net[x] || 0) * katsayi[t][x]; });
+      puan[t] = Math.min(500, p);
+    });
+
+    // Alan
+    var alan = null;
+    var kaynak = '';
+    if (!yks) { /* alan yalnızca YKS'de */ }
+    else if (ozel[g.ad] && YKS_ALANLAR.indexOf(ozel[g.ad]) > -1) { alan = ozel[g.ad]; kaynak = 'elle seçildi'; }
+    else if (secim.alan && YKS_ALANLAR.indexOf(secim.alan) > -1) { alan = secim.alan; kaynak = 'tüm sınıf için seçildi'; }
+    else if (yksSiniftanAlan(g.sinif)) { alan = yksSiniftanAlan(g.sinif); kaynak = 'sınıf adından (' + g.sinif + ')'; }
+    else if (aytGirdi) {
+      var c = function (dizi) { return dizi.reduce(function (t, x) { return t + (cevap[x] || 0); }, 0); };
+      if ((cevap.ydt || 0) > 0) alan = 'DİL';
+      else if (c(['fiz', 'kim', 'biy']) >= 3) alan = 'SAY';
+      else if (c(['tar2', 'cog2', 'fel', 'din']) >= 3 && c(['mat']) < 3) alan = 'SÖZ';
+      else if (c(['mat', 'ede']) > 0) alan = 'EA';
+      if (alan) kaynak = 'AYT’de cevapladığı testlerden';
+    }
+    if (alan === 'DİL' && !dilVar) alan = null;
+    return { g: g, net: net, puan: puan, alan: alan, kaynak: kaynak };
+  });
+
+  // Sıralar: TYT puanı tüm sınıfta, alan puanı aynı alandakiler arasında
+  function sirala(liste, deger) {
+    var s = liste.filter(function (x) { return deger(x) !== null && deger(x) !== undefined; }).sort(function (a, b) { return deger(b) - deger(a); });
+    s.forEach(function (x, i) {
+      x._sira = i > 0 && Math.abs(deger(s[i - 1]) - deger(x)) < 1e-9 ? s[i - 1]._sira : i + 1;
+    });
+    return s.length;
+  }
+  var tytN = sirala(ogrSonuc, function (x) { return x.puan.TYT; });
+  ogrSonuc.forEach(function (x) { x.tytSira = x.puan.TYT ? x._sira : null; x.tytN = tytN; delete x._sira; });
+  YKS_ALANLAR.forEach(function (a) {
+    var grup = ogrSonuc.filter(function (x) { return x.alan === a; });
+    var n = sirala(grup, function (x) { return x.puan[a] === undefined ? null : x.puan[a]; });
+    grup.forEach(function (x) { x.alanSira = x.puan[a] !== null && x.puan[a] !== undefined ? x._sira : null; x.alanN = n; delete x._sira; });
+  });
+
+  // Öğrenci kartları
+  var kartlar = ogrSonuc.map(function (x) {
+    var g = x.g;
+    var alanTestleri = !yks ? {} : x.alan ? yksKatsayilar(x.alan) : yksKatsayilar('TYT');
+    var kart = {
+      ad: g.ad, sinif: g.sinif, alan: x.alan, alanKaynak: x.kaynak,
+      puanlar: x.puan,
+      alanPuani: x.alan && x.puan[x.alan] ? x.puan[x.alan] : null,
+      tytSira: x.tytSira, tytN: x.tytN,
+      alanSira: x.alanSira || null, alanN: x.alanN || 0,
+      yayinevi: g.puanlar,
+      oturumlar: [],
+      firsatlar: [],
+      gucluler: [], zayiflar: [], oneriler: []
+    };
+
+    oturumlar.forEach(function (ot, o) {
+      var s = g.oturumlar[o];
+      if (!s || !ot.n) { kart.oturumlar.push(null); return; }
+      var grup = dersler.filter(function (d) { return d.oturum === o; });
+      var sira = null;
+      ot.siralama.forEach(function (r) { if (r.ad === g.ad && sira === null) sira = r.sira; });
+      var toplam = s.reduce(function (t, r) { return t + r.net; }, 0);
+      kart.oturumlar.push({
+        ad: ot.ad, sira: sira, n: ot.n, net: toplam, sinifOrt: ot.ortalamaNet, soru: ot.soruSayisi,
+        dersler: grup.map(function (d, j) {
+          var r = s[j];
+          var sinifOrt = ot.dersler[j].ortNet;
+          var esik = Math.max(1, d.soru * 0.1);
+          var fark = r.net - sinifOrt;
+          var basari = d.soru > 0 ? r.net / d.soru : 0;
+          return {
+            kod: d.kisa, ad: d.ad, soru: d.soru, d: r.d, y: r.y, b: r.b, net: r.net,
+            sinifOrt: sinifOrt, fark: fark,
+            karsilastirma: fark >= esik ? 'üstünde' : fark <= -esik ? 'altında' : 'düzeyinde',
+            basari: basari, basariEtiket: denemeBasariEtiketi(basari),
+            alanda: yks ? !!(d.test && alanTestleri[d.test]) : true,
+            puanNet: d.test && alanTestleri[d.test] ? alanTestleri[d.test] : 0
+          };
+        })
+      });
+    });
+
+    // Değerlendirme
+    var tumDersler = [];
+    kart.oturumlar.forEach(function (ot) { if (ot) ot.dersler.forEach(function (d) { d.oturum = ot.ad; tumDersler.push(d); }); });
+    var adi = function (d) { return kart.oturumlar.filter(function (z) { return z; }).length > 1 ? d.oturum + ' ' + d.ad : d.ad; };
+
+    // Güçlü dersler: başarısı %60 ve üstü ya da sınıfın belirgin üstünde (%30 ve üstü başarıyla)
+    kart.gucluler = tumDersler.filter(function (d) {
+      return d.soru >= 5 && (d.basari >= DENEME_IYI || (d.karsilastirma === 'üstünde' && d.basari >= DENEME_DUSUK));
+    }).sort(function (a, b) { return b.basari - a.basari; }).slice(0, 4).map(function (d) {
+      return { ad: adi(d), basari: d.basari, net: d.net, soru: d.soru };
+    });
+    // Öncelikli dersler: alana sayılan, başarısı düşük ya da sınıfın altında; puana etkisine göre sıralı
+    kart.zayiflar = tumDersler.filter(function (d) {
+      return d.alanda && d.soru >= 5 && (d.karsilastirma === 'altında' || d.basari < DENEME_DUSUK);
+    }).map(function (d) {
+      var kalan = Math.max(0, d.soru - Math.max(0, d.net));
+      return { ad: adi(d), basari: d.basari, net: d.net, soru: d.soru, etki: kalan * (yks ? d.puanNet : 1), puanNet: d.puanNet };
+    }).sort(function (a, b) { return b.etki - a.etki; });
+
+    // Puan fırsatları: alan puanına en çok katkı verecek testler (kalan net × puan/net)
+    Object.keys(alanTestleri).forEach(function (t) {
+      if (!varTestler[t]) return;
+      var kalan = Math.max(0, YKS_TESTLER[t].soru - Math.max(0, x.net[t] || 0));
+      if (kalan <= 0) return;
+      kart.firsatlar.push({ test: YKS_TESTLER[t].ad, net: x.net[t] || 0, soru: YKS_TESTLER[t].soru, puanNet: alanTestleri[t], kalanPuan: kalan * alanTestleri[t] });
+    });
+    kart.firsatlar.sort(function (a, b) { return b.kalanPuan - a.kalanPuan; });
+    kart.firsatlar = kart.firsatlar.slice(0, 4);
+
+    // Öneriler (sade, uygulanabilir cümleler)
+    var yanlisCok = tumDersler.filter(function (d) { return d.y >= 3 && d.y / Math.max(1, d.d + d.y) >= DENEME_YANLIS_UYARI; })
+      .sort(function (a, b) { return b.y - a.y; });
+    yanlisCok.slice(0, 3).forEach(function (d) {
+      kart.oneriler.push(adi(d) + ': ' + d.y + ' yanlış' + (k ? ', ' + denemeYazi(d.y / k) + ' neti götürdü' : '') +
+        '. Cevapların çoğu yanlış; emin olunmayan sorular boş bırakılırsa net artar.');
+    });
+    if (yks && !g.oturumlar[1] && g.oturumlar[0]) {
+      kart.oneriler.push('AYT oturumuna girmemiş; alan puanı hesaplanamadı.');
+    }
+    var hicYok = tumDersler.filter(function (d) { return d.alanda && d.soru >= 5 && d.b / d.soru >= 0.8; })
+      .sort(function (a, b) { return (b.soru * (b.puanNet || 1)) - (a.soru * (a.puanNet || 1)); });
+    if (hicYok.length) {
+      kart.oneriler.push((yks ? 'Alan puanına sayılan ama neredeyse' : 'Neredeyse') + ' hiç cevaplanmayan dersler: ' +
+        hicYok.slice(0, 4).map(adi).join(', ') + (hicYok.length > 4 ? ' ve ' + (hicYok.length - 4) + ' ders daha' : '') +
+        '. Bu derslerin temel konularından başlamak neti en hızlı artıran yol olabilir.');
+    }
+    var altinda = tumDersler.filter(function (d) { return d.karsilastirma === 'altında'; })
+      .sort(function (a, b) { return a.fark - b.fark; }).slice(0, 4);
+    if (altinda.length) {
+      kart.oneriler.push('Sınıf ortalamasının altında kaldığı dersler: ' + altinda.map(function (d) {
+        return adi(d) + ' (' + denemeYazi(d.net) + ' / sınıf ' + denemeYazi(d.sinifOrt) + ')';
+      }).join(', ') + '.');
+    }
+    if (kart.firsatlar.length) {
+      var f0 = kart.firsatlar[0];
+      kart.oneriler.push((x.alan ? x.alan + ' puanına' : 'TYT puanına') + ' en çok katkı ' + f0.test + ' testinden gelir: her net yaklaşık ' +
+        denemeYazi(f0.puanNet) + ' puan.');
+    }
+    if (yks && x.alan && x.puan[x.alan]) {
+      var daha = YKS_ALANLAR.filter(function (t) { return t !== x.alan && x.puan[t] && x.puan[t] - x.puan[x.alan] >= 10; })
+        .sort(function (a, b) { return x.puan[b] - x.puan[a]; });
+      if (daha.length) {
+        kart.oneriler.push('Bu denemede ' + daha[0] + ' puanı (' + denemeYazi(Math.round(x.puan[daha[0]] * 10) / 10) + '), ' + x.alan +
+          ' puanından (' + denemeYazi(Math.round(x.puan[x.alan] * 10) / 10) + ') belirgin yüksek. Alan tercihi rehberlikle konuşulabilir.');
+      }
+    }
+    if (yks && x.alan && g.oturumlar[1] && x.puan.TYT && !x.puan[x.alan]) {
+      kart.oneriler.push(x.alan + ' puanı hesaplanamadı: ' + x.alan + ' puanına sayılan AYT testlerinin hiçbirinde 0,5 net yok.');
+    }
+    if (yks && !x.alan && g.oturumlar[1]) kart.oneriler.push('Alan belirlenemedi; alan puanı için öğrencinin alanını seçin.');
+    return kart;
+  });
+
+  // Sınıf geneli tahmini puan ortalamaları
+  var ozet = turler.map(function (t) {
+    var v = kartlar.map(function (k) { return k.puanlar[t]; }).filter(function (p) { return p !== null && p !== undefined; });
+    var alanV = t === 'TYT' ? v : kartlar.filter(function (k) { return k.alan === t && k.puanlar[t] !== null; }).map(function (k) { return k.puanlar[t]; });
+    return { ad: t, n: v.length, ortalama: denemeOrtalama(v), alanN: alanV.length, alanOrtalama: denemeOrtalama(alanV), enYuksek: v.length ? Math.max.apply(null, v) : 0 };
+  });
+
+  return {
+    turler: turler,
+    ozet: ozet,
+    ogrenciler: kartlar,
+    katsayilar: katsayi,
+    eksikTestler: Object.keys(YKS_TESTLER).filter(function (t) {
+      return !varTestler[t] && t !== 'ydt' && turler.some(function (tur) { return katsayi[tur][t]; });
+    }).map(function (t) { return YKS_TESTLER[t].ad; })
+  };
+}
+
+function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', ','); }

@@ -139,4 +139,63 @@ var a = ctx.denemeAnaliziYap({ baslik: baslik, satirlar: satirlar, yanlisKatsayi
   yakin(b.oturumlar[0].siralama[0].net, 18 - 2 / 3 + 16 - 4 / 3, 'Elif net');
 })();
 
+// 8) Tahmini YKS puanları (ÖSYM ağırlıkları: katsayı = ağırlık × 400 / soru)
+(function () {
+  assert.strictEqual(a.yks, true);
+  var k = {};
+  a.ogrenciler.forEach(function (x) { k[x.ad] = x; });
+  var ay = k['Ayşe Yılmaz'];
+  yakin(ay.puanlar.TYT, 100 + (28 + 19) * 3.3, 'Ayşe TYT puanı');
+  yakin(ay.puanlar.EA, 100 + 47 * 1.3 + 19 * 3 + 6 * 2.8, 'Ayşe EA puanı');
+  yakin(ay.puanlar['SÖZ'], 100 + 47 * 1.3 + 19 * 3 + 6 * 2.8 + 3.5 * 32 / 11, 'Ayşe SÖZ puanı');
+  assert.strictEqual(ay.puanlar.SAY, null, 'SAY testlerinde 0,5 net yoksa SAY hesaplanmaz');
+  assert.strictEqual(ay.alan, 'SÖZ', 'Tarih-2 cevaplayan öğrenci SÖZ sayılır');
+  var me = k['Mehmet Kaya'];
+  yakin(me.puanlar.TYT, 100 + 21.25 * 3.3, 'Mehmet TYT puanı');
+  assert.strictEqual(me.alan, 'EA');
+  yakin(me.alanPuani, 100 + 21.25 * 1.3 + 8.5 * 3, 'Mehmet EA puanı');
+  var ze = k['Zeynep Demir'];
+  yakin(ze.puanlar.TYT, 116.5, 'Zeynep TYT puanı');
+  assert.strictEqual(ze.alan, null, 'AYT yoksa alan bulunamaz');
+  assert.strictEqual(ze.puanlar.EA, null);
+  assert.ok(ze.oneriler.some(function (m) { return /AYT oturumuna girmemiş/.test(m); }));
+  assert.strictEqual(ay.tytSira, 1);
+  assert.strictEqual(ze.tytSira, 3);
+  assert.strictEqual(a.tahmini.turler.join(','), 'TYT,SAY,EA,SÖZ');
+  assert.ok(a.tahmini.eksikTestler.indexOf('AYT Fizik') > -1, 'denemede olmayan testler listelenir');
+})();
+
+// 9) Alan: sınıf adından, elle seçim
+(function () {
+  assert.strictEqual(ctx.yksSiniftanAlan('12-TM'), 'EA');
+  assert.strictEqual(ctx.yksSiniftanAlan('12 FEN'), 'SAY');
+  assert.strictEqual(ctx.yksSiniftanAlan('12/TS'), 'SÖZ');
+  assert.strictEqual(ctx.yksSiniftanAlan('11-A'), null);
+  var b = ctx.denemeAnaliziYap({ baslik: baslik, satirlar: satirlar, alanlar: { 'Ayşe Yılmaz': 'EA' } });
+  var ay = b.ogrenciler.filter(function (x) { return x.ad === 'Ayşe Yılmaz'; })[0];
+  assert.strictEqual(ay.alan, 'EA');
+  assert.strictEqual(ay.alanKaynak, 'elle seçildi');
+  yakin(ay.alanPuani, 100 + 47 * 1.3 + 19 * 3 + 6 * 2.8, 'elle EA');
+  assert.ok(ay.oneriler.some(function (m) { return /SÖZ puanı/.test(m); }), 'daha yüksek puan türü belirtilir');
+  var c = ctx.denemeAnaliziYap({ baslik: baslik, satirlar: satirlar, alan: 'SAY' });
+  assert.ok(c.ogrenciler.every(function (x) { return x.alan === 'SAY'; }));
+})();
+
+// 10) Öğrenci kartı: ders karşılaştırması ve öncelikler
+(function () {
+  var ay = a.ogrenciler.filter(function (x) { return x.ad === 'Ayşe Yılmaz'; })[0];
+  var tur = ay.oturumlar[0].dersler[0];
+  yakin(tur.sinifOrt, 50 / 3, 'Türkçe sınıf ortalaması');
+  assert.strictEqual(tur.karsilastirma, 'üstünde');
+  assert.strictEqual(ay.oturumlar[0].sira, 1);
+  assert.ok(ay.zayiflar.length > 0 && ay.zayiflar[0].etki >= ay.zayiflar[ay.zayiflar.length - 1].etki, 'öncelikler puan etkisine göre sıralı');
+  assert.ok(ay.firsatlar.length > 0);
+  // YKS dışı denemede puan yok ama öğrenci kartı var
+  var b = ctx.denemeAnaliziYap({ baslik: ['Ad Soyad', 'Türkçe D', 'Türkçe Y', 'Mat D', 'Mat Y'], satirlar: [['Ali Can', 15, 3, 10, 4], ['Elif Su', 18, 2, 16, 4]], yanlisKatsayi: 3 });
+  assert.strictEqual(b.yks, false);
+  assert.strictEqual(b.tahmini, null);
+  assert.strictEqual(b.ogrenciler.length, 2);
+  assert.ok(b.ogrenciler[0].oneriler.some(function (m) { return /Matematik|Mat/.test(m); }));
+})();
+
 console.log('Deneme testleri geçti.');

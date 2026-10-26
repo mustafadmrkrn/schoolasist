@@ -12,6 +12,16 @@ Kullanıcı adı ve şifreyle girilir; soldaki menüden istenen araç seçilir.
   ekrandan yüklenir ve otomatik tanınır. Oturum ve ders bazında ortalama doğru/yanlış/boş/net, başarı
   yüzdesi, yanlış ve boş uyarıları, net sıralaması, varsa TYT/SAY/SÖZ/EA puanları ve sıraları.
   Net = doğru − yanlış / katsayı (YKS 4, LGS 3; ekrandan değiştirilebilir).
+  - **Tahmini YKS puanları:** netlerden TYT, SAY, EA, SÖZ (DİL varsa) puanı. ÖSYM kılavuzundaki test
+    ağırlıklarıyla 100–500 ölçeğinde ham puan: `katsayı = ağırlık × 400 / soru sayısı`,
+    `puan = 100 + Σ katsayı × net` (ör. TYT Türkçe 3,3; AYT Matematik 3,0 puan/net). ÖSYM standart puan
+    kullandığı için gerçek puan farklı çıkar; OBP eklenmez. Hesaplanma şartı kılavuzdaki gibi: TYT için
+    Türkçe veya Temel Matematikte, alan puanı için ilgili AYT testlerinden birinde en az 0,5 net.
+  - **Alan:** sınıf adından (12-TM → EA, MF/FEN → SAY, TS → SÖZ, DİL), yoksa AYT'de cevaplanan testlerden;
+    tüm sınıf için ya da öğrenci öğrenci elle seçilebilir.
+  - **Öğrenci analizi:** ders ders D/Y/B/net ve sınıf ortalamasıyla farkı, sınıf ve alan sırası, güçlü yönler,
+    puan etkisine göre öncelikli dersler, puanı en çok artıracak testler, öneriler; tek tıkla kopyalanan
+    öğrenci raporu. Konu bazında eksik için soru/konu analizi dosyası gerekir (henüz yok).
 
 ## Yapı
 
