@@ -363,6 +363,10 @@
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20v-8M12 20V5M19 20v-5"/></svg>
           Sınav analizi
         </button>
+        <button type="button" class="nav-btn" id="nav-mentor">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><path d="M15.5 5.2a3 3 0 0 1 0 5.6M17.5 14.8c1.6.6 2.7 2.2 3 4.7"/></svg>
+          Mentörlük
+        </button>
       </nav>
     </div>
   </aside>
@@ -375,12 +379,17 @@
     <section class="arac" id="panel-sinav" aria-label="Sınav analizi" hidden>
       <?!= include('sinav-panel') ?>
     </section>
+
+    <section class="arac" id="panel-mentor" aria-label="Mentörlük programı" hidden>
+      <?!= include('mentor-cekirdek') ?>
+      <?!= include('mentor-panel') ?>
+    </section>
   </main>
 </div>
 
 <script>
   (function () {
-    var idler = ['nobet', 'sinav'];
+    var idler = ['nobet', 'sinav', 'mentor'];
     function sec(id) {
       idler.forEach(function (k) {
         var acik = k === id;

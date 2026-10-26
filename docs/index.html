@@ -1514,6 +1514,7 @@ function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', '
     $('kullanici-k').textContent = '@' + r.kullanici;
     $('kullanici-bas').textContent = basHarfler(r.ad);
     goster('uygulama');
+    document.dispatchEvent(new CustomEvent('mdea:giris', { detail: { kullanici: r.kullanici, ad: r.ad } }));
   }
 
   function mesgul(m) {
@@ -1562,6 +1563,7 @@ function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', '
       // Ortak bilgisayarlarda öğrenci verisi bellekte kalmasın.
       $('btn-temizle').click();
       $('sn-btn-temizle').click();
+      document.dispatchEvent(new CustomEvent('mdea:cikis'));
       $('g-kullanici').value = '';
       modDegistir('giris');
       goster('giris');
@@ -1574,6 +1576,7 @@ function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', '
     depo.sil(TOKEN_ANAHTARI);
     $('btn-temizle').click();
     $('sn-btn-temizle').click();
+    document.dispatchEvent(new CustomEvent('mdea:cikis'));
     modDegistir('giris');
     goster('giris');
     hataGoster('Oturum süresi doldu. Lütfen yeniden giriş yapın.');
@@ -1623,6 +1626,10 @@ function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', '
         <button type="button" class="nav-btn" id="nav-sinav">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20v-8M12 20V5M19 20v-5"/></svg>
           Sınav analizi
+        </button>
+        <button type="button" class="nav-btn" id="nav-mentor">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><path d="M15.5 5.2a3 3 0 0 1 0 5.6M17.5 14.8c1.6.6 2.7 2.2 3 4.7"/></svg>
+          Mentörlük
         </button>
       </nav>
     </div>
@@ -3201,12 +3208,1225 @@ function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', '
 </script>
 
     </section>
+
+    <section class="arac" id="panel-mentor" aria-label="Mentörlük programı" hidden>
+      <script>
+/**
+ * Mentörlük ders programı: saf yardımcılar (DOM yok, testli).
+ * Veri biçimi eski "Mentörlük Ders Programı" sayfasıyla aynıdır; o sayfadan alınan
+ * yedek dosyası (mentorluk-yedek-*.json) doğrudan yüklenebilir.
+ *
+ * db = {
+ *   students: [{ id, name, cls }],
+ *   plans: [{ id, sid, date: 'YYYY-MM-DD', start: 8, end: 23, grid: { 'gün-saat': { c, m, q } }, note }],
+ *   courses: [{ id, name, color }],
+ *   tpls: [{ id, name, start, end, grid }],
+ *   cfg: { org, mentor, logo, okul: { acik, bas, bit } },
+ *   sid, pid, lastBackup
+ * }
+ * grid anahtarı: gün 0-6 (Pazartesi=0), saat 0-23. m: 0 ders, 1 soru çözümü (q = soru adedi), 2 ders tekrarı.
+ */
+var MENTOR_GUNLER = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
+var MENTOR_GUN_KISA = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+var MENTOR_TURLER = ['Ders', 'Soru çözümü', 'Ders tekrarı'];
+var MENTOR_DERSLER = [
+  ['Matematik', '#dc2626'], ['Fizik', '#2563eb'], ['Kimya', '#059669'], ['Edebiyat', '#7c3aed'],
+  ['Tarih', '#ea580c'], ['İngilizce', '#0891b2'], ['Coğrafya', '#0d9488'], ['Biyoloji', '#16a34a'],
+  ['Almanca', '#b45309'], ['Kitap Okuma', '#db2777']
+];
+
+function mentorId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+function mentorBugun() {
+  var d = new Date();
+  var p = function (n) { return String(n).padStart(2, '0'); };
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+
+function mentorSaat(h) { return String(h % 24).padStart(2, '0') + ':00'; }
+
+function mentorTarih(d) {
+  if (!d) return '-';
+  var x = typeof d === 'number' ? new Date(d) : new Date(String(d) + (String(d).length === 10 ? 'T12:00:00' : ''));
+  return isNaN(x) ? String(d) : x.toLocaleDateString('tr-TR');
+}
+
+function mentorSablon(ad, satirlar) {
+  var g = {};
+  satirlar.forEach(function (s) {
+    var gunler = s[0], saatler = s[1], c = s[2], m = s[3], q = s[4];
+    gunler.forEach(function (d) {
+      saatler.forEach(function (t) { g[d + '-' + t] = q ? { c: c, m: m, q: q } : { c: c, m: m }; });
+    });
+  });
+  return { id: mentorId(), name: ad, start: 8, end: 23, grid: g };
+}
+
+function mentorVarsayilanSablonlar() {
+  return [
+    mentorSablon('Sayısal 12. Sınıf', [
+      [[0, 2, 4], [17], 'c0', 1, 40], [[0, 2, 4], [18], 'c1', 0], [[0, 2, 4], [20], 'c2', 2],
+      [[1, 3], [17], 'c7', 0], [[1, 3], [18], 'c1', 1, 30], [[1, 3], [20], 'c0', 2],
+      [[5], [10, 11], 'c0', 1, 60], [[5], [14, 15], 'c1', 1, 40], [[5], [17], 'c2', 2],
+      [[6], [10, 11], 'c7', 0], [[6], [14], 'c0', 2], [[6], [16], 'c3', 0]
+    ]),
+    mentorSablon('Sınav Haftası', [
+      [[0, 1, 2, 3, 4], [17], 'c0', 2], [[0, 1, 2, 3, 4], [18], 'c1', 1, 30], [[0, 1, 2, 3, 4], [20], 'c2', 2],
+      [[5, 6], [10, 11], 'c0', 1, 60], [[5, 6], [14, 15], 'c1', 1, 40], [[5, 6], [17], 'c7', 2]
+    ])
+  ];
+}
+
+function mentorYeniDb(mentorAdi) {
+  return {
+    students: [], plans: [],
+    courses: MENTOR_DERSLER.map(function (c, i) { return { id: 'c' + i, name: c[0], color: c[1] }; }),
+    tpls: mentorVarsayilanSablonlar(),
+    cfg: { org: '', mentor: mentorAdi || '', logo: '', okul: { acik: true, bas: 10, bit: 17 } },
+    sid: null, pid: null, lastBackup: 0
+  };
+}
+
+/** Yedekten ya da depodan gelen veriyi doğrular, eksikleri tamamlar. Geçersizse null. */
+function mentorDbDuzelt(x, mentorAdi) {
+  if (!x || typeof x !== 'object' || !Array.isArray(x.students) || !Array.isArray(x.plans) || !Array.isArray(x.courses)) return null;
+  var y = mentorYeniDb(mentorAdi);
+  y.students = x.students.filter(function (s) { return s && s.id && s.name; })
+    .map(function (s) { return { id: String(s.id), name: String(s.name), cls: s.cls ? String(s.cls) : '' }; });
+  var ogr = {};
+  y.students.forEach(function (s) { ogr[s.id] = true; });
+  y.courses = x.courses.filter(function (c) { return c && c.id && c.name; })
+    .map(function (c) { return { id: String(c.id), name: String(c.name), color: /^#[0-9a-f]{3,8}$/i.test(c.color) ? c.color : '#64748b' }; });
+  var saat = function (v, d) { v = Number(v); return v >= 0 && v <= 23 ? Math.floor(v) : d; };
+  var izgara = function (g) {
+    var o = {};
+    Object.keys(g || {}).forEach(function (k) {
+      var v = g[k];
+      if (!/^[0-6]-([0-9]|1[0-9]|2[0-3])$/.test(k) || !v || !v.c) return;
+      var m = v.m === 1 || v.m === 2 ? v.m : 0;
+      o[k] = m === 1 && v.q > 0 ? { c: String(v.c), m: 1, q: Math.min(9999, Math.floor(v.q)) } : { c: String(v.c), m: m };
+    });
+    return o;
+  };
+  y.plans = x.plans.filter(function (p) { return p && p.id && ogr[p.sid]; }).map(function (p) {
+    var bas = saat(p.start, 8), bit = saat(p.end, 23);
+    var o = { id: String(p.id), sid: String(p.sid), date: /^\d{4}-\d{2}-\d{2}$/.test(p.date) ? p.date : mentorBugun(), start: Math.min(bas, bit), end: Math.max(bas, bit), grid: izgara(p.grid) };
+    if (p.note) o.note = String(p.note);
+    return o;
+  });
+  if (Array.isArray(x.tpls)) {
+    y.tpls = x.tpls.filter(function (t) { return t && t.id && t.name; }).map(function (t) {
+      return { id: String(t.id), name: String(t.name), start: saat(t.start, 8), end: saat(t.end, 23), grid: izgara(t.grid) };
+    });
+  }
+  var cfg = x.cfg || {};
+  y.cfg.org = cfg.org ? String(cfg.org) : '';
+  y.cfg.mentor = cfg.mentor !== undefined ? String(cfg.mentor) : (mentorAdi || '');
+  y.cfg.logo = typeof cfg.logo === 'string' && cfg.logo.indexOf('data:image/') === 0 ? cfg.logo : '';
+  if (cfg.okul) {
+    y.cfg.okul = { acik: cfg.okul.acik !== false, bas: saat(cfg.okul.bas, 10), bit: saat(cfg.okul.bit, 17) };
+  }
+  y.sid = ogr[x.sid] ? x.sid : null;
+  y.pid = y.plans.some(function (p) { return p.id === x.pid; }) ? x.pid : null;
+  y.lastBackup = Number(x.lastBackup) || 0;
+  return y;
+}
+
+/** Okul saati mi? Hafta içi, cfg.okul.bas ≤ saat < cfg.okul.bit. */
+function mentorOkulMu(db, d, t) {
+  var o = db && db.cfg && db.cfg.okul;
+  if (!o || !o.acik) return false;
+  return d < 5 && t >= o.bas && t < o.bit;
+}
+
+function mentorEtiket(v) {
+  if (!v) return '';
+  if (v.m === 1) return 'Soru çözümü' + (v.q ? ': ' + v.q : '');
+  if (v.m === 2) return 'Ders tekrarı';
+  return '';
+}
+
+function mentorDers(db, id) {
+  for (var i = 0; i < db.courses.length; i++) if (db.courses[i].id === id) return db.courses[i];
+  return null;
+}
+
+function mentorProgramlari(db, sid) {
+  return db.plans.filter(function (p) { return p.sid === sid; }).sort(function (a, b) {
+    return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
+  });
+}
+
+/** Saat, soru ve ders sayıları. Okul saatine düşen ve silinmiş derse ait hücreler sayılmaz. */
+function mentorOzet(db, programlar) {
+  var r = { saat: 0, soru: 0, tur: [0, 0, 0], ders: {} };
+  programlar.forEach(function (p) {
+    Object.keys(p.grid).forEach(function (k) {
+      var dt = k.split('-').map(Number);
+      var v = p.grid[k];
+      if (mentorOkulMu(db, dt[0], dt[1]) || !mentorDers(db, v.c)) return;
+      r.saat++;
+      r.soru += v.q || 0;
+      r.tur[v.m]++;
+      r.ders[v.c] = (r.ders[v.c] || 0) + 1;
+    });
+  });
+  return r;
+}
+
+/** Bir günü başka güne kopyalar (okul saatleri atlanır). Programı değiştirir. */
+function mentorGunKopyala(db, p, a, b) {
+  if (a === b) return;
+  for (var t = 0; t < 24; t++) {
+    if (mentorOkulMu(db, b, t)) continue;
+    var v = p.grid[a + '-' + t];
+    if (v && !mentorOkulMu(db, a, t)) p.grid[b + '-' + t] = JSON.parse(JSON.stringify(v));
+    else delete p.grid[b + '-' + t];
+  }
+}
+
+/** Toplu öğrenci listesi: her satır "Ad Soyad, Sınıf" (virgül, noktalı virgül ya da sekme). */
+function mentorTopluOku(metin) {
+  var sonuc = [];
+  String(metin || '').split(/\r?\n/).forEach(function (l) {
+    var p = l.trim().split(/\t|;|,/).map(function (x) { return x.trim(); });
+    if (p[0]) sonuc.push({ name: p[0], cls: p[1] || '' });
+  });
+  return sonuc;
+}
+
+/** Excel'in açabileceği CSV satırları. */
+function mentorCsvSatirlari(db, s, p) {
+  var c = db.cfg || {};
+  var satirlar = [
+    [[c.org, c.mentor ? 'Mentör: ' + c.mentor : '', 'Mentörlük Ders Programı'].filter(Boolean).join(' - ')],
+    ['Öğrenci', s.name, 'Sınıf', s.cls, 'Tarih', mentorTarih(p.date)],
+    [],
+    ['Saat'].concat(MENTOR_GUNLER)
+  ];
+  for (var t = p.start; t <= p.end; t++) {
+    satirlar.push([mentorSaat(t) + '-' + mentorSaat(t + 1)].concat(MENTOR_GUNLER.map(function (_, d) {
+      if (mentorOkulMu(db, d, t)) return 'OKUL';
+      var v = p.grid[d + '-' + t];
+      var ders = v && mentorDers(db, v.c);
+      return ders ? ders.name + (v.m ? ' (' + mentorEtiket(v) + ')' : '') : '';
+    })));
+  }
+  satirlar.push([], ['Notlar', p.note || '']);
+  return satirlar;
+}
+
+function mentorCsv(satirlar) {
+  var q = function (x) { return '"' + String(x === undefined || x === null ? '' : x).replace(/"/g, '""') + '"'; };
+  return '﻿' + satirlar.map(function (r) { return r.map(q).join(';'); }).join('\r\n');
+}
+</script>
+
+      <div class="top">
+  <div>
+    <p class="panel-ad">Mentörlük Programı</p>
+    <p class="alt">Mentörlük öğrencilerin için haftalık ders, soru çözümü ve tekrar programı. Dersi seç, saate dokun; sürükleyip taşıyabilirsin.</p>
+  </div>
+  <div class="top-actions">
+    <div class="gunler" role="group" aria-label="Görünüm">
+      <button type="button" class="chip" id="mn-g-program" aria-pressed="true">Program</button>
+      <button type="button" class="chip" id="mn-g-gecmis" aria-pressed="false">Geçmiş kayıtlar</button>
+    </div>
+    <button type="button" class="btn" id="mn-istat">İstatistikler</button>
+    <button type="button" class="btn btn-primary" id="mn-yazdir">Yazdır / PDF</button>
+  </div>
+</div>
+
+<div class="layout mn-layout" id="mn-program">
+  <section class="panel mn-yan" aria-label="Öğrenci ve program ayarları">
+    <div class="blok">
+      <div class="blok-baslik"><h2>Öğrenci</h2><span class="say" id="mn-ogr-say"></span></div>
+      <select id="mn-ogr" class="inp" aria-label="Öğrenci seç"></select>
+      <div class="mn-ikili">
+        <button type="button" class="btn" id="mn-ogr-duzenle">Düzenle</button>
+        <button type="button" class="btn mn-sil" id="mn-ogr-sil">Sil</button>
+      </div>
+      <div class="mn-form" id="mn-duzenle-form" hidden>
+        <label class="mini" for="mn-d-ad">Ad soyad</label>
+        <input id="mn-d-ad" class="inp" maxlength="60">
+        <label class="mini" for="mn-d-sinif">Sınıf / şube</label>
+        <input id="mn-d-sinif" class="inp" maxlength="30">
+        <div class="mn-ikili"><button type="button" class="btn btn-primary" id="mn-d-kaydet">Kaydet</button><button type="button" class="btn" id="mn-d-vazgec">Vazgeç</button></div>
+      </div>
+      <details class="toplu" id="mn-ekle">
+        <summary>Öğrenci ekle</summary>
+        <label class="mini" for="mn-e-ad">Ad soyad</label>
+        <input id="mn-e-ad" class="inp" maxlength="60" placeholder="Ayşe Kaya">
+        <label class="mini" for="mn-e-sinif">Sınıf / şube</label>
+        <input id="mn-e-sinif" class="inp" maxlength="30" placeholder="12-A">
+        <div><button type="button" class="btn btn-primary" id="mn-e-ekle">Öğrenciyi ekle</button></div>
+      </details>
+      <details class="toplu">
+        <summary>Toplu öğrenci ekle</summary>
+        <label class="mini" for="mn-toplu">Her satıra bir öğrenci: <b>Ad Soyad, Sınıf</b>. Excel’den kopyalayıp yapıştırabilirsin.</label>
+        <textarea id="mn-toplu" class="inp" rows="5" placeholder="Ayşe Kaya, 11-A&#10;Mehmet Demir, 12-B"></textarea>
+        <div><button type="button" class="btn btn-primary" id="mn-toplu-ekle">Hepsini ekle</button></div>
+      </details>
+    </div>
+
+    <div class="blok">
+      <div class="blok-baslik"><h2>Program</h2></div>
+      <label class="mini" for="mn-tarih">Program tarihi</label>
+      <input id="mn-tarih" type="date" class="inp">
+      <div class="mn-ikili">
+        <button type="button" class="btn" id="mn-yeni">Yeni program</button>
+        <button type="button" class="btn" id="mn-kopyala">Bundan kopyala</button>
+      </div>
+    </div>
+
+    <div class="blok">
+      <div class="blok-baslik"><h2>Çalışma türü</h2></div>
+      <div class="segment mn-segment" id="mn-turler" role="group" aria-label="Çalışma türü">
+        <button type="button" class="seg" data-m="0">Ders</button>
+        <button type="button" class="seg" data-m="1">Soru çözümü</button>
+        <button type="button" class="seg" data-m="2">Ders tekrarı</button>
+      </div>
+      <div class="mn-soru" id="mn-soru-satir" hidden>
+        <label class="mini" for="mn-adet">Soru adedi</label>
+        <input id="mn-adet" type="number" min="1" max="999" value="40" class="inp inp-sayi">
+        <button type="button" class="chip chip-mini mn-hizli">20</button>
+        <button type="button" class="chip chip-mini mn-hizli">40</button>
+        <button type="button" class="chip chip-mini mn-hizli">60</button>
+        <button type="button" class="chip chip-mini mn-hizli">100</button>
+      </div>
+    </div>
+
+    <div class="blok">
+      <div class="blok-baslik"><h2>Dersler</h2><span class="say" id="mn-toplam"></span></div>
+      <div id="mn-palet" class="mn-palet"></div>
+      <p class="mini">Dersi seç, sonra tablodaki saate dokun. Seçili değilken dolu hücreye dokunmak siler.</p>
+      <details class="toplu">
+        <summary>Yeni ders ekle</summary>
+        <div class="mn-yeni-ders">
+          <input id="mn-ders-ad" class="inp" maxlength="24" placeholder="Ders adı" aria-label="Ders adı">
+          <input id="mn-ders-renk" type="color" value="#f59e0b" aria-label="Ders rengi" class="mn-renk">
+          <button type="button" class="btn btn-primary" id="mn-ders-ekle">Ekle</button>
+        </div>
+      </details>
+    </div>
+
+    <div class="blok">
+      <div class="blok-baslik"><h2>Kopyalama</h2></div>
+      <button type="button" class="btn" id="mn-hucre-kopya">Hücre kopyala</button>
+      <p class="mini">Dolu bir hücreyi kopyala, sonra boş saatlere dokunarak yapıştır. Bilgisayarda fareyle hücrenin üstüne gelip Ctrl+C / Ctrl+V de kullanılabilir.</p>
+      <details class="toplu">
+        <summary>Günü kopyala</summary>
+        <div class="mn-ikili"><select id="mn-gun-a" class="inp" aria-label="Kopyalanacak gün"></select><select id="mn-gun-b" class="inp" aria-label="Hedef gün"></select></div>
+        <div><button type="button" class="btn btn-primary" id="mn-gun-kopya">Soldaki günü sağdakine kopyala</button></div>
+      </details>
+    </div>
+
+    <div class="blok">
+      <div class="blok-baslik"><h2>Ayarlar</h2></div>
+      <details class="toplu" id="mn-saatler">
+        <summary>Saat aralığı ve okul saatleri</summary>
+        <div class="mn-ikili">
+          <label class="mini">İlk saat<select id="mn-bas" class="inp"></select></label>
+          <label class="mini">Son saat<select id="mn-bit" class="inp"></select></label>
+        </div>
+        <label class="mn-onay"><input type="checkbox" id="mn-okul-acik"> Hafta içi okul saatlerini kapat</label>
+        <div class="mn-ikili">
+          <label class="mini">Okul başlangıç<select id="mn-okul-bas" class="inp"></select></label>
+          <label class="mini">Okul bitiş<select id="mn-okul-bit" class="inp"></select></label>
+        </div>
+      </details>
+      <details class="toplu">
+        <summary>Şablonlar</summary>
+        <select id="mn-sablon" class="inp" aria-label="Şablon"></select>
+        <div class="mn-ikili"><button type="button" class="btn btn-primary" id="mn-sablon-uygula">Uygula</button><button type="button" class="btn mn-sil" id="mn-sablon-sil">Sil</button></div>
+        <div class="mn-yeni-ders">
+          <input id="mn-sablon-ad" class="inp" maxlength="40" placeholder="Yeni şablon adı" aria-label="Yeni şablon adı">
+          <button type="button" class="btn" id="mn-sablon-kaydet">Bu programı kaydet</button>
+        </div>
+        <p class="mini">Uygula: seçili şablonu bu programa yükler. Kaydet: bu programı şablon yapar.</p>
+      </details>
+      <details class="toplu">
+        <summary>Çıktı başlığı ve logo</summary>
+        <input id="mn-kurum" class="inp" maxlength="60" placeholder="Kurum / takım adı" aria-label="Kurum adı">
+        <input id="mn-mentor" class="inp" maxlength="60" placeholder="Mentör adı" aria-label="Mentör adı">
+        <div class="mn-ikili">
+          <label class="btn mn-dosya-btn">Logo yükle<input id="mn-logo" type="file" accept="image/*" class="gizli-girdi"></label>
+          <button type="button" class="btn" id="mn-logo-sil">Logoyu kaldır</button>
+        </div>
+      </details>
+    </div>
+
+    <div class="blok">
+      <div class="blok-baslik"><h2>Yedek ve dışa aktarma</h2></div>
+      <p class="mini" id="mn-yedek-bilgi"></p>
+      <div class="mn-ikili">
+        <button type="button" class="btn" id="mn-yedek-al">Yedeği indir</button>
+        <label class="btn mn-dosya-btn">Yedekten yükle<input id="mn-yedek-yukle" type="file" accept=".json,application/json" class="gizli-girdi"></label>
+      </div>
+      <div class="mn-ikili">
+        <button type="button" class="btn" id="mn-csv">Excel (CSV)</button>
+        <button type="button" class="btn" id="mn-pdf">PDF indir (resim)</button>
+      </div>
+      <button type="button" class="btn mn-sil" id="mn-temizle">Tabloyu temizle</button>
+    </div>
+  </section>
+
+  <section class="panel mn-sag" aria-label="Haftalık program">
+    <div class="mn-secim" id="mn-secim" hidden role="status">
+      <span id="mn-secim-metin"></span>
+      <button type="button" class="link-acik" id="mn-secim-x">Vazgeç</button>
+    </div>
+    <div id="mn-sayfa" class="mn-sayfa">
+      <div class="mn-ust">
+        <div class="mn-marka">
+          <img id="mn-p-logo" class="mn-logo" alt="" hidden>
+          <div>
+            <div id="mn-p-kurum" class="mini"></div>
+            <h2 class="mn-baslik">Mentörlük Ders Programı</h2>
+          </div>
+        </div>
+        <dl class="mn-bilgi">
+          <div><dt>Öğrenci</dt><dd id="mn-p-ad"></dd></div>
+          <div><dt>Sınıf</dt><dd id="mn-p-sinif"></dd></div>
+          <div><dt>Tarih</dt><dd id="mn-p-tarih"></dd></div>
+        </dl>
+      </div>
+      <div class="mn-gun-sekme yazdirma" id="mn-gun-sekme" role="group" aria-label="Gün"></div>
+      <div class="tablo-kap mn-tablo-kap" id="mn-tablo-kap">
+        <table class="mn-tablo" id="mn-tablo">
+          <thead><tr id="mn-thead"></tr></thead>
+          <tbody id="mn-tbody"></tbody>
+        </table>
+      </div>
+      <div class="mn-lejant">
+        <span><i class="mn-ornek"></i>Ders</span>
+        <span><i class="mn-ornek m1"></i>Soru çözümü</span>
+        <span><i class="mn-ornek m2"></i>Ders tekrarı</span>
+        <span id="mn-lejant-okul"><i class="mn-ornek mn-okul-ornek"></i><span id="mn-okul-metin">Okul</span></span>
+      </div>
+      <div class="mn-not" id="mn-not-kap">
+        <label class="mini" for="mn-not">Haftalık hedefler / öğretmen notu / ödevler</label>
+        <textarea id="mn-not" class="inp yazdirma" rows="3" placeholder="Bu hafta için hedefler, notlar veya ödevler..."></textarea>
+        <div id="mn-not-yazi" class="mn-not-yazi"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div id="mn-gecmis-gorunum" class="panel" hidden>
+  <div class="blok">
+    <div class="blok-baslik"><h2>Geçmiş kayıtlar</h2></div>
+    <select id="mn-g-ogr" class="inp mn-g-sec" aria-label="Öğrenci filtresi"></select>
+    <div id="mn-g-liste" class="mn-g-liste"></div>
+  </div>
+</div>
+
+<dialog id="mn-istat-pencere" class="mn-pencere" aria-labelledby="mn-istat-baslik">
+  <div class="blok">
+    <div class="blok-baslik"><h2 id="mn-istat-baslik">İstatistikler</h2><button type="button" class="btn" id="mn-istat-kapat">Kapat</button></div>
+    <div class="segment" role="group" aria-label="Kapsam">
+      <button type="button" class="seg" id="mn-k-bu">Bu program</button>
+      <button type="button" class="seg" id="mn-k-tum">Tüm programlar</button>
+    </div>
+    <div id="mn-istat-govde" class="blok"></div>
+  </div>
+</dialog>
+
+<style>
+  .mn-layout { align-items: start; }
+  @media (min-width: 62rem) { .mn-layout { grid-template-columns: minmax(0, 20rem) minmax(0, 1fr); } }
+  .mn-yan { gap: 1rem; }
+  .mn-ikili { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+  .mn-ikili .mini { display: grid; gap: 0.2rem; }
+  .mn-form { display: grid; gap: 0.4rem; padding: 0.6rem; border: 1px solid var(--line); border-radius: 6px; }
+  .mn-sil { color: var(--warn); }
+  .mn-segment { grid-template-columns: repeat(3, 1fr); }
+  .mn-segment .seg { font-size: 0.82rem; padding-inline: 0.25rem; line-height: 1.2; }
+  .seg.on, .seg[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+  .mn-soru { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+  .mn-palet { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .mn-hap { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.35rem 0.3rem 0.75rem; border-radius: 999px; border: 0; color: #fff; font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+  .mn-hap[aria-pressed="true"] { outline: 3px solid var(--ink); outline-offset: 2px; }
+  .mn-hap .mn-adet { background: rgba(255, 255, 255, 0.28); border-radius: 999px; padding: 0 0.4rem; font-size: 0.7rem; }
+  .mn-hap .mn-kaldir { width: 1.15rem; height: 1.15rem; border-radius: 50%; border: 0; background: rgba(255, 255, 255, 0.28); color: #fff; font-size: 0.75rem; line-height: 1; cursor: pointer; padding: 0; }
+  .mn-yeni-ders { display: flex; gap: 0.4rem; align-items: center; }
+  .mn-yeni-ders .inp { flex: 1; min-width: 0; }
+  .mn-renk { width: 2.6rem; height: 2.3rem; padding: 2px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+  .mn-onay { display: flex; gap: 0.4rem; align-items: center; font-size: 0.85rem; }
+  .mn-dosya-btn { position: relative; overflow: hidden; text-align: center; cursor: pointer; }
+  .btn.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+  .mn-sag { gap: 0.75rem; }
+  .mn-secim { position: sticky; top: 0.5rem; z-index: 3; display: flex; justify-content: space-between; gap: 0.75rem; align-items: center; background: var(--accent); color: var(--accent-ink); border-radius: 6px; padding: 0.55rem 0.9rem; font-size: 0.9rem; box-shadow: 0 6px 18px rgba(16, 38, 74, 0.18); }
+  .link-acik { border: 0; background: none; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }
+  .mn-sayfa { display: grid; gap: 0.75rem; }
+  .mn-ust { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 0.75rem 1.5rem; padding-bottom: 0.75rem; border-bottom: 2px solid var(--accent); }
+  .mn-marka { display: flex; gap: 0.75rem; align-items: center; }
+  .mn-logo { height: 3rem; width: auto; }
+  .mn-baslik { font-size: 1.5rem; text-transform: none; letter-spacing: 0; color: var(--yan); font-weight: 700; }
+  .mn-bilgi { display: flex; gap: 1.25rem; margin: 0; font-size: 0.9rem; }
+  .mn-bilgi dt { font-size: 0.72rem; color: var(--muted); }
+  .mn-bilgi dd { margin: 0; font-weight: 600; }
+  .mn-gun-sekme { display: none; gap: 0.3rem; overflow-x: auto; }
+  .mn-tablo { width: 100%; min-width: 38rem; border-collapse: collapse; text-align: center; font-size: 0.78rem; }
+  .mn-tablo th { background: var(--yan); color: #fff; padding: 0.5rem 0.2rem; font-weight: 600; font-size: 0.74rem; }
+  .mn-tablo th.bugun { background: var(--accent); }
+  .mn-tablo th.mn-saat-bas, .mn-tablo td.mn-saat { position: sticky; left: 0; z-index: 1; width: 4.4rem; }
+  .mn-tablo td.mn-saat { background: var(--surface-2); font-weight: 700; font-size: 0.72rem; border-right: 1px solid var(--line); }
+  .mn-tablo td.mn-saat span { display: block; font-weight: 400; color: var(--muted); font-size: 0.62rem; }
+  .mn-tablo tr + tr td { border-top: 1px solid var(--line); }
+  .mn-tablo tbody tr:nth-child(even) td.mn-hucre { background: #F7FAFE; }
+  .mn-hucre { height: 2.75rem; padding: 3px; border-right: 1px solid var(--line); min-width: 4.6rem; cursor: pointer; }
+  body.mn-firca .mn-hucre { cursor: copy; }
+  .mn-hucre.drag-over { background: var(--accent-soft) !important; outline: 2px dashed var(--accent); outline-offset: -2px; }
+  .mn-kart { position: relative; height: 100%; min-height: 2.3rem; border-radius: 6px; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 0.2rem; line-height: 1.15; }
+  .mn-kart .mn-k-ad { font-weight: 600; font-size: 0.72rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mn-kart .mn-k-et { font-size: 0.6rem; }
+  .mn-kart.surukleniyor { opacity: 0.4; }
+  .m1 { background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.25) 0 5px, transparent 5px 10px); }
+  .m2 { outline: 2px solid rgba(255, 255, 255, 0.85); outline-offset: -4px; }
+  .mn-kart .mn-x { position: absolute; top: -0.4rem; right: -0.4rem; width: 1.2rem; height: 1.2rem; border-radius: 50%; background: #fff; color: var(--warn); border: 1px solid var(--line); font-size: 0.75rem; line-height: 1; padding: 0; cursor: pointer; opacity: 0; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15); }
+  .mn-kart:hover .mn-x, .mn-kart:focus-within .mn-x { opacity: 1; }
+  @media (hover: none) { .mn-kart .mn-x { opacity: 1; } }
+  .mn-okul { height: 100%; min-height: 2.3rem; border-radius: 6px; display: flex; align-items: center; justify-content: center; background: repeating-linear-gradient(135deg, rgba(86, 107, 140, 0.18) 0 6px, transparent 6px 12px); color: var(--muted); font-weight: 600; font-size: 0.62rem; letter-spacing: 0.05em; }
+  .mn-lejant { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; font-size: 0.75rem; color: var(--muted); }
+  .mn-lejant > span { display: inline-flex; align-items: center; gap: 0.35rem; }
+  .mn-ornek { display: inline-block; width: 1rem; height: 0.75rem; border-radius: 3px; background: var(--muted); }
+  .mn-okul-ornek { background: repeating-linear-gradient(135deg, rgba(86, 107, 140, 0.3) 0 3px, transparent 3px 6px); border: 1px solid var(--line); }
+  .mn-not { display: grid; gap: 0.3rem; }
+  .mn-not-yazi { display: none; white-space: pre-wrap; font-size: 0.85rem; }
+
+  /* Dar ekran: tek gün göster */
+  @media (max-width: 40rem) {
+    .mn-gun-sekme { display: flex; }
+    .mn-tablo { min-width: 0; }
+    .mn-hucre { height: 3rem; }
+    .mn-tablo-kap[data-gun="0"] [data-d]:not([data-d="0"]), .mn-tablo-kap[data-gun="1"] [data-d]:not([data-d="1"]),
+    .mn-tablo-kap[data-gun="2"] [data-d]:not([data-d="2"]), .mn-tablo-kap[data-gun="3"] [data-d]:not([data-d="3"]),
+    .mn-tablo-kap[data-gun="4"] [data-d]:not([data-d="4"]), .mn-tablo-kap[data-gun="5"] [data-d]:not([data-d="5"]),
+    .mn-tablo-kap[data-gun="6"] [data-d]:not([data-d="6"]) { display: none; }
+  }
+
+  /* Geçmiş */
+  .mn-g-sec { max-width: 20rem; }
+  .mn-g-liste { display: grid; gap: 1rem; }
+  .mn-g-ogr { border: 1px solid var(--line); border-radius: 8px; }
+  .mn-g-ogr > summary { display: flex; justify-content: space-between; gap: 0.5rem; padding: 0.7rem 0.9rem; cursor: pointer; font-weight: 600; }
+  .mn-g-ogr > summary small { color: var(--muted); font-weight: 400; }
+  .mn-g-kartlar { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); padding: 0 0.9rem 0.9rem; }
+  .mn-g-kart { background: var(--surface-2); border-radius: 8px; padding: 0.75rem; display: grid; gap: 0.4rem; }
+  .mn-g-kart strong { font-size: 0.95rem; }
+  .mn-mini { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .mn-mini i { height: 6px; border-radius: 1px; }
+
+  /* İstatistik penceresi */
+  .mn-pencere { border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem; width: min(40rem, 94vw); max-height: 90vh; color: var(--ink); background: var(--surface); }
+  .mn-pencere::backdrop { background: rgba(16, 38, 74, 0.45); }
+  .mn-kutucuklar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+  .mn-kutucuklar div { background: var(--surface-2); border-radius: 8px; padding: 0.7rem; text-align: center; }
+  .mn-kutucuklar b { display: block; font-family: var(--font-mono); font-size: 1.4rem; color: var(--yan); }
+  .mn-kutucuklar span { font-size: 0.75rem; color: var(--muted); }
+
+  @media print {
+    @page { size: A4 landscape; margin: 8mm; }
+    body.yazdir-mentor { background: #fff !important; }
+    body.yazdir-mentor .yan, body.yazdir-mentor #panel-nobet, body.yazdir-mentor #panel-sinav,
+    body.yazdir-mentor #panel-mentor > .top, body.yazdir-mentor .mn-yan, body.yazdir-mentor .mn-secim,
+    body.yazdir-mentor .yazdirma, body.yazdir-mentor .mn-x, body.yazdir-mentor #mn-gecmis-gorunum { display: none !important; }
+    body.yazdir-mentor .kabuk, body.yazdir-mentor .mn-layout { display: block !important; }
+    html:has(body.yazdir-mentor), body.yazdir-mentor { height: auto !important; min-height: 0 !important; }
+    body.yazdir-mentor .kabuk { min-height: 0 !important; }
+    body.yazdir-mentor .mn-sayfa { break-inside: avoid; }
+    body.yazdir-mentor .icerik { padding: 0 !important; }
+    body.yazdir-mentor .mn-sag { border: 0; padding: 0; }
+    body.yazdir-mentor .tablo-kap { overflow: visible; border: 1px solid #cbd5e1; }
+    body.yazdir-mentor .mn-tablo { min-width: 0; }
+    body.yazdir-mentor .mn-tablo [data-d] { display: table-cell !important; }
+    body.yazdir-mentor .mn-tablo th.mn-saat-bas, body.yazdir-mentor .mn-tablo td.mn-saat { position: static; }
+    body.yazdir-mentor .mn-tablo th { padding: 1.2mm 0.5mm; }
+    body.yazdir-mentor .mn-tablo td { height: 6.6mm; padding: 0.4mm; line-height: 1.05; }
+    body.yazdir-mentor .mn-tablo td.mn-saat { font-size: 7.5pt; }
+    body.yazdir-mentor .mn-tablo td.mn-saat span { font-size: 6pt; }
+    body.yazdir-mentor .mn-kart, body.yazdir-mentor .mn-okul { min-height: 0; height: 5.8mm; line-height: 1.05; }
+    body.yazdir-mentor .mn-kart .mn-k-ad { font-size: 7.5pt; }
+    body.yazdir-mentor .mn-kart .mn-k-et { font-size: 6pt; }
+    body.yazdir-mentor .mn-sayfa { gap: 2.5mm; }
+    body.yazdir-mentor .mn-ust { padding-bottom: 2mm; }
+    body.yazdir-mentor .mn-baslik { font-size: 15pt; }
+    body.yazdir-mentor .mn-not-yazi { display: block; }
+    body.yazdir-mentor .mn-not.bos { display: none; }
+    body.yazdir-mentor * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+
+<script>
+(function () {
+  var DEPO_ON = 'mdea_mentor_';
+  var db = mentorYeniDb('');
+  var anahtar = null;
+  var secili = null;     // seçili ders kimliği (fırça)
+  var tur = 0;           // 0 ders, 1 soru çözümü, 2 tekrar
+  var adet = 40;
+  var kopyaModu = false;
+  var surukle = null;
+  var ustunde = null;
+  var gun = (new Date().getDay() + 6) % 7;
+  var kapsam = 0;
+
+  /* ---------- Depolama (kullanıcıya özel, bu tarayıcıda) ---------- */
+  function depoOku(k) { try { return window.localStorage.getItem(k); } catch (e) { return null; } }
+  function depoYaz(k, v) { try { window.localStorage.setItem(k, v); return true; } catch (e) { return false; } }
+  function kaydet() { if (anahtar) depoYaz(anahtar, JSON.stringify(db)); }
+
+  function kullaniciAc(r) {
+    anahtar = DEPO_ON + r.kullanici;
+    var ham = depoOku(anahtar);
+    var x = null;
+    try { x = ham ? mentorDbDuzelt(JSON.parse(ham), r.ad) : null; } catch (e) { x = null; }
+    db = x || mentorYeniDb(r.ad);
+    try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+    secili = null; kopyaModu = false;
+    ciz();
+  }
+  function kullaniciKapat() {
+    anahtar = null;
+    db = mentorYeniDb('');
+    secili = null; kopyaModu = false;
+    ciz();
+  }
+  document.addEventListener('mdea:giris', function (e) { kullaniciAc(e.detail); });
+  document.addEventListener('mdea:cikis', kullaniciKapat);
+
+  /* ---------- Kısa yollar ---------- */
+  function ogr() { return db.students.filter(function (s) { return s.id === db.sid; })[0] || null; }
+  function prg() { return db.plans.filter(function (p) { return p.id === db.pid && p.sid === db.sid; })[0] || null; }
+  function ders(id) { return mentorDers(db, id); }
+  function okulMu(d, t) { return mentorOkulMu(db, d, t); }
+
+  function yeniProgram(sid, kaynak) {
+    var p = {
+      id: mentorId(), sid: sid, date: mentorBugun(),
+      start: kaynak ? kaynak.start : 8, end: kaynak ? kaynak.end : 23,
+      grid: kaynak ? JSON.parse(JSON.stringify(kaynak.grid)) : {}
+    };
+    db.plans.push(p);
+    db.pid = p.id;
+    return p;
+  }
+  function hazirla() {
+    if (!ogr()) db.sid = db.students.length ? db.students[0].id : null;
+    if (db.sid && !prg()) {
+      var ps = mentorProgramlari(db, db.sid);
+      db.pid = ps.length ? ps[ps.length - 1].id : yeniProgram(db.sid).id;
+    }
+    kaydet();
+  }
+  function ogrenciGerekli() {
+    $('mn-ekle').open = true;
+    $('mn-e-ad').focus();
+    return true;
+  }
+  function ogrenciSec(id) { db.sid = id; db.pid = null; hazirla(); ciz(); }
+
+  /* ---------- Çizim ---------- */
+  function ciz() {
+    hazirla();
+    var s = ogr(), p = prg();
+    var sec = $('mn-ogr');
+    sec.textContent = '';
+    if (!db.students.length) sec.appendChild(el('option', { value: '', text: 'Henüz öğrenci yok' }));
+    db.students.forEach(function (x) { sec.appendChild(el('option', { value: x.id, text: x.name + (x.cls ? ' (' + x.cls + ')' : '') })); });
+    if (s) sec.value = s.id;
+    $('mn-ogr-say').textContent = db.students.length ? db.students.length + ' öğrenci' : '';
+    if (!s) $('mn-ekle').open = true;
+    $('mn-duzenle-form').hidden = true;
+    if (p) { $('mn-tarih').value = p.date; $('mn-bas').value = String(p.start); $('mn-bit').value = String(p.end); }
+    $('mn-p-ad').textContent = s ? s.name : 'Öğrenci seçilmedi';
+    $('mn-p-sinif').textContent = s && s.cls || '-';
+    $('mn-p-tarih').textContent = p ? mentorTarih(p.date) : '-';
+    ayarlariCiz();
+    turleriCiz();
+    yedekCiz();
+    tabloKur();
+    if (!$('mn-gecmis-gorunum').hidden) gecmisCiz();
+  }
+
+  function ayarlariCiz() {
+    var c = db.cfg, p = prg();
+    $('mn-p-kurum').textContent = [c.org, c.mentor ? 'Mentör: ' + c.mentor : ''].filter(Boolean).join(' · ');
+    var lg = $('mn-p-logo');
+    if (c.logo) { lg.src = c.logo; lg.hidden = false; } else { lg.removeAttribute('src'); lg.hidden = true; }
+    $('mn-kurum').value = c.org;
+    $('mn-mentor').value = c.mentor;
+    $('mn-okul-acik').checked = c.okul.acik;
+    $('mn-okul-bas').value = String(c.okul.bas);
+    $('mn-okul-bit').value = String(c.okul.bit);
+    $('mn-okul-bas').disabled = $('mn-okul-bit').disabled = !c.okul.acik;
+    $('mn-lejant-okul').hidden = !c.okul.acik;
+    $('mn-okul-metin').textContent = 'Okul (Pzt–Cum ' + mentorSaat(c.okul.bas) + '–' + mentorSaat(c.okul.bit) + ')';
+    $('mn-not').value = p && p.note || '';
+    $('mn-not').disabled = !p;
+    $('mn-not-yazi').textContent = p && p.note || '';
+    $('mn-not-kap').classList.toggle('bos', !(p && p.note));
+    var ts = $('mn-sablon'), onceki = ts.value;
+    ts.textContent = '';
+    db.tpls.forEach(function (t) { ts.appendChild(el('option', { value: t.id, text: t.name })); });
+    if (onceki && db.tpls.some(function (t) { return t.id === onceki; })) ts.value = onceki;
+    var gs = $('mn-gun-sekme');
+    gs.textContent = '';
+    MENTOR_GUNLER.forEach(function (d, i) {
+      gs.appendChild(el('button', { type: 'button', class: 'chip chip-mini', 'aria-pressed': i === gun ? 'true' : 'false', text: MENTOR_GUN_KISA[i], 'aria-label': d,
+        onclick: function () { gun = i; $('mn-tablo-kap').dataset.gun = String(i); ayarlariCiz(); } }));
+    });
+    $('mn-tablo-kap').dataset.gun = String(gun);
+  }
+
+  function tabloKur() {
+    var p = prg() || { start: 8, end: 23 };
+    var bugun = (new Date().getDay() + 6) % 7;
+    var bas = $('mn-thead');
+    bas.textContent = '';
+    bas.appendChild(el('th', { scope: 'col', class: 'mn-saat-bas', text: 'Saat' }));
+    MENTOR_GUNLER.forEach(function (d, i) { bas.appendChild(el('th', { scope: 'col', 'data-d': String(i), class: i === bugun ? 'bugun' : '', text: d })); });
+    var govde = $('mn-tbody');
+    govde.textContent = '';
+    for (var t = p.start; t <= p.end; t++) {
+      var satir = el('tr', {}, [el('td', { class: 'mn-saat' }, [mentorSaat(t), el('span', { text: mentorSaat(t + 1) })])]);
+      for (var d = 0; d < 7; d++) satir.appendChild(el('td', { class: 'mn-hucre', 'data-d': String(d), 'data-k': d + '-' + t }));
+      govde.appendChild(satir);
+    }
+    hucreleriBoya();
+  }
+
+  function hucreleriBoya() {
+    var p = prg(), g = p ? p.grid : {};
+    var oz = mentorOzet(db, p ? [p] : []);
+    document.querySelectorAll('#mn-tbody .mn-hucre').forEach(function (td) {
+      td.textContent = '';
+      var k = td.dataset.k, dt = k.split('-').map(Number);
+      td.removeAttribute('title');
+      if (okulMu(dt[0], dt[1])) { td.appendChild(el('div', { class: 'mn-okul', text: 'OKUL' })); return; }
+      var v = g[k], c = v && ders(v.c);
+      if (!c) { td.setAttribute('aria-label', MENTOR_GUNLER[dt[0]] + ' ' + mentorSaat(dt[1]) + ' boş'); return; }
+      td.setAttribute('title', c.name + ' · ' + MENTOR_TURLER[v.m] + (v.q ? ' · ' + v.q + ' soru' : '') + '\n' + MENTOR_GUNLER[dt[0]] + ' ' + mentorSaat(dt[1]) + '–' + mentorSaat(dt[1] + 1));
+      td.setAttribute('aria-label', MENTOR_GUNLER[dt[0]] + ' ' + mentorSaat(dt[1]) + ': ' + c.name + (v.m ? ', ' + mentorEtiket(v) : ''));
+      var kart = el('div', { class: 'mn-kart' + (v.m ? ' m' + v.m : ''), draggable: 'true', 'data-kart': k }, [
+        el('span', { class: 'mn-k-ad', text: c.name }),
+        v.m ? el('span', { class: 'mn-k-et', text: mentorEtiket(v) }) : null,
+        el('button', { type: 'button', class: 'mn-x', 'data-sil': k, 'aria-label': c.name + ' sil', text: '×' })
+      ]);
+      kart.style.background = c.color;
+      td.appendChild(kart);
+    });
+    // Palet
+    var pal = $('mn-palet');
+    pal.textContent = '';
+    db.courses.forEach(function (c) {
+      var hap = el('div', { class: 'mn-hap', role: 'button', tabindex: '0', 'aria-pressed': secili === c.id ? 'true' : 'false', draggable: 'true', 'data-id': c.id }, [
+        el('span', { text: c.name }),
+        oz.ders[c.id] ? el('span', { class: 'mn-adet', text: oz.ders[c.id] + ' sa' }) : null,
+        el('button', { type: 'button', class: 'mn-kaldir', 'aria-label': c.name + ' dersini kaldır', text: '×' })
+      ]);
+      hap.style.background = c.color;
+      pal.appendChild(hap);
+    });
+    $('mn-toplam').textContent = oz.saat ? oz.saat + ' saat · ' + oz.tur[0] + ' ders, ' + oz.tur[1] + ' soru' + (oz.soru ? ' (' + oz.soru + ')' : '') + ', ' + oz.tur[2] + ' tekrar' : '';
+    kaydet();
+  }
+
+  /* ---------- Fırça ---------- */
+  function firca() { return tur === 1 ? { c: secili, m: 1, q: adet } : { c: secili, m: tur }; }
+  function turleriCiz() {
+    document.querySelectorAll('#mn-turler .seg').forEach(function (b) { b.setAttribute('aria-pressed', +b.dataset.m === tur ? 'true' : 'false'); });
+    $('mn-soru-satir').hidden = tur !== 1;
+    $('mn-adet').value = String(adet);
+    $('mn-hucre-kopya').classList.toggle('on', kopyaModu);
+    $('mn-hucre-kopya').textContent = kopyaModu ? 'Kopyalanacak hücreye dokun…' : 'Hücre kopyala';
+  }
+  function secimCiz() {
+    var c = ders(secili), goster = !!(c || kopyaModu);
+    $('mn-secim').hidden = !goster;
+    document.body.classList.toggle('mn-firca', !!c);
+    $('mn-secim-metin').textContent = kopyaModu ? 'Kopyalamak için dolu bir hücreye dokun.'
+      : c ? c.name + ' · ' + MENTOR_TURLER[tur] + (tur === 1 ? ' (' + adet + ' soru)' : '') + '. Yerleştirmek için saate dokun.' : '';
+    turleriCiz();
+  }
+  function fircaSec(id) { secili = id; kopyaModu = false; secimCiz(); hucreleriBoya(); }
+
+  /* ---------- Olaylar: öğrenci ---------- */
+  $('mn-ogr').addEventListener('change', function () { if (this.value) ogrenciSec(this.value); });
+  $('mn-e-ekle').addEventListener('click', function () {
+    var ad = $('mn-e-ad').value.trim();
+    if (!ad) { $('mn-e-ad').focus(); return; }
+    var s = { id: mentorId(), name: ad, cls: $('mn-e-sinif').value.trim() };
+    db.students.push(s);
+    $('mn-e-ad').value = ''; $('mn-e-sinif').value = '';
+    $('mn-ekle').open = false;
+    ogrenciSec(s.id);
+  });
+  $('mn-e-ad').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('mn-e-ekle').click(); });
+  $('mn-toplu-ekle').addEventListener('click', function () {
+    var liste = mentorTopluOku($('mn-toplu').value);
+    if (!liste.length) { $('mn-toplu').focus(); return; }
+    var son;
+    liste.forEach(function (x) { son = { id: mentorId(), name: x.name, cls: x.cls }; db.students.push(son); });
+    $('mn-toplu').value = '';
+    ogrenciSec(son.id);
+    bildir(liste.length + ' öğrenci eklendi.');
+  });
+  $('mn-ogr-duzenle').addEventListener('click', function () {
+    var s = ogr(); if (!s) return ogrenciGerekli();
+    $('mn-d-ad').value = s.name; $('mn-d-sinif').value = s.cls;
+    $('mn-duzenle-form').hidden = false; $('mn-d-ad').focus();
+  });
+  $('mn-d-vazgec').addEventListener('click', function () { $('mn-duzenle-form').hidden = true; });
+  $('mn-d-kaydet').addEventListener('click', function () {
+    var s = ogr(); if (!s) return;
+    s.name = $('mn-d-ad').value.trim() || s.name;
+    s.cls = $('mn-d-sinif').value.trim();
+    ciz();
+  });
+  $('mn-ogr-sil').addEventListener('click', function () {
+    var s = ogr(); if (!s) return;
+    if (!confirm(s.name + ' ve tüm programları silinsin mi?')) return;
+    db.students = db.students.filter(function (x) { return x.id !== s.id; });
+    db.plans = db.plans.filter(function (p) { return p.sid !== s.id; });
+    db.sid = null; db.pid = null;
+    ciz();
+  });
+
+  /* ---------- Olaylar: program ---------- */
+  $('mn-yeni').addEventListener('click', function () { if (!ogr()) return ogrenciGerekli(); yeniProgram(db.sid); ciz(); bildir('Yeni boş program açıldı.'); });
+  $('mn-kopyala').addEventListener('click', function () { var p = prg(); if (!p) return ogrenciGerekli(); yeniProgram(db.sid, p); ciz(); bildir('Program kopyalandı, bugünün tarihiyle açıldı.'); });
+  $('mn-tarih').addEventListener('change', function () { var p = prg(); if (!p) return; p.date = this.value || mentorBugun(); ciz(); });
+  for (var h = 0; h <= 23; h++) {
+    $('mn-bas').appendChild(el('option', { value: String(h), text: mentorSaat(h) }));
+    $('mn-bit').appendChild(el('option', { value: String(h), text: mentorSaat(h) + ' – ' + mentorSaat(h + 1) }));
+    $('mn-okul-bas').appendChild(el('option', { value: String(h), text: mentorSaat(h) }));
+    $('mn-okul-bit').appendChild(el('option', { value: String(h), text: mentorSaat(h) }));
+  }
+  $('mn-bas').addEventListener('change', function () {
+    var p = prg(); if (!p) return;
+    p.start = +this.value; if (p.end < p.start) { p.end = p.start; $('mn-bit').value = String(p.end); }
+    tabloKur();
+  });
+  $('mn-bit').addEventListener('change', function () {
+    var p = prg(); if (!p) return;
+    p.end = +this.value; if (p.end < p.start) { p.start = p.end; $('mn-bas').value = String(p.start); }
+    tabloKur();
+  });
+  $('mn-okul-acik').addEventListener('change', function () { db.cfg.okul.acik = this.checked; ayarlariCiz(); hucreleriBoya(); });
+  $('mn-okul-bas').addEventListener('change', function () {
+    db.cfg.okul.bas = +this.value; if (db.cfg.okul.bit <= db.cfg.okul.bas) db.cfg.okul.bit = Math.min(24, db.cfg.okul.bas + 1);
+    ayarlariCiz(); hucreleriBoya();
+  });
+  $('mn-okul-bit').addEventListener('change', function () {
+    db.cfg.okul.bit = +this.value; if (db.cfg.okul.bit <= db.cfg.okul.bas) db.cfg.okul.bas = Math.max(0, db.cfg.okul.bit - 1);
+    ayarlariCiz(); hucreleriBoya();
+  });
+  MENTOR_GUNLER.forEach(function (d, i) {
+    $('mn-gun-a').appendChild(el('option', { value: String(i), text: d }));
+    $('mn-gun-b').appendChild(el('option', { value: String(i), text: d }));
+  });
+  $('mn-gun-b').value = '1';
+  $('mn-gun-kopya').addEventListener('click', function () {
+    var p = prg(); if (!p) return ogrenciGerekli();
+    var a = +$('mn-gun-a').value, b = +$('mn-gun-b').value;
+    if (a === b) return;
+    mentorGunKopyala(db, p, a, b);
+    hucreleriBoya();
+    bildir(MENTOR_GUNLER[a] + ', ' + MENTOR_GUNLER[b] + ' gününe kopyalandı.');
+  });
+  $('mn-temizle').addEventListener('click', function () {
+    var p = prg(); if (!p) return;
+    if (confirm('Bu programın tablosu temizlensin mi?')) { p.grid = {}; hucreleriBoya(); }
+  });
+  $('mn-not').addEventListener('input', function () {
+    var p = prg(); if (!p) return;
+    p.note = this.value;
+    $('mn-not-yazi').textContent = p.note;
+    $('mn-not-kap').classList.toggle('bos', !p.note);
+    kaydet();
+  });
+
+  /* ---------- Olaylar: tür, ders, kopyalama ---------- */
+  $('mn-turler').addEventListener('click', function (e) {
+    var b = e.target.closest('.seg'); if (!b) return;
+    tur = +b.dataset.m; secimCiz();
+  });
+  $('mn-adet').addEventListener('input', function () { adet = Math.max(1, +this.value || 1); secimCiz(); });
+  document.querySelectorAll('.mn-hizli').forEach(function (b) {
+    b.addEventListener('click', function () { adet = +b.textContent; secimCiz(); });
+  });
+  $('mn-hucre-kopya').addEventListener('click', function () { kopyaModu = !kopyaModu; secimCiz(); });
+  $('mn-secim-x').addEventListener('click', function () { secili = null; kopyaModu = false; secimCiz(); hucreleriBoya(); });
+
+  function hapEylem(e) {
+    var hap = e.target.closest('.mn-hap'); if (!hap) return;
+    var id = hap.dataset.id;
+    if (e.target.closest('.mn-kaldir')) {
+      var kullanilan = db.plans.some(function (x) { return Object.keys(x.grid).some(function (k) { return x.grid[k].c === id; }); });
+      if (kullanilan && !confirm('Bu ders programlarda kullanılıyor. Hepsinden silinsin mi?')) return;
+      db.courses = db.courses.filter(function (c) { return c.id !== id; });
+      db.plans.forEach(function (x) { Object.keys(x.grid).forEach(function (k) { if (x.grid[k].c === id) delete x.grid[k]; }); });
+      if (secili === id) secili = null;
+      secimCiz(); hucreleriBoya();
+      return;
+    }
+    fircaSec(secili === id ? null : id);
+  }
+  $('mn-palet').addEventListener('click', hapEylem);
+  $('mn-palet').addEventListener('keydown', function (e) { if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('mn-hap')) { e.preventDefault(); hapEylem(e); } });
+  $('mn-palet').addEventListener('dragstart', function (e) {
+    var hap = e.target.closest('.mn-hap'); if (!hap) return;
+    var v = firca(); v.c = hap.dataset.id;
+    surukle = { v: v, kaynak: null };
+    e.dataTransfer.setData('text/plain', 'x');
+    e.dataTransfer.effectAllowed = 'copyMove';
+  });
+  function dersEkle() {
+    var ad = $('mn-ders-ad').value.trim();
+    if (!ad) { $('mn-ders-ad').focus(); return; }
+    db.courses.push({ id: mentorId(), name: ad, color: $('mn-ders-renk').value });
+    $('mn-ders-ad').value = '';
+    hucreleriBoya();
+  }
+  $('mn-ders-ekle').addEventListener('click', dersEkle);
+  $('mn-ders-ad').addEventListener('keydown', function (e) { if (e.key === 'Enter') dersEkle(); });
+
+  /* ---------- Tablo etkileşimi ---------- */
+  var tb = $('mn-tbody');
+  tb.addEventListener('click', function (e) {
+    var p = prg(); if (!p) return ogrenciGerekli();
+    var sil = e.target.closest('[data-sil]');
+    if (sil) { delete p.grid[sil.dataset.sil]; hucreleriBoya(); return; }
+    var td = e.target.closest('.mn-hucre'); if (!td) return;
+    var k = td.dataset.k, dt = k.split('-').map(Number);
+    if (okulMu(dt[0], dt[1])) return;
+    if (kopyaModu) {
+      var v = p.grid[k]; if (!v) return;
+      secili = v.c; tur = v.m; if (v.q) adet = v.q; kopyaModu = false;
+      secimCiz(); hucreleriBoya(); return;
+    }
+    if (secili) p.grid[k] = firca();
+    else if (p.grid[k]) delete p.grid[k];
+    hucreleriBoya();
+  });
+  tb.addEventListener('mouseover', function (e) { var t = e.target.closest('.mn-hucre'); if (t) ustunde = t.dataset.k; });
+  tb.addEventListener('mouseleave', function () { ustunde = null; });
+  tb.addEventListener('dragstart', function (e) {
+    var k = e.target.closest('[data-kart]'); if (!k) return;
+    var p = prg();
+    surukle = { v: JSON.parse(JSON.stringify(p.grid[k.dataset.kart])), kaynak: k.dataset.kart };
+    e.dataTransfer.setData('text/plain', 'x');
+    e.dataTransfer.effectAllowed = 'move';
+    k.classList.add('surukleniyor');
+  });
+  tb.addEventListener('dragend', function () { surukle = null; hucreleriBoya(); });
+  tb.addEventListener('dragover', function (e) { var t = e.target.closest('.mn-hucre'); if (t && surukle) { e.preventDefault(); t.classList.add('drag-over'); } });
+  tb.addEventListener('dragleave', function (e) { var t = e.target.closest('.mn-hucre'); if (t) t.classList.remove('drag-over'); });
+  tb.addEventListener('drop', function (e) {
+    var t = e.target.closest('.mn-hucre'), p = prg();
+    if (!t || !surukle) return;
+    if (!p) return ogrenciGerekli();
+    e.preventDefault();
+    t.classList.remove('drag-over');
+    var k = t.dataset.k, dt = k.split('-').map(Number);
+    if (okulMu(dt[0], dt[1])) return;
+    var eski = p.grid[k];
+    p.grid[k] = surukle.v;
+    if (surukle.kaynak && surukle.kaynak !== k) { if (eski) p.grid[surukle.kaynak] = eski; else delete p.grid[surukle.kaynak]; }
+    surukle = null;
+    hucreleriBoya();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (!(e.ctrlKey || e.metaKey) || /INPUT|TEXTAREA|SELECT/.test(e.target.tagName) || !ustunde) return;
+    if ($('panel-mentor').hidden || $('mn-program').hidden) return;
+    var p = prg(), dt = ustunde.split('-').map(Number);
+    if (!p || okulMu(dt[0], dt[1])) return;
+    if (e.key === 'c' && p.grid[ustunde]) {
+      var v = p.grid[ustunde]; secili = v.c; tur = v.m; if (v.q) adet = v.q;
+      secimCiz(); hucreleriBoya(); e.preventDefault();
+    }
+    if (e.key === 'v' && secili) { p.grid[ustunde] = firca(); hucreleriBoya(); e.preventDefault(); }
+  });
+
+  /* ---------- Şablon, başlık, logo ---------- */
+  $('mn-sablon-uygula').addEventListener('click', function () {
+    var p = prg(), t = db.tpls.filter(function (x) { return x.id === $('mn-sablon').value; })[0];
+    if (!p) return ogrenciGerekli();
+    if (!t) return;
+    if (Object.keys(p.grid).length && !confirm('Bu programın mevcut içeriği şablonla değiştirilecek. Devam edilsin mi?')) return;
+    p.grid = {};
+    Object.keys(t.grid).forEach(function (k) { if (ders(t.grid[k].c)) p.grid[k] = JSON.parse(JSON.stringify(t.grid[k])); });
+    p.start = t.start; p.end = t.end;
+    ciz();
+  });
+  $('mn-sablon-kaydet').addEventListener('click', function () {
+    var p = prg(); if (!p) return ogrenciGerekli();
+    var ad = $('mn-sablon-ad').value.trim();
+    if (!ad) { $('mn-sablon-ad').focus(); return; }
+    var t = { id: mentorId(), name: ad, start: p.start, end: p.end, grid: JSON.parse(JSON.stringify(p.grid)) };
+    db.tpls.push(t);
+    $('mn-sablon-ad').value = '';
+    kaydet(); ayarlariCiz(); $('mn-sablon').value = t.id;
+    bildir('“' + ad + '” şablonu kaydedildi.');
+  });
+  $('mn-sablon-sil').addEventListener('click', function () {
+    var t = db.tpls.filter(function (x) { return x.id === $('mn-sablon').value; })[0];
+    if (!t || !confirm('“' + t.name + '” şablonu silinsin mi?')) return;
+    db.tpls = db.tpls.filter(function (x) { return x !== t; });
+    kaydet(); ayarlariCiz();
+  });
+  $('mn-kurum').addEventListener('input', function () { db.cfg.org = this.value; kaydet(); ayarlariCiz(); });
+  $('mn-mentor').addEventListener('input', function () { db.cfg.mentor = this.value; kaydet(); ayarlariCiz(); });
+  $('mn-logo').addEventListener('change', function () {
+    var f = this.files && this.files[0]; if (!f) return;
+    var im = new Image();
+    im.onload = function () {
+      var y = Math.min(120, im.height), g = Math.round(im.width * y / im.height), c = document.createElement('canvas');
+      c.width = g; c.height = y;
+      c.getContext('2d').drawImage(im, 0, 0, g, y);
+      db.cfg.logo = c.toDataURL('image/png');
+      URL.revokeObjectURL(im.src);
+      kaydet(); ayarlariCiz();
+    };
+    im.src = URL.createObjectURL(f);
+    this.value = '';
+  });
+  $('mn-logo-sil').addEventListener('click', function () { db.cfg.logo = ''; kaydet(); ayarlariCiz(); });
+
+  /* ---------- Yedek ---------- */
+  function yedekCiz() {
+    var n = db.lastBackup, eski = !n || Date.now() - n > 7 * 864e5;
+    var p = $('mn-yedek-bilgi');
+    p.textContent = (n ? 'Son yedek: ' + mentorTarih(n) + '. ' : 'Henüz yedek almadın. ') +
+      (eski && db.students.length ? 'Yedek almanı öneririm. ' : '') +
+      'Veriler bu tarayıcıda, hesabına özel saklanır; yedek dosyası başka cihaza taşımayı da sağlar. Eski Mentörlük Ders Programı yedekleri de yüklenebilir.';
+  }
+  function indir(ad, icerik, tip) {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([icerik], { type: tip }));
+    a.download = ad;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+  }
+  function dosyaAdi(s, p) { return ((s.name + '_' + p.date).replace(/[^\wçğıöşüÇĞİÖŞÜ\s-]/g, '').replace(/\s+/g, '_')) || 'Program'; }
+  $('mn-yedek-al').addEventListener('click', function () {
+    db.lastBackup = Date.now(); kaydet();
+    indir('mentorluk-yedek-' + mentorBugun() + '.json', JSON.stringify(db), 'application/json');
+    yedekCiz();
+  });
+  $('mn-yedek-yukle').addEventListener('change', function () {
+    var f = this.files && this.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      var x = null;
+      try { x = mentorDbDuzelt(JSON.parse(r.result), db.cfg.mentor); } catch (e) { x = null; }
+      if (!x) { alert('Geçersiz yedek dosyası.'); return; }
+      if (!confirm('Mevcut mentörlük verileri bu yedekle değiştirilecek (' + x.students.length + ' öğrenci, ' + x.plans.length + ' program). Devam edilsin mi?')) return;
+      db = x; secili = null; kaydet(); ciz();
+      bildir('Yedek yüklendi.');
+    };
+    r.readAsText(f);
+    this.value = '';
+  });
+  $('mn-csv').addEventListener('click', function () {
+    var p = prg(), s = ogr(); if (!p) return ogrenciGerekli();
+    indir(dosyaAdi(s, p) + '.csv', mentorCsv(mentorCsvSatirlari(db, s, p)), 'text/csv;charset=utf-8');
+  });
+
+  /* ---------- Yazdır / PDF ---------- */
+  $('mn-yazdir').addEventListener('click', function () {
+    var p = prg(), s = ogr(); if (!p) return ogrenciGerekli();
+    var eski = document.title;
+    document.title = dosyaAdi(s, p);
+    document.body.classList.add('yazdir-mentor');
+    window.addEventListener('afterprint', function () { document.title = eski; document.body.classList.remove('yazdir-mentor'); }, { once: true });
+    window.print();
+  });
+  function html2pdfYukle() {
+    return new Promise(function (ok, hata) {
+      if (window.html2pdf) return ok();
+      var sc = document.createElement('script');
+      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+      sc.onload = function () { ok(); };
+      sc.onerror = function () { hata(new Error('PDF kütüphanesi yüklenemedi')); };
+      document.head.appendChild(sc);
+    });
+  }
+  $('mn-pdf').addEventListener('click', function () {
+    var p = prg(), s = ogr(); if (!p) return ogrenciGerekli();
+    var btn = this, eski = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Hazırlanıyor…';
+    var bitti = function (host) { if (host) host.remove(); btn.disabled = false; btn.textContent = eski; };
+    html2pdfYukle().then(function () {
+      var host = el('div');
+      host.style.cssText = 'position:absolute;left:-30000px;top:0';
+      var c = $('mn-sayfa').cloneNode(true);
+      c.removeAttribute('id');
+      c.querySelectorAll('[id]').forEach(function (x) { x.removeAttribute('id'); });
+      c.style.cssText = 'width:1120px;padding:16px;background:#fff';
+      c.querySelectorAll('.yazdirma, .mn-x').forEach(function (x) { x.remove(); });
+      var notKap = c.querySelector('.mn-not');
+      if (p.note) { var y = notKap.querySelector('.mn-not-yazi'); y.style.display = 'block'; }
+      else notKap.remove();
+      c.querySelectorAll('.tablo-kap').forEach(function (x) { x.style.overflow = 'visible'; });
+      c.querySelectorAll('[data-d]').forEach(function (x) { x.style.display = 'table-cell'; });
+      c.querySelectorAll('.mn-tablo').forEach(function (x) { x.style.minWidth = '0'; });
+      c.querySelectorAll('.mn-hucre').forEach(function (td) { td.style.height = '30px'; td.style.padding = '2px'; });
+      host.appendChild(c);
+      document.body.appendChild(host);
+      var H = c.offsetHeight;
+      if (H / 1120 > 0.66) c.style.width = Math.ceil(H / 0.66) + 'px';
+      window.html2pdf().set({
+        margin: 6, filename: dosyaAdi(s, p) + '.pdf', image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+      }).from(c).save().then(function () { bitti(host); }).catch(function () { bitti(host); alert('PDF oluşturulamadı, “Yazdır / PDF” düğmesini deneyin.'); });
+    }).catch(function () { bitti(null); alert('PDF kütüphanesi yüklenemedi. “Yazdır / PDF” düğmesiyle PDF olarak kaydedebilirsiniz.'); });
+  });
+
+  /* ---------- İstatistik ---------- */
+  function cubuk(ad, n, top, renk) {
+    var dolgu = el('div', { class: 'dolgu' });
+    dolgu.style.width = (n * 100 / (top || 1)) + '%';
+    if (renk) dolgu.style.background = renk;
+    return el('div', { class: 'yuk-satir' }, [el('span', { class: 'yuk-ad', title: ad, text: ad }), el('div', { class: 'iz' }, [dolgu]), el('span', { class: 'yuk-n', text: n + ' sa' })]);
+  }
+  function istatCiz() {
+    var s = ogr(), p = prg(); if (!p) return;
+    var ps = kapsam ? mentorProgramlari(db, s.id) : [p];
+    var r = mentorOzet(db, ps);
+    var dersler = Object.keys(r.ders).map(function (id) { return [id, r.ders[id]]; }).sort(function (a, b) { return b[1] - a[1]; });
+    var g = $('mn-istat-govde');
+    g.textContent = '';
+    var ilk = dersler.slice(0, 2).map(function (x) { return '%' + Math.round(x[1] * 100 / r.saat) + ' ' + ders(x[0]).name; }).join(', ');
+    g.appendChild(el('p', { class: 'mini', text: s.name + ' · ' + (kapsam ? 'tüm programlar' : mentorTarih(p.date) + ' programı') + (r.saat ? ': toplam ' + r.soru + ' soru' + (ilk ? ', ' + ilk : '') : '') }));
+    g.appendChild(el('div', { class: 'mn-kutucuklar' }, [[r.saat, 'saat'], [r.soru, 'soru'], [ps.length, 'program']].map(function (x) {
+      return el('div', {}, [el('b', { text: String(x[0]) }), el('span', { text: x[1] })]);
+    })));
+    g.appendChild(el('h2', { text: 'Ders dağılımı' }));
+    var dk = el('div', { class: 'yuk' });
+    if (dersler.length) dersler.forEach(function (x) { var c = ders(x[0]); dk.appendChild(cubuk(c.name, x[1], r.saat, c.color)); });
+    else dk.appendChild(el('p', { class: 'mini', text: 'Henüz veri yok.' }));
+    g.appendChild(dk);
+    g.appendChild(el('h2', { text: 'Çalışma türü' }));
+    var tk = el('div', { class: 'yuk' });
+    MENTOR_TURLER.forEach(function (m, i) { tk.appendChild(cubuk(m, r.tur[i], r.saat)); });
+    g.appendChild(tk);
+    if (kapsam && ps.length > 1) {
+      var rs = ps.map(function (x) { return mentorOzet(db, [x]); });
+      var mx = Math.max.apply(null, [1].concat(rs.map(function (x) { return x.soru; })));
+      g.appendChild(el('h2', { text: 'Haftalık soru sayısı' }));
+      var hk = el('div', { class: 'yuk' });
+      ps.forEach(function (x, i) {
+        var dolgu = el('div', { class: 'dolgu' });
+        dolgu.style.width = (rs[i].soru * 100 / mx) + '%';
+        hk.appendChild(el('div', { class: 'yuk-satir' }, [el('span', { class: 'yuk-ad', text: mentorTarih(x.date) }), el('div', { class: 'iz' }, [dolgu]), el('span', { class: 'yuk-n mn-genis', text: rs[i].soru + ' soru · ' + rs[i].saat + ' sa' })]));
+      });
+      g.appendChild(hk);
+    }
+    $('mn-k-bu').setAttribute('aria-pressed', kapsam ? 'false' : 'true');
+    $('mn-k-tum').setAttribute('aria-pressed', kapsam ? 'true' : 'false');
+  }
+  $('mn-istat').addEventListener('click', function () {
+    if (!prg()) return ogrenciGerekli();
+    istatCiz();
+    var d = $('mn-istat-pencere');
+    if (d.showModal) d.showModal(); else d.setAttribute('open', '');
+  });
+  $('mn-istat-kapat').addEventListener('click', function () { var d = $('mn-istat-pencere'); if (d.close) d.close(); else d.removeAttribute('open'); });
+  $('mn-istat-pencere').addEventListener('click', function (e) { if (e.target === this && this.close) this.close(); });
+  $('mn-k-bu').addEventListener('click', function () { kapsam = 0; istatCiz(); });
+  $('mn-k-tum').addEventListener('click', function () { kapsam = 1; istatCiz(); });
+
+  /* ---------- Geçmiş kayıtlar ---------- */
+  function gorunum(gecmis) {
+    $('mn-program').hidden = gecmis;
+    $('mn-gecmis-gorunum').hidden = !gecmis;
+    $('mn-g-program').setAttribute('aria-pressed', gecmis ? 'false' : 'true');
+    $('mn-g-gecmis').setAttribute('aria-pressed', gecmis ? 'true' : 'false');
+    $('mn-yazdir').hidden = gecmis;
+    if (gecmis) gecmisCiz(); else ciz();
+  }
+  $('mn-g-program').addEventListener('click', function () { gorunum(false); });
+  $('mn-g-gecmis').addEventListener('click', function () { gorunum(true); });
+
+  function mini(p) {
+    var k = el('div', { class: 'mn-mini', 'aria-hidden': 'true' });
+    for (var t = p.start; t <= p.end; t++) {
+      for (var d = 0; d < 7; d++) {
+        var v = p.grid[d + '-' + t], c = v && ders(v.c);
+        var i = el('i', { class: v && v.m ? 'm' + v.m : '' });
+        i.style.background = okulMu(d, t) ? 'var(--line)' : c ? c.color : 'var(--surface)';
+        k.appendChild(i);
+      }
+    }
+    return k;
+  }
+  function gecmisCiz() {
+    var hs = $('mn-g-ogr'), cur = hs.value || 'all';
+    hs.textContent = '';
+    hs.appendChild(el('option', { value: 'all', text: 'Tüm öğrenciler' }));
+    db.students.forEach(function (s) { hs.appendChild(el('option', { value: s.id, text: s.name })); });
+    hs.value = cur; if (hs.value !== cur) hs.value = 'all';
+    var liste = db.students.filter(function (s) { return hs.value === 'all' || s.id === hs.value; });
+    var kap = $('mn-g-liste');
+    kap.textContent = '';
+    if (!liste.length) { kap.appendChild(el('p', { class: 'bos', text: 'Henüz öğrenci yok. Program görünümünden öğrenci ekleyin.' })); return; }
+    liste.forEach(function (s) {
+      var ps = mentorProgramlari(db, s.id).reverse();
+      var kartlar = el('div', { class: 'mn-g-kartlar' });
+      if (!ps.length) kartlar.appendChild(el('p', { class: 'mini', text: 'Henüz program yok.' }));
+      ps.forEach(function (p) {
+        var oz = mentorOzet(db, [p]);
+        kartlar.appendChild(el('div', { class: 'mn-g-kart' }, [
+          el('strong', { text: mentorTarih(p.date) }),
+          el('span', { class: 'mini', text: oz.saat + ' saat' + (oz.soru ? ' · ' + oz.soru + ' soru' : '') }),
+          mini(p),
+          el('div', { class: 'alt-aksiyon' }, [
+            el('button', { type: 'button', class: 'btn btn-primary', text: 'Aç', onclick: function () { db.sid = p.sid; db.pid = p.id; kaydet(); gorunum(false); } }),
+            el('button', { type: 'button', class: 'btn', text: 'Kopyala', onclick: function () { var keep = db.pid, keepS = db.sid; yeniProgram(p.sid, p); db.pid = keep; db.sid = keepS; kaydet(); gecmisCiz(); bildir('Program kopyalandı.'); } }),
+            el('button', { type: 'button', class: 'btn mn-sil', text: 'Sil', onclick: function () {
+              if (!confirm(mentorTarih(p.date) + ' programı silinsin mi?')) return;
+              db.plans = db.plans.filter(function (x) { return x.id !== p.id; }); kaydet(); gecmisCiz();
+            } })
+          ])
+        ]));
+      });
+      kap.appendChild(el('details', { class: 'mn-g-ogr', open: 'open' }, [
+        el('summary', {}, [el('span', {}, [s.name + ' ', el('small', { text: s.cls || '' })]), el('small', { text: ps.length + ' program' })]),
+        kartlar
+      ]));
+    });
+  }
+  $('mn-g-ogr').addEventListener('change', gecmisCiz);
+
+  /* ---------- Bildirim ---------- */
+  var bz = null;
+  function bildir(m) {
+    var b = $('mn-secim');
+    if (secili || kopyaModu) return;
+    $('mn-secim-metin').textContent = m;
+    b.hidden = false;
+    clearTimeout(bz);
+    bz = setTimeout(function () { if (!secili && !kopyaModu) b.hidden = true; }, 2200);
+  }
+
+  ciz();
+})();
+</script>
+
+    </section>
   </main>
 </div>
 
 <script>
   (function () {
-    var idler = ['nobet', 'sinav'];
+    var idler = ['nobet', 'sinav', 'mentor'];
     function sec(id) {
       idler.forEach(function (k) {
         var acik = k === id;

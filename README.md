@@ -8,6 +8,12 @@ Kullanıcı adı ve şifreyle girilir; soldaki menüden istenen araç seçilir.
 - **Sınav analizi:** Excel (.xlsx, .xls) veya CSV dosyasından sınıf özeti, puan dağılımı, soru güçlüğü,
   ayırt edicilik, kazanım başarısı ve sıralama. Başlık satırı, ad soyad sütunu, soru sütunları ve
   soru puanları otomatik bulunur, gerekirse elle düzeltilir. Deneme için `ornekler/sinav-ornegi.xlsx`.
+- **Mentörlük programı:** mentörlük öğrencileri için haftalık ders / soru çözümü / ders tekrarı programı
+  (eski "Mentörlük Ders Programı" sayfasının uygulamaya taşınmış hali). Öğrenci listesi (tek tek ya da
+  toplu), program tarihi ve kopyası, ders paleti, tıklayarak ya da sürükleyerek yerleştirme, hücre ve gün
+  kopyalama, ayarlanabilir okul saatleri, şablonlar, kurum/mentör adı ve logo, haftalık not, istatistikler,
+  geçmiş kayıtlar, yazdır / PDF, CSV, JSON yedek. Veriler kullanıcıya özel olarak tarayıcıda saklanır;
+  eski sayfanın yedek dosyaları doğrudan yüklenebilir.
 - **Deneme analizi:** TYT/AYT, LGS gibi deneme sonuç çizelgeleri (TÜR-SS, TÜR-D, TÜR-Y… sütunları) aynı
   ekrandan yüklenir ve otomatik tanınır. Oturum ve ders bazında ortalama doğru/yanlış/boş/net, başarı
   yüzdesi, yanlış ve boş uyarıları, net sıralaması, varsa TYT/SAY/SÖZ/EA puanları ve sıraları.
@@ -38,6 +44,8 @@ src/index.html         Sayfa kabuğu: mavi-beyaz tema, sol menü, ortak betikler
 src/giris.html         Giriş ve kayıt ekranı (Apps Script veya yerel demo arka ucu)
 src/nobet-panel.html   Nöbet paneli
 src/sinav-panel.html   Sınav analizi paneli (Excel okuma, sütun eşleştirme, sonuçlar)
+src/mentor-cekirdek.html  Mentörlük programı saf yardımcıları (veri doğrulama, özet, CSV; testli)
+src/mentor-panel.html  Mentörlük programı paneli
 tests/                 Algoritma ve giriş testleri (Node ile çalışır)
 scripts/preview.js     Parçaları birleştirip tarayıcıda açılabilir önizleme üretir
 docs/index.html        Yayınlanan önizleme (GitHub Pages için, preview.js çıktısı)
@@ -53,6 +61,7 @@ Yeni bir araç eklemek için: `src/<arac>.gs` (hesaplama), `src/<arac>-panel.htm
 node tests/nobet.test.js     # nöbet testleri
 node tests/sinav.test.js     # sınav analizi testleri
 node tests/deneme.test.js    # deneme analizi testleri
+node tests/mentor.test.js    # mentörlük programı testleri
 node tests/auth.test.js      # giriş testleri (Apps Script servisleri taklit edilir)
 node scripts/preview.js docs/index.html   # önizlemeyi yeniden derle
 ```
@@ -70,7 +79,7 @@ node scripts/preview.js docs/index.html   # önizlemeyi yeniden derle
 ## Apps Script'e kurulum
 
 1. script.google.com'da yeni proje aç, `src/` altındaki tüm `.gs` ve `.html` dosyalarını aynı adlarla ekle
-   (klasör olmadan: `Code`, `Auth`, `Nobet`, `Sinav`, `Deneme`, `index`, `giris`, `nobet-panel`, `sinav-panel`).
+   (klasör olmadan: `Code`, `Auth`, `Nobet`, `Sinav`, `Deneme`, `index`, `mentor-cekirdek`, `mentor-panel`, `giris`, `nobet-panel`, `sinav-panel`).
 2. Proje ayarlarında "appsscript.json manifest dosyasını göster"i aç, içeriğini bu depodaki dosyayla değiştir.
 3. Dağıt → Yeni dağıtım → Web uygulaması. Yürüt: **Ben**. Erişimi olan kişiler: **Herkes**.
 4. İlk açılışta Google izin ister (Script Properties, önbellek ve kilit hizmetleri).
