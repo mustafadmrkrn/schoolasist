@@ -14,6 +14,14 @@ Kullanıcı adı ve şifreyle girilir; soldaki menüden istenen araç seçilir.
   kopyalama, ayarlanabilir okul saatleri, şablonlar, kurum/mentör adı ve logo, haftalık not, istatistikler,
   geçmiş kayıtlar, yazdır / PDF, CSV, JSON yedek. Veriler kullanıcıya özel olarak tarayıcıda saklanır;
   eski sayfanın yedek dosyaları doğrudan yüklenebilir.
+- **Yıllık plan:** derslerin yıllık planları (Word .docx, Excel .xlsx/.xls, CSV) yüklenir; seçili haftanın
+  ünite, konu ve kazanımları ders ders gösterilir, ders defterine yapıştırmak için kopyalanır, yıl boyu
+  görünümde tüm haftalar listelenir. Başlık satırı ve sütunlar (ay, hafta, saat, ünite/tema, konu,
+  kazanım/öğrenme çıktısı, açıklama) otomatik bulunur. Hafta eşleşmesi önce satırdaki tarih aralığından
+  ("14-18 Eylül", "14.09.2026-18.09.2026"), yoksa hafta numarasından (2. dönemde 1'den yeniden başlasa da),
+  o da yoksa satır sırasından yapılır; öğretim yılı takvimi (varsayılan 2026-2027 MEB: 14 Eylül 2026 –
+  25 Haziran 2027, ara tatiller ve yarıyıl) ekrandan değiştirilebilir. Planlar kullanıcıya özel olarak
+  tarayıcıda saklanır. Deneme için `ornekler/yillik-plan-ornegi.docx` ve `.xlsx` (uydurma).
 - **Deneme analizi:** TYT/AYT, LGS gibi deneme sonuç çizelgeleri (TÜR-SS, TÜR-D, TÜR-Y… sütunları) aynı
   ekrandan yüklenir ve otomatik tanınır. Oturum ve ders bazında ortalama doğru/yanlış/boş/net, başarı
   yüzdesi, yanlış ve boş uyarıları, net sıralaması, varsa TYT/SAY/SÖZ/EA puanları ve sıraları.
@@ -46,6 +54,8 @@ src/nobet-panel.html   Nöbet paneli
 src/sinav-panel.html   Sınav analizi paneli (Excel okuma, sütun eşleştirme, sonuçlar)
 src/mentor-cekirdek.html  Mentörlük programı saf yardımcıları (veri doğrulama, özet, CSV; testli)
 src/mentor-panel.html  Mentörlük programı paneli
+src/yillik-cekirdek.html  Yıllık plan saf yardımcıları (tablo okuma, takvim, hafta eşleştirme; testli)
+src/yillik-panel.html  Yıllık plan paneli
 tests/                 Algoritma ve giriş testleri (Node ile çalışır)
 scripts/preview.js     Parçaları birleştirip tarayıcıda açılabilir önizleme üretir
 docs/index.html        Yayınlanan önizleme (GitHub Pages için, preview.js çıktısı)
@@ -62,6 +72,7 @@ node tests/nobet.test.js     # nöbet testleri
 node tests/sinav.test.js     # sınav analizi testleri
 node tests/deneme.test.js    # deneme analizi testleri
 node tests/mentor.test.js    # mentörlük programı testleri
+node tests/yillik.test.js    # yıllık plan testleri
 node tests/auth.test.js      # giriş testleri (Apps Script servisleri taklit edilir)
 node scripts/preview.js docs/index.html   # önizlemeyi yeniden derle
 ```
@@ -79,7 +90,7 @@ node scripts/preview.js docs/index.html   # önizlemeyi yeniden derle
 ## Apps Script'e kurulum
 
 1. script.google.com'da yeni proje aç, `src/` altındaki tüm `.gs` ve `.html` dosyalarını aynı adlarla ekle
-   (klasör olmadan: `Code`, `Auth`, `Nobet`, `Sinav`, `Deneme`, `index`, `mentor-cekirdek`, `mentor-panel`, `giris`, `nobet-panel`, `sinav-panel`).
+   (klasör olmadan: `Code`, `Auth`, `Nobet`, `Sinav`, `Deneme`, `index`, `mentor-cekirdek`, `mentor-panel`, `yillik-cekirdek`, `yillik-panel`, `giris`, `nobet-panel`, `sinav-panel`).
 2. Proje ayarlarında "appsscript.json manifest dosyasını göster"i aç, içeriğini bu depodaki dosyayla değiştir.
 3. Dağıt → Yeni dağıtım → Web uygulaması. Yürüt: **Ben**. Erişimi olan kişiler: **Herkes**.
 4. İlk açılışta Google izin ister (Script Properties, önbellek, kilit ve **e-posta gönderme**).

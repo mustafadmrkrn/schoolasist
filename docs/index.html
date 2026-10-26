@@ -1331,6 +1331,7 @@ function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', '
       <li><strong>Nöbet çizelgesi</strong><span>Öğretmenlerin müsait günlerine göre adil dağılım.</span></li>
       <li><strong>Sınav analizi</strong><span>Excel dosyanızı yükleyin, soru ve kazanım analizi hazır olsun.</span></li>
       <li><strong>Mentörlük</strong><span>Öğrencileriniz için haftalık ders ve soru çözüm programı.</span></li>
+      <li><strong>Yıllık plan</strong><span>Planlarınızı yükleyin, her hafta işlenecek kazanımları görün.</span></li>
     </ul>
   </section>
 
@@ -1999,6 +2000,10 @@ function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', '
         <button type="button" class="nav-btn" id="nav-mentor">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><path d="M15.5 5.2a3 3 0 0 1 0 5.6M17.5 14.8c1.6.6 2.7 2.2 3 4.7"/></svg>
           Mentörlük
+        </button>
+        <button type="button" class="nav-btn" id="nav-yillik">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h11.5a2 2 0 0 1 2 2V20H7a2 2 0 0 1-2-2z"/><path d="M5 18a2 2 0 0 1 2-2h11.5"/><path d="M9 8.5h6M9 11.5h4"/></svg>
+          Yıllık plan
         </button>
       </nav>
     </div>
@@ -4790,12 +4795,848 @@ function mentorCsv(satirlar) {
 </script>
 
     </section>
+
+    <section class="arac" id="panel-yillik" aria-label="Yıllık plan" hidden>
+      <script>
+/**
+ * Yıllık plan: saf yardımcılar (DOM yok, testli).
+ *
+ * Akış: dosya (Excel/CSV ya da Word tablosu) → satır dizisi → plan satırları
+ * ({ hafta, bas, bit, ay, haftaMetni, unite, konu, kazanimlar[], saat, aciklama, tatil })
+ * → takvimdeki ders haftasıyla eşleştirme.
+ *
+ * Hafta eşleştirme sırası:
+ *  1) Satırda tarih aralığı varsa ("08-12 Eylül", "29 Eylül - 03 Ekim", "08.09.2026-12.09.2026")
+ *     ve bu tarihler seçili öğretim yılına düşüyorsa doğrudan tarih kullanılır.
+ *  2) Yoksa hafta numarası ("1. Hafta") ya da satır sırası, takvimdeki ders haftalarına
+ *     (tatiller atlanarak) eşlenir.
+ */
+var YP_AYLAR = ['ocak', 'şubat', 'mart', 'nisan', 'mayıs', 'haziran', 'temmuz', 'ağustos', 'eylül', 'ekim', 'kasım', 'aralık'];
+var YP_AY_KOK = ['oca', 'şub', 'mar', 'nis', 'may', 'haz', 'tem', 'ağu', 'eyl', 'eki', 'kas', 'ara'];
+
+/** 2026-2027 MEB çalışma takvimi (varsayılan; ekrandan değiştirilebilir). */
+function ypVarsayilanTakvim() {
+  return {
+    yil: '2026-2027',
+    baslangic: '2026-09-14',
+    bitis: '2027-06-25',
+    tatiller: [
+      { ad: '1. dönem ara tatili', bas: '2026-11-16', bit: '2026-11-20' },
+      { ad: 'Yarıyıl tatili', bas: '2027-01-25', bit: '2027-02-05' },
+      { ad: '2. dönem ara tatili', bas: '2027-03-08', bit: '2027-03-12' }
+    ]
+  };
+}
+
+/* ---------- Tarih yardımcıları (yerel saat, öğlen 12'de; yaz saati kaymasına karşı) ---------- */
+function ypTarih(s) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || ''));
+  return m ? new Date(+m[1], +m[2] - 1, +m[3], 12) : null;
+}
+function ypIso(d) {
+  var p = function (n) { return String(n).padStart(2, '0'); };
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+}
+function ypGunEkle(d, n) { var x = new Date(d.getTime()); x.setDate(x.getDate() + n); return x; }
+function ypPazartesi(d) { var g = (d.getDay() + 6) % 7; return ypGunEkle(new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12), -g); }
+function ypKisaTarih(iso) {
+  var d = ypTarih(iso);
+  return d ? d.getDate() + ' ' + YP_AYLAR[d.getMonth()].charAt(0).toLocaleUpperCase('tr') + YP_AYLAR[d.getMonth()].slice(1) : '';
+}
+function ypAralikMetni(bas, bit) {
+  var a = ypTarih(bas), b = ypTarih(bit);
+  if (!a || !b) return '';
+  var ay = function (d) { var x = YP_AYLAR[d.getMonth()]; return x.charAt(0).toLocaleUpperCase('tr') + x.slice(1); };
+  if (a.getMonth() === b.getMonth()) return a.getDate() + '–' + b.getDate() + ' ' + ay(a) + ' ' + b.getFullYear();
+  return a.getDate() + ' ' + ay(a) + ' – ' + b.getDate() + ' ' + ay(b) + ' ' + b.getFullYear();
+}
+
+/**
+ * Öğretim yılının haftaları (Pazartesi başlangıçlı). Tatil haftaları { tatil: 'ad' } ile işaretlenir,
+ * ders haftalarına 1'den başlayarak sıra numarası verilir.
+ */
+function ypHaftalar(takvim) {
+  var bas = ypTarih(takvim.baslangic), son = ypTarih(takvim.bitis);
+  if (!bas || !son || son < bas) return [];
+  var tatiller = (takvim.tatiller || []).map(function (t) { return { ad: t.ad, bas: ypTarih(t.bas), bit: ypTarih(t.bit) }; })
+    .filter(function (t) { return t.bas && t.bit; });
+  var sonuc = [];
+  var no = 0;
+  for (var p = ypPazartesi(bas); p <= son; p = ypGunEkle(p, 7)) {
+    var cuma = ypGunEkle(p, 4);
+    // Hafta içi günlerin hepsi tatildeyse tatil haftasıdır.
+    var tatil = null;
+    tatiller.forEach(function (t) { if (!tatil && t.bas <= ypGunEkle(p, 0) && t.bit >= cuma) tatil = t.ad; });
+    var h = { bas: ypIso(p), bit: ypIso(cuma) };
+    if (tatil) h.tatil = tatil; else h.no = ++no;
+    sonuc.push(h);
+  }
+  return sonuc;
+}
+
+/** Verilen tarihin (ISO) düştüğü hafta; hafta sonu bir sonraki haftaya sayılır. */
+function ypHaftaBul(haftalar, iso) {
+  var d = ypTarih(iso);
+  if (!d) return -1;
+  var g = (d.getDay() + 6) % 7;
+  if (g >= 5) d = ypGunEkle(d, 7 - g);
+  var p = ypIso(ypPazartesi(d));
+  for (var i = 0; i < haftalar.length; i++) if (haftalar[i].bas === p) return i;
+  if (haftalar.length && p < haftalar[0].bas) return 0;
+  return haftalar.length - 1;
+}
+
+/* ---------- Metin okuma ---------- */
+function ypBuyuk(v) { return String(v === null || v === undefined ? '' : v).toLocaleUpperCase('tr-TR'); }
+function ypTemiz(v) { return String(v === null || v === undefined ? '' : v).replace(/ /g, ' ').replace(/[ \t]+/g, ' ').replace(/\s*\n\s*/g, '\n').trim(); }
+
+function ypAyNo(metin) {
+  var t = String(metin).toLocaleLowerCase('tr-TR');
+  for (var i = 0; i < 12; i++) if (t.indexOf(YP_AY_KOK[i]) === 0) return i;
+  return -1;
+}
+
+/**
+ * Metindeki tarih aralığını okur. yilBas: öğretim yılının başladığı yıl (Eylül-Aralık bu yıl,
+ * Ocak-Ağustos sonraki yıl sayılır). Dönüş { bas, bit } (ISO) ya da null.
+ */
+function ypTarihAraligi(metin, yilBas) {
+  var t = String(metin || '').toLocaleLowerCase('tr-TR').replace(/\s+/g, ' ');
+  var yil = function (ay, y) { return y ? (y < 100 ? 2000 + y : y) : (ay >= 8 ? yilBas : yilBas + 1); };
+  var yap = function (g1, a1, y1, g2, a2, y2) {
+    var d1 = new Date(yil(a1, y1), a1, g1, 12), d2 = new Date(yil(a2, y2), a2, g2, 12);
+    if (isNaN(d1) || isNaN(d2) || d1.getDate() !== g1 || d2.getDate() !== g2 || d2 < d1 || (d2 - d1) > 13 * 864e5) return null;
+    return { bas: ypIso(d1), bit: ypIso(d2) };
+  };
+  var m;
+  // 08.09.2026 - 12.09.2026  |  08/09/2026-12/09/2026  |  8.9-12.9.2026
+  m = /(\d{1,2})[./](\d{1,2})(?:[./](\d{2,4}))?\s*[-–—]\s*(\d{1,2})[./](\d{1,2})[./]?(\d{2,4})?/.exec(t);
+  if (m) {
+    var y2 = m[6] ? +m[6] : (m[3] ? +m[3] : 0);
+    var r = yap(+m[1], +m[2] - 1, m[3] ? +m[3] : y2, +m[4], +m[5] - 1, y2);
+    if (r) return r;
+  }
+  // 8 - 12.09.2026 (aynı ay)
+  m = /(\d{1,2})\s*[-–—]\s*(\d{1,2})[./](\d{1,2})[./](\d{2,4})/.exec(t);
+  if (m) { var r1 = yap(+m[1], +m[3] - 1, +m[4], +m[2], +m[3] - 1, +m[4]); if (r1) return r1; }
+  // 29 eylül - 03 ekim (2026)
+  m = /(\d{1,2})\s*([a-zçğıöşü]{3,})\.?\s*(\d{4})?\s*[-–—]\s*(\d{1,2})\s*([a-zçğıöşü]{3,})\.?\s*(\d{4})?/.exec(t);
+  if (m && ypAyNo(m[2]) > -1 && ypAyNo(m[5]) > -1) {
+    var r2 = yap(+m[1], ypAyNo(m[2]), m[3] ? +m[3] : 0, +m[4], ypAyNo(m[5]), m[6] ? +m[6] : 0);
+    if (r2) return r2;
+  }
+  // 08-12 eylül (2026)
+  m = /(\d{1,2})\s*[-–—]\s*(\d{1,2})\s*([a-zçğıöşü]{3,})\.?\s*(\d{4})?/.exec(t);
+  if (m && ypAyNo(m[3]) > -1) {
+    var r3 = yap(+m[1], ypAyNo(m[3]), m[4] ? +m[4] : 0, +m[2], ypAyNo(m[3]), m[4] ? +m[4] : 0);
+    if (r3) return r3;
+  }
+  return null;
+}
+
+function ypHaftaNo(metin) {
+  var t = ypBuyuk(metin);
+  var m = /(\d{1,2})\s*\.?\s*HAFTA/.exec(t) || /HAFTA\s*[:.]?\s*(\d{1,2})\b/.exec(t);
+  if (m) return +m[1];
+  m = /^\s*(\d{1,2})\s*\.?\s*$/.exec(t);
+  return m ? +m[1] : null;
+}
+
+/* ---------- Word (.docx) tabloları ---------- */
+function ypXmlMetin(x) {
+  return x.replace(/<w:tab\/>/g, ' ').replace(/<w:br[^>]*\/>/g, '\n').replace(/<\/w:p>/g, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
+}
+
+/** word/document.xml içindeki tabloları satır dizilerine çevirir (yatay birleşik hücreler boş hücreyle doldurulur). */
+function ypDocxTablolari(xml) {
+  var tablolar = [];
+  var tblRe = /<w:tbl>([\s\S]*?)<\/w:tbl>/g, m;
+  xml = String(xml);
+  while ((m = tblRe.exec(xml))) {
+    var satirlar = [];
+    var trRe = /<w:tr[ >][\s\S]*?<\/w:tr>/g, tr;
+    while ((tr = trRe.exec(m[1]))) {
+      var hucreler = [];
+      var tcRe = /<w:tc(?:\s[^>]*)?>([\s\S]*?)<\/w:tc>/g, tc;
+      while ((tc = tcRe.exec(tr[0]))) {
+        var span = /<w:gridSpan w:val="(\d+)"/.exec(tc[1]);
+        hucreler.push(ypTemiz(ypXmlMetin(tc[1])));
+        for (var s = 1; span && s < +span[1]; s++) hucreler.push('');
+      }
+      if (hucreler.length) satirlar.push(hucreler);
+    }
+    if (satirlar.length) tablolar.push(satirlar);
+  }
+  return tablolar;
+}
+
+/** Word belgesinin tablo dışındaki ilk paragrafları (başlıktan ders/sınıf tahmini için). */
+function ypDocxBaslik(xml) {
+  var dis = String(xml).replace(/<w:tbl>[\s\S]*?<\/w:tbl>/g, '');
+  return ypTemiz(ypXmlMetin(dis)).split('\n').filter(Boolean).slice(0, 6).join(' ');
+}
+
+/* ---------- Plan çıkarma ---------- */
+var YP_SUTUN = {
+  ay: /^AY(LAR)?$|^AY\b/,
+  hafta: /HAFTA|TARİH/,
+  saat: /SAAT|SÜRE/,
+  unite: /ÜNİTE|TEMA|ÖĞRENME ALANI|ALAN/,
+  konu: /KONU|İÇERİK|ALT ÖĞRENME/,
+  kazanim: /KAZANIM|ÖĞRENME ÇIKTI|BECERİ/,
+  aciklama: /AÇIKLAMA|YÖNTEM|TEKNİK|ARAÇ|DEĞERLENDİRME|ETKİNLİK|BELİRLİ GÜN/
+};
+
+/** Başlık satırını ve sütunları bulur. */
+function ypBasliklariBul(rows) {
+  var en = { puan: 0 };
+  for (var i = 0; i < Math.min(rows.length, 30); i++) {
+    var r = rows[i] || [];
+    var s = {};
+    var puan = 0;
+    r.forEach(function (h, c) {
+      var b = ypBuyuk(ypTemiz(h));
+      if (!b || b.length > 80) return;
+      Object.keys(YP_SUTUN).forEach(function (alan) {
+        if (s[alan] === undefined && YP_SUTUN[alan].test(b)) {
+          // "AY" sütun adı "AYIN BELİRLİ GÜNLERİ" gibi başlıklarla karışmasın
+          if (alan === 'ay' && /GÜN|HAFTA/.test(b)) return;
+          if (alan === 'unite' && s.kazanim === c) return;
+          s[alan] = c;
+          puan += alan === 'kazanim' ? 3 : 1;
+        }
+      });
+    });
+    if (s.kazanim !== undefined && puan > en.puan) en = { puan: puan, satir: i, sutun: s };
+  }
+  return en.puan ? en : null;
+}
+
+/** Bir tablodaki plan satırlarını çıkarır. yilBas: öğretim yılının başladığı yıl. */
+function ypPlanCikar(rows, yilBas) {
+  var b = ypBasliklariBul(rows);
+  if (!b) return null;
+  var s = b.sutun;
+  var cell = function (r, alan) { return s[alan] === undefined ? '' : ypTemiz(r[s[alan]]); };
+  var sonuc = [];
+  var onceki = {};
+  for (var i = b.satir + 1; i < rows.length; i++) {
+    var r = rows[i] || [];
+    if (!r.some(function (v) { return ypTemiz(v); })) continue;
+    // Başlık tekrarı (sayfa başlarında) atlanır
+    if (ypBuyuk(cell(r, 'kazanim')) && YP_SUTUN.kazanim.test(ypBuyuk(cell(r, 'kazanim'))) && ypBuyuk(cell(r, 'kazanim')).length < 40) continue;
+    var tumMetin = r.map(ypTemiz).join(' ');
+    var ay = cell(r, 'ay') || onceki.ay || '';
+    var haftaMetni = cell(r, 'hafta');
+    var kaz = cell(r, 'kazanim');
+    var kazanimlar = ypKazanimlariAyir(kaz);
+    // Tatil satırı: tatil yazıyor ve kazanım yok ya da tek satırlık bir not var
+    var tatil = /TATİL/.test(ypBuyuk(tumMetin)) && kazanimlar.length <= 1 && !/\d+\.\d+\.\d+/.test(kaz);
+    var satir = {
+      ay: ay,
+      haftaMetni: haftaMetni,
+      saat: cell(r, 'saat'),
+      unite: cell(r, 'unite'),
+      konu: cell(r, 'konu'),
+      kazanimlar: tatil ? [] : kazanimlar,
+      aciklama: cell(r, 'aciklama'),
+      tatil: tatil
+    };
+    var ar = ypTarihAraligi(haftaMetni, yilBas) || ypTarihAraligi(ay + ' ' + haftaMetni, yilBas) || (s.hafta === undefined ? ypTarihAraligi(tumMetin, yilBas) : null);
+    if (ar) { satir.bas = ar.bas; satir.bit = ar.bit; }
+    var no = ypHaftaNo(haftaMetni);
+    if (no) satir.hafta = no;
+    // Aynı haftanın devam satırı (birleşik hafta hücresi boş): öncekine ekle
+    if (!haftaMetni && !satir.tatil && sonuc.length && s.hafta !== undefined) {
+      var son = sonuc[sonuc.length - 1];
+      son.kazanimlar = son.kazanimlar.concat(satir.kazanimlar);
+      if (satir.konu && son.konu.indexOf(satir.konu) < 0) son.konu = (son.konu ? son.konu + '\n' : '') + satir.konu;
+      if (satir.unite && !son.unite) son.unite = satir.unite;
+      if (satir.aciklama && son.aciklama.indexOf(satir.aciklama) < 0) son.aciklama = (son.aciklama ? son.aciklama + '\n' : '') + satir.aciklama;
+      continue;
+    }
+    if (!satir.unite && onceki.unite) { satir.unite = onceki.unite; satir.uniteDevam = true; }
+    if (!satir.kazanimlar.length && !satir.tatil && !satir.konu) continue;
+    onceki = { ay: ay, unite: satir.unite };
+    sonuc.push(satir);
+  }
+  return sonuc.length ? { satirlar: sonuc, sutunlar: Object.keys(s) } : null;
+}
+
+/** Kazanım hücresini maddelere ayırır: satır sonları, madde işaretleri ve kazanım kodları (M.9.1.1.1., MAT.9.1.2. vb.). */
+function ypKazanimlariAyir(metin) {
+  var t = ypTemiz(metin);
+  if (!t) return [];
+  // Kodlu kazanım başlarında böl (satır içinde birden fazla kod varsa)
+  t = t.replace(/\s+(?=([A-ZÇĞİÖŞÜ]{1,6}\.)?\d{1,2}\.\d{1,2}\.\d{1,2}(\.\d{1,2})*\.?\s)/g, '\n');
+  var parcalar = t.split(/\n|•|●|▪|◦/).map(function (x) { return x.replace(/^[-–*·]\s*/, '').trim(); }).filter(Boolean);
+  // Kodsuz devam satırlarını önceki maddeye bağla (ör. kelime ortasında bölünmüş satır)
+  var sonuc = [];
+  parcalar.forEach(function (p) {
+    var kodlu = /^([A-ZÇĞİÖŞÜa-zçğıöşü]{1,8}\.)?\d{1,2}(\.\d{1,2}){1,5}\.?\s/.test(p);
+    var kucukBaslar = /^[a-zçğıöşü]/.test(p) && !/^[a-zçğıöşü]\)\s/.test(p);
+    if (sonuc.length && kucukBaslar && !kodlu) sonuc[sonuc.length - 1] += ' ' + p;
+    else sonuc.push(p);
+  });
+  return sonuc;
+}
+
+/** Bir dosyanın tüm tablolarından en uygun planı seçer (en çok satır çıkan). */
+function ypEnIyiPlan(tablolar, yilBas) {
+  var en = null;
+  tablolar.forEach(function (rows) {
+    var p = ypPlanCikar(rows, yilBas);
+    if (p && (!en || p.satirlar.length > en.satirlar.length)) en = p;
+  });
+  // Bazı Word planları her ayı ayrı tabloya böler: hepsi aynı başlıkla bulunduysa birleştir
+  var hepsi = [];
+  tablolar.forEach(function (rows) { var p = ypPlanCikar(rows, yilBas); if (p) hepsi.push(p); });
+  if (hepsi.length > 1) {
+    var toplam = hepsi.reduce(function (t, p) { return t + p.satirlar.length; }, 0);
+    if (en && toplam > en.satirlar.length * 1.5) {
+      return { satirlar: hepsi.reduce(function (a, p) { return a.concat(p.satirlar); }, []), sutunlar: en.sutunlar };
+    }
+  }
+  return en;
+}
+
+/**
+ * Plan satırlarını takvim haftalarına yerleştirir. Dönüş: { haftalar: [{ ...hafta, satirlar: [...] }], kaynak }.
+ * kaynak: 'tarih' (dosyadaki tarihlerden), 'numara' (hafta numarasından) ya da 'sira' (satır sırasından).
+ */
+function ypYerlestir(satirlar, takvim) {
+  var haftalar = ypHaftalar(takvim).map(function (h) { return { bas: h.bas, bit: h.bit, no: h.no, tatil: h.tatil, satirlar: [] }; });
+  if (!haftalar.length) return { haftalar: [], kaynak: '' };
+  var ilk = haftalar[0].bas, son = haftalar[haftalar.length - 1].bit;
+  var dersSatirlari = satirlar.filter(function (s) { return !s.tatil; });
+  var tarihli = dersSatirlari.filter(function (s) { return s.bas && s.bas >= ilk && s.bas <= son; }).length;
+  var kaynak;
+  if (dersSatirlari.length && tarihli / dersSatirlari.length >= 0.6) {
+    kaynak = 'tarih';
+    dersSatirlari.forEach(function (s) {
+      if (!s.bas) return;
+      var i = ypHaftaBul(haftalar, s.bas);
+      if (i > -1) haftalar[i].satirlar.push(s);
+    });
+  } else {
+    var numarali = dersSatirlari.filter(function (s) { return s.hafta; }).length;
+    kaynak = numarali / Math.max(1, dersSatirlari.length) >= 0.6 ? 'numara' : 'sira';
+    var dersHaftalari = haftalar.filter(function (h) { return h.no; });
+    var son2 = 0;      // son yerleştirilen ders haftası
+    var ofset = 0;     // hafta numarası 2. dönemde 1'den yeniden başlarsa eklenecek değer
+    dersSatirlari.forEach(function (s) {
+      var n;
+      if (kaynak === 'numara' && s.hafta) {
+        if (s.hafta + ofset < son2 && s.hafta <= 2) ofset = son2;
+        n = s.hafta + ofset;
+      } else {
+        n = son2 + 1;
+      }
+      son2 = Math.max(son2, n);
+      var h = dersHaftalari[n - 1];
+      if (h) h.satirlar.push(s);
+    });
+  }
+  return { haftalar: haftalar, kaynak: kaynak };
+}
+
+/** Dosya adı ya da başlık metninden ders adı ve sınıf tahmini. */
+function ypDersTahmini(metin) {
+  // Dosya adlarında Türkçe karakter olmayabilir ("sinif"): İ/I farkını eşitle
+  var t = ypBuyuk(String(metin || '').replace(/[_]+/g, ' ')).replace(/S[İI]N[İI]F/g, 'SINIF');
+  var sinif = '';
+  var m = /(\d{1,2})\s*\.?\s*SINIF/.exec(t) || /SINIF\s*[:.]?\s*(\d{1,2})/.exec(t);
+  if (m) sinif = m[1] + '. sınıf';
+  var ders = '';
+  var d = /(?:SINIF|\d{4}\s*[-–]\s*\d{4}[^A-ZÇĞİÖŞÜ]*)\s*([A-ZÇĞİÖŞÜ .]{3,40}?)\s+(?:DERSİ|DERS)\b/.exec(t) || /([A-ZÇĞİÖŞÜ][A-ZÇĞİÖŞÜ .]{2,40}?)\s+(?:DERSİ|DERS)\b/.exec(t);
+  if (d) ders = d[1].replace(/\b(ÜNİTELENDİRİLMİŞ|YILLIK|PLANI?|EĞİTİM|ÖĞRETİM|YILI|LİSESİ|ORTAOKULU|OKULU)\b/g, '').replace(/\s+/g, ' ').trim();
+  if (!ders) {
+    var dosya = /([A-ZÇĞİÖŞÜ]{4,}(?:\s+[A-ZÇĞİÖŞÜ]{3,})?)/.exec(t.replace(/\.(XLSX|DOCX|XLS|CSV)$/, ' ').replace(/(^|[^A-ZÇĞİÖŞÜ])(YILLIK|YİLLİK|PLAN[IİÜ]?|PLANI|SINIF|ÜNİTELENDİRİLMİŞ|EĞİTİM|ÖĞRETİM|MEB|YENİ|MÜFREDAT|MAARİF)(?=[^A-ZÇĞİÖŞÜ]|$)|\d+/g, ' '));
+    if (dosya) ders = dosya[1];
+  }
+  var bas = function (x) {
+    return x.toLocaleLowerCase('tr-TR').replace(/(^|\s)\S/g, function (c) { return c.toLocaleUpperCase('tr-TR'); })
+      .replace(/ (Ve|İle|Ya Da) /g, function (c) { return c.toLocaleLowerCase('tr-TR'); });
+  };
+  return { ders: ders ? bas(ders) : '', sinif: sinif };
+}
+
+/** Haftanın kazanımlarını ders defterine yapıştırılacak düz metne çevirir. */
+function ypHaftaMetni(ders, hafta) {
+  var s = [];
+  if (hafta.tatil) return ders + ': ' + hafta.tatil;
+  hafta.satirlar.forEach(function (r) {
+    if (r.unite) s.push(r.unite);
+    if (r.konu) s.push('Konu: ' + r.konu.replace(/\n/g, '; '));
+    r.kazanimlar.forEach(function (k) { s.push(k); });
+  });
+  return s.join('\n');
+}
+</script>
+
+      <div class="top">
+  <div>
+    <p class="panel-ad">Yıllık Plan</p>
+    <p class="alt">Derslerinin yıllık planlarını yükle; her hafta hangi ünite, konu ve kazanımların işleneceğini burada gör.</p>
+  </div>
+  <div class="top-actions yp-gezgin" role="group" aria-label="Hafta seçimi">
+    <button type="button" class="btn" id="yp-onceki" aria-label="Önceki hafta">‹</button>
+    <select id="yp-hafta" class="inp yp-hafta-sec" aria-label="Hafta"></select>
+    <button type="button" class="btn" id="yp-sonraki" aria-label="Sonraki hafta">›</button>
+    <button type="button" class="btn" id="yp-bugun">Bu hafta</button>
+  </div>
+</div>
+
+<div class="layout yp-layout">
+  <section class="panel yp-yan" aria-label="Planlar ve takvim">
+    <div class="blok">
+      <div class="blok-baslik"><h2>Plan yükle</h2></div>
+      <label class="yukle" id="yp-yukle" for="yp-dosya">
+        <span class="yukle-baslik">Yıllık plan dosyalarını bırakın ya da seçin</span>
+        <span class="mini">Word (.docx), Excel (.xlsx, .xls) veya CSV. Birden fazla dosya seçebilirsiniz. Dosya tarayıcınızda okunur.</span>
+        <input type="file" id="yp-dosya" class="gizli-girdi" accept=".docx,.xlsx,.xls,.csv" multiple>
+      </label>
+      <p class="mini" id="yp-yukle-bilgi" role="status"></p>
+    </div>
+
+    <div class="blok">
+      <div class="blok-baslik"><h2>Planlarım</h2><span class="say" id="yp-plan-say"></span></div>
+      <div id="yp-planlar" class="yp-planlar"></div>
+    </div>
+
+    <div class="blok">
+      <details class="toplu" id="yp-takvim">
+        <summary>Öğretim yılı takvimi</summary>
+        <div class="mn-ikili yp-ikili">
+          <label class="mini">Dersler başlıyor<input type="date" id="yp-t-bas" class="inp"></label>
+          <label class="mini">Dersler bitiyor<input type="date" id="yp-t-bit" class="inp"></label>
+        </div>
+        <div id="yp-tatiller" class="yp-tatiller"></div>
+        <div class="alt-aksiyon">
+          <button type="button" class="btn" id="yp-tatil-ekle">Tatil ekle</button>
+          <button type="button" class="btn" id="yp-takvim-sifirla">2026-2027 MEB takvimine dön</button>
+        </div>
+        <p class="mini">Hafta numaraları bu takvimden hesaplanır; hafta içi günlerinin tamamı tatil olan haftalar sayılmaz. Planda tarih yazıyorsa tarih esas alınır.</p>
+      </details>
+    </div>
+  </section>
+
+  <section class="panel yp-sag" aria-label="Haftanın kazanımları">
+    <div class="blok">
+      <div class="blok-baslik yp-baslik">
+        <div>
+          <h2 id="yp-h-baslik">Bu hafta</h2>
+          <p class="yp-h-tarih" id="yp-h-tarih"></p>
+        </div>
+        <div class="alt-aksiyon">
+          <div class="gunler" role="group" aria-label="Görünüm">
+            <button type="button" class="chip" id="yp-g-hafta" aria-pressed="true">Hafta</button>
+            <button type="button" class="chip" id="yp-g-yil" aria-pressed="false">Yıl boyu</button>
+          </div>
+          <button type="button" class="btn" id="yp-yazdir">Yazdır</button>
+        </div>
+      </div>
+      <div id="yp-icerik" class="yp-icerik" aria-live="polite"></div>
+    </div>
+  </section>
+</div>
+
+<style>
+  @media (min-width: 62rem) { .yp-layout { grid-template-columns: minmax(0, 21rem) minmax(0, 1fr); } }
+  .yp-gezgin { flex-wrap: nowrap; }
+  .yp-gezgin .btn { white-space: nowrap; }
+  .yp-hafta-sec { min-width: 0; max-width: 17rem; }
+  .yp-ikili { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+  .yp-ikili .mini { display: grid; gap: 0.2rem; }
+  .yp-planlar { display: grid; gap: 0.5rem; }
+  .yp-plan { border: 1px solid var(--line); border-left: 4px solid var(--renk, var(--accent)); border-radius: 6px; padding: 0.55rem 0.7rem; display: grid; gap: 0.35rem; }
+  .yp-plan-ust { display: grid; grid-template-columns: minmax(0, 1fr) 5.5rem; gap: 0.4rem; }
+  .yp-plan .inp { padding: 0.35rem 0.5rem; font-size: 0.9rem; }
+  .yp-plan .mini { margin: 0; }
+  .yp-plan-alt { display: flex; flex-wrap: wrap; gap: 0.3rem 0.9rem; align-items: center; }
+  .yp-sil { color: var(--warn); }
+  .yp-tatiller { display: grid; gap: 0.4rem; }
+  .yp-tatil { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.3rem 0.4rem; align-items: center; padding: 0.4rem; border: 1px solid var(--line); border-radius: 6px; }
+  .yp-tatil .yp-ikili { grid-column: 1 / -1; }
+  .yp-tatil .inp { padding: 0.3rem 0.45rem; font-size: 0.85rem; }
+
+  .yp-baslik { align-items: flex-start; flex-wrap: wrap; }
+  #yp-h-baslik { font-size: 1.15rem; text-transform: none; letter-spacing: 0; color: var(--ink); }
+  .yp-h-tarih { margin: 0.1rem 0 0; color: var(--muted); font-size: 0.9rem; }
+  .yp-icerik { display: grid; gap: 0.9rem; }
+  .yp-kart { border: 1px solid var(--line); border-top: 4px solid var(--renk, var(--accent)); border-radius: 8px; padding: 0.8rem 0.95rem; display: grid; gap: 0.5rem; break-inside: avoid; }
+  .yp-kart-ust { display: flex; justify-content: space-between; gap: 0.5rem; align-items: baseline; flex-wrap: wrap; }
+  .yp-kart-ust h3 { margin: 0; font-family: var(--font-display); font-size: 1.05rem; }
+  .yp-kart-ust small { color: var(--muted); font-weight: 400; font-size: 0.85rem; }
+  .yp-unite { margin: 0; font-weight: 600; font-size: 0.92rem; color: var(--yan); }
+  .yp-konu { margin: 0; font-size: 0.9rem; white-space: pre-line; }
+  .yp-konu b { font-weight: 600; }
+  .yp-kazanimlar { margin: 0; padding-left: 1.15rem; display: grid; gap: 0.3rem; font-size: 0.93rem; }
+  .yp-kazanimlar li.alt { list-style: circle; margin-left: 1rem; color: var(--muted); }
+  .yp-kod { font-family: var(--font-mono); font-size: 0.8rem; background: var(--surface-2); padding: 0 0.25rem; border-radius: 3px; margin-right: 0.25rem; }
+  .yp-aciklama { margin: 0; font-size: 0.82rem; color: var(--muted); white-space: pre-line; }
+  .yp-tatil-kart { background: var(--surface-2); border-radius: 8px; padding: 1rem; text-align: center; color: var(--muted); }
+  .yp-tatil-kart strong { display: block; color: var(--ink); font-size: 1.05rem; }
+  .yp-yil-sec { max-width: 22rem; }
+  .yp-yil-kap.kay { max-height: 70vh; }
+  .yp-yil tbody tr.simdi td, .yp-yil tbody tr.simdi th { background: var(--accent-soft); }
+  .yp-yil tbody tr.tatil td, .yp-yil tbody tr.tatil th { color: var(--muted); font-style: italic; }
+  .yp-yil td, .yp-yil th { vertical-align: top; font-size: 0.85rem; }
+  .yp-yil .yp-kazanimlar { font-size: 0.82rem; gap: 0.15rem; }
+  .yp-yil th[scope="row"] { white-space: nowrap; font-weight: 600; }
+  .yp-yil small { display: block; color: var(--muted); font-weight: 400; }
+
+  @media print {
+    @page { size: A4 portrait; margin: 12mm; }
+    body.yazdir-yillik { background: #fff !important; }
+    body.yazdir-yillik .yan, body.yazdir-yillik #panel-nobet, body.yazdir-yillik #panel-sinav, body.yazdir-yillik #panel-mentor,
+    body.yazdir-yillik #panel-yillik > .top, body.yazdir-yillik .yp-yan, body.yazdir-yillik .yp-baslik .alt-aksiyon,
+    body.yazdir-yillik .yp-kopyala, body.yazdir-yillik .yp-yil-sec { display: none !important; }
+    html:has(body.yazdir-yillik), body.yazdir-yillik { height: auto !important; min-height: 0 !important; }
+    body.yazdir-yillik .kabuk, body.yazdir-yillik .yp-layout { display: block !important; min-height: 0 !important; }
+    body.yazdir-yillik .icerik { padding: 0 !important; }
+    body.yazdir-yillik .yp-sag { border: 0; padding: 0; }
+    body.yazdir-yillik .tablo-kap { overflow: visible; }
+    body.yazdir-yillik .kay { max-height: none !important; }
+    body.yazdir-yillik * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+
+<script>
+(function () {
+  var DEPO_ON = 'mdea_yillik_';
+  var RENKLER = ['#1D5FD8', '#0F8A5F', '#B4430B', '#7C3AED', '#0E7490', '#BE185D', '#4D7C0F', '#A16207'];
+  var anahtar = null;
+  var db = yeniDb();
+  var secili = -1;       // seçili hafta (indeks)
+  var gorunumYil = false;
+  var yilPlan = null;
+
+  function yeniDb() { return { takvim: ypVarsayilanTakvim(), planlar: [] }; }
+  function depoOku(k) { try { return window.localStorage.getItem(k); } catch (e) { return null; } }
+  function kaydet() {
+    if (!anahtar) return;
+    try { window.localStorage.setItem(anahtar, JSON.stringify(db)); }
+    catch (e) { bilgi('Tarayıcı depolama alanı doldu; son değişiklik kaydedilemedi. Kullanmadığınız planları silin.', true); }
+  }
+  function dbDuzelt(x) {
+    if (!x || typeof x !== 'object' || !Array.isArray(x.planlar)) return null;
+    var y = yeniDb();
+    if (x.takvim && ypTarih(x.takvim.baslangic) && ypTarih(x.takvim.bitis)) y.takvim = x.takvim;
+    y.planlar = x.planlar.filter(function (p) { return p && p.id && Array.isArray(p.satirlar); });
+    return y;
+  }
+  document.addEventListener('mdea:giris', function (e) {
+    anahtar = DEPO_ON + e.detail.kullanici;
+    var x = null;
+    try { x = dbDuzelt(JSON.parse(depoOku(anahtar) || 'null')); } catch (er) { x = null; }
+    db = x || yeniDb();
+    secili = -1; yilPlan = null; gorunumYil = false;
+    ciz();
+  });
+  document.addEventListener('mdea:cikis', function () { anahtar = null; db = yeniDb(); secili = -1; yilPlan = null; ciz(); });
+
+  function bilgi(m, hata) { var p = $('yp-yukle-bilgi'); p.textContent = m || ''; p.style.color = hata ? 'var(--warn)' : ''; }
+  function renk(i) { return RENKLER[i % RENKLER.length]; }
+  function haftalar() { return ypHaftalar(db.takvim); }
+  function yilBas() { var d = ypTarih(db.takvim.baslangic); return d ? (d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1) : new Date().getFullYear(); }
+  function planAdi(p) { return [p.ders || 'Adsız plan', p.sinif].filter(Boolean).join(' · '); }
+
+  /* ---------- Dosya okuma ---------- */
+  function tablolariOku(dosya) {
+    return new Promise(function (ok, hata) {
+      var ad = dosya.name.toLowerCase();
+      if (/\.doc$/.test(ad)) return hata(new Error('Word 97-2003 (.doc) dosyası okunamıyor. Dosyayı Word’de açıp “.docx” olarak kaydedin.'));
+      if (/\.pdf$/.test(ad)) return hata(new Error('PDF okunamıyor. Planın Word ya da Excel hâlini yükleyin.'));
+      if (typeof XLSX === 'undefined') return hata(new Error('Dosya okuyucu yüklenemedi. İnternet bağlantınızı kontrol edip sayfayı yenileyin.'));
+      var csv = /\.csv$/.test(ad);
+      var r = new FileReader();
+      r.onerror = function () { hata(new Error('Dosya okunamadı.')); };
+      r.onload = function () {
+        try {
+          if (/\.docx$/.test(ad)) {
+            var zip = XLSX.CFB.read(new Uint8Array(r.result), { type: 'array' });
+            var giris = XLSX.CFB.find(zip, 'word/document.xml') || XLSX.CFB.find(zip, '/word/document.xml');
+            if (!giris) throw new Error('Word belgesinin içeriği bulunamadı.');
+            var xml = new TextDecoder('utf-8').decode(new Uint8Array(giris.content));
+            ok({ tablolar: ypDocxTablolari(xml), baslik: ypDocxBaslik(xml) });
+            return;
+          }
+          var kitap = csv ? XLSX.read(r.result, { type: 'string', raw: true }) : XLSX.read(r.result, { type: 'array' });
+          var tablolar = [], baslik = '';
+          kitap.SheetNames.forEach(function (sn) {
+            var rows = XLSX.utils.sheet_to_json(kitap.Sheets[sn], { header: 1, raw: false, defval: '' });
+            tablolar.push(rows);
+            if (!baslik) baslik = rows.slice(0, 4).map(function (x) { return x.filter(Boolean).join(' '); }).join(' ');
+          });
+          ok({ tablolar: tablolar, baslik: baslik });
+        } catch (e) { hata(e); }
+      };
+      if (csv) r.readAsText(dosya, 'utf-8'); else r.readAsArrayBuffer(dosya);
+    });
+  }
+
+  function dosyalariEkle(dosyalar) {
+    if (!anahtar) return;
+    var liste = Array.prototype.slice.call(dosyalar || []);
+    if (!liste.length) return;
+    bilgi('Okunuyor…');
+    var mesajlar = [];
+    var eklenen = 0;
+    liste.reduce(function (zincir, dosya) {
+      return zincir.then(function () {
+        return tablolariOku(dosya).then(function (r) {
+          var p = ypEnIyiPlan(r.tablolar, yilBas());
+          if (!p) { mesajlar.push(dosya.name + ': kazanım sütunu bulunamadı.'); return; }
+          var t1 = ypDersTahmini(r.baslik), t2 = ypDersTahmini(dosya.name);
+          db.planlar.push({
+            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            ders: t1.ders || t2.ders || dosya.name.replace(/\.[^.]+$/, ''),
+            sinif: t1.sinif || t2.sinif,
+            dosya: dosya.name,
+            eklenme: Date.now(),
+            satirlar: p.satirlar
+          });
+          eklenen++;
+        }).catch(function (e) { mesajlar.push(dosya.name + ': ' + (e && e.message ? e.message : e)); });
+      });
+    }, Promise.resolve()).then(function () {
+      kaydet();
+      ciz();
+      var m = eklenen ? eklenen + ' plan eklendi. Ders adı ve sınıfı kontrol edin.' : '';
+      bilgi([m].concat(mesajlar).filter(Boolean).join(' '), !eklenen);
+    });
+  }
+
+  $('yp-dosya').addEventListener('change', function () { dosyalariEkle(this.files); this.value = ''; });
+  var alan = $('yp-yukle');
+  ['dragenter', 'dragover'].forEach(function (a) { alan.addEventListener(a, function (e) { e.preventDefault(); alan.classList.add('surukle'); }); });
+  ['dragleave', 'drop'].forEach(function (a) { alan.addEventListener(a, function () { alan.classList.remove('surukle'); }); });
+  alan.addEventListener('drop', function (e) { e.preventDefault(); dosyalariEkle(e.dataTransfer && e.dataTransfer.files); });
+
+  /* ---------- Çizim ---------- */
+  function ciz() {
+    var hs = haftalar();
+    if (secili < 0 || secili >= hs.length) secili = ypHaftaBul(hs, ypIso(new Date()));
+    planlariCiz();
+    takvimCiz();
+    haftaSeciminiCiz(hs);
+    if (gorunumYil) yilCiz(hs); else haftaCiz(hs);
+  }
+
+  function kaynakMetni(p) {
+    var y = ypYerlestir(p.satirlar, db.takvim);
+    var n = y.haftalar.filter(function (h) { return h.satirlar.length; }).length;
+    var k = { tarih: 'dosyadaki tarihlerden', numara: 'hafta numaralarından', sira: 'satır sırasından' }[y.kaynak] || '';
+    return n + ' haftaya yerleşti (' + k + ')';
+  }
+
+  function planlariCiz() {
+    var kap = $('yp-planlar');
+    kap.textContent = '';
+    $('yp-plan-say').textContent = db.planlar.length ? db.planlar.length + ' plan' : '';
+    if (!db.planlar.length) {
+      kap.appendChild(el('p', { class: 'mini', text: 'Henüz plan yok. Yukarıdan yıllık plan dosyalarınızı yükleyin.' }));
+      return;
+    }
+    db.planlar.forEach(function (p, i) {
+      var kutu = el('div', { class: 'yp-plan' });
+      kutu.style.setProperty('--renk', renk(i));
+      kutu.appendChild(el('div', { class: 'yp-plan-ust' }, [
+        el('input', { class: 'inp', value: p.ders, 'aria-label': 'Ders adı', maxlength: '60', oninput: function () { p.ders = this.value; kaydet(); icerikYenile(); } }),
+        el('input', { class: 'inp', value: p.sinif || '', placeholder: 'Sınıf', 'aria-label': 'Sınıf', maxlength: '20', oninput: function () { p.sinif = this.value; kaydet(); icerikYenile(); } })
+      ]));
+      kutu.appendChild(el('p', { class: 'mini', text: p.dosya + ' · ' + kaynakMetni(p) }));
+      kutu.appendChild(el('div', { class: 'yp-plan-alt' }, [
+        el('button', { type: 'button', class: 'link-btn', text: 'Yıl boyu gör', onclick: function () { yilPlan = p.id; gorunumYil = true; ciz(); } }),
+        el('button', { type: 'button', class: 'link-btn yp-sil', text: 'Sil', onclick: function () {
+          if (!confirm('“' + planAdi(p) + '” planı silinsin mi?')) return;
+          db.planlar = db.planlar.filter(function (x) { return x.id !== p.id; });
+          kaydet(); ciz();
+        } })
+      ]));
+      kap.appendChild(kutu);
+    });
+  }
+  var yenileZaman = null;
+  function icerikYenile() { clearTimeout(yenileZaman); yenileZaman = setTimeout(function () { var hs = haftalar(); if (gorunumYil) yilCiz(hs); else haftaCiz(hs); }, 250); }
+
+  function takvimCiz() {
+    var t = db.takvim;
+    $('yp-t-bas').value = t.baslangic;
+    $('yp-t-bit').value = t.bitis;
+    var kap = $('yp-tatiller');
+    kap.textContent = '';
+    t.tatiller.forEach(function (x, i) {
+      kap.appendChild(el('div', { class: 'yp-tatil' }, [
+        el('input', { class: 'inp', value: x.ad, 'aria-label': 'Tatil adı', oninput: function () { x.ad = this.value; kaydet(); } , onchange: function () { ciz(); } }),
+        el('button', { type: 'button', class: 'link-btn yp-sil', text: 'Kaldır', onclick: function () { t.tatiller.splice(i, 1); kaydet(); ciz(); } }),
+        el('div', { class: 'yp-ikili' }, [
+          el('input', { type: 'date', class: 'inp', value: x.bas, 'aria-label': x.ad + ' başlangıç', onchange: function () { x.bas = this.value; kaydet(); ciz(); } }),
+          el('input', { type: 'date', class: 'inp', value: x.bit, 'aria-label': x.ad + ' bitiş', onchange: function () { x.bit = this.value; kaydet(); ciz(); } })
+        ])
+      ]));
+    });
+  }
+  $('yp-t-bas').addEventListener('change', function () { if (ypTarih(this.value)) { db.takvim.baslangic = this.value; kaydet(); secili = -1; ciz(); } });
+  $('yp-t-bit').addEventListener('change', function () { if (ypTarih(this.value)) { db.takvim.bitis = this.value; kaydet(); ciz(); } });
+  $('yp-tatil-ekle').addEventListener('click', function () {
+    var d = ypIso(new Date());
+    db.takvim.tatiller.push({ ad: 'Tatil', bas: d, bit: d });
+    kaydet(); ciz();
+  });
+  $('yp-takvim-sifirla').addEventListener('click', function () {
+    if (!confirm('Takvim 2026-2027 MEB çalışma takvimine döndürülsün mü?')) return;
+    db.takvim = ypVarsayilanTakvim(); kaydet(); secili = -1; ciz();
+  });
+
+  function haftaEtiketi(h) {
+    return (h.no ? h.no + '. hafta' : h.tatil) + ' · ' + ypAralikMetni(h.bas, h.bit);
+  }
+  function haftaSeciminiCiz(hs) {
+    var sec = $('yp-hafta');
+    sec.textContent = '';
+    var bugun = ypHaftaBul(hs, ypIso(new Date()));
+    hs.forEach(function (h, i) { sec.appendChild(el('option', { value: String(i), text: haftaEtiketi(h) + (i === bugun ? ' (bu hafta)' : '') })); });
+    sec.value = String(secili);
+    $('yp-onceki').disabled = secili <= 0;
+    $('yp-sonraki').disabled = secili >= hs.length - 1;
+    $('yp-g-hafta').setAttribute('aria-pressed', gorunumYil ? 'false' : 'true');
+    $('yp-g-yil').setAttribute('aria-pressed', gorunumYil ? 'true' : 'false');
+  }
+  $('yp-hafta').addEventListener('change', function () { secili = +this.value; ciz(); });
+  $('yp-onceki').addEventListener('click', function () { if (secili > 0) { secili--; ciz(); } });
+  $('yp-sonraki').addEventListener('click', function () { secili++; ciz(); });
+  $('yp-bugun').addEventListener('click', function () { secili = -1; ciz(); });
+  $('yp-g-hafta').addEventListener('click', function () { gorunumYil = false; ciz(); });
+  $('yp-g-yil').addEventListener('click', function () { gorunumYil = true; ciz(); });
+
+  /* Kazanım maddesi: baştaki kod ayrı gösterilir; a) b) süreç bileşenleri alt madde */
+  function kazanimLi(k) {
+    var m = /^((?:[A-ZÇĞİÖŞÜa-zçğıöşü]{1,8}\.)?\d{1,2}(?:\.\d{1,2}){1,5}\.?)\s+([\s\S]*)$/.exec(k);
+    var alt = /^[a-zçğıöşü]\)\s/.test(k);
+    return el('li', { class: alt ? 'alt' : '' }, m ? [el('span', { class: 'yp-kod', text: m[1] }), m[2]] : [k]);
+  }
+
+  function kopyala(metin, dugme) {
+    var eski = dugme.textContent;
+    var tamam = function () { dugme.textContent = 'Kopyalandı'; setTimeout(function () { dugme.textContent = eski; }, 1600); };
+    try {
+      navigator.clipboard.writeText(metin).then(tamam, function () { yedekKopya(metin); tamam(); });
+    } catch (e) { yedekKopya(metin); tamam(); }
+  }
+  function yedekKopya(metin) {
+    var t = el('textarea', { class: 'inp' });
+    t.value = metin;
+    t.style.cssText = 'position:fixed;left:-9999px';
+    document.body.appendChild(t); t.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    t.remove();
+  }
+
+  function haftaCiz(hs) {
+    var kap = $('yp-icerik');
+    kap.textContent = '';
+    var h = hs[secili];
+    if (!h) { kap.appendChild(el('p', { class: 'bos', text: 'Takvim tarihleri geçersiz. Öğretim yılı takvimini kontrol edin.' })); return; }
+    var bugun = ypHaftaBul(hs, ypIso(new Date()));
+    $('yp-h-baslik').textContent = (h.no ? h.no + '. hafta' : h.tatil) + (secili === bugun ? ' · bu hafta' : '');
+    $('yp-h-tarih').textContent = ypAralikMetni(h.bas, h.bit) + ' · ' + db.takvim.yil + ' öğretim yılı';
+    if (!db.planlar.length) {
+      kap.appendChild(el('p', { class: 'bos', text: 'Yıllık planlarınızı yüklediğinizde bu haftanın kazanımları burada ders ders görünür.' }));
+      return;
+    }
+    if (h.tatil) {
+      kap.appendChild(el('div', { class: 'yp-tatil-kart' }, [el('strong', { text: h.tatil }), 'Bu hafta ders yok.']));
+      return;
+    }
+    db.planlar.forEach(function (p, i) {
+      var y = ypYerlestir(p.satirlar, db.takvim);
+      var hafta = y.haftalar[secili];
+      var kart = el('article', { class: 'yp-kart', 'aria-label': planAdi(p) });
+      kart.style.setProperty('--renk', renk(i));
+      var dugme = el('button', { type: 'button', class: 'btn yp-kopyala', text: 'Kopyala' });
+      kart.appendChild(el('div', { class: 'yp-kart-ust' }, [el('h3', {}, [p.ders || 'Adsız plan', p.sinif ? el('small', { text: ' · ' + p.sinif }) : null]), dugme]));
+      if (!hafta || !hafta.satirlar.length) {
+        kart.appendChild(el('p', { class: 'mini', text: 'Planda bu haftaya ait satır yok.' }));
+        dugme.disabled = true;
+        kap.appendChild(kart);
+        return;
+      }
+      hafta.satirlar.forEach(function (r) {
+        if (r.unite) kart.appendChild(el('p', { class: 'yp-unite', text: r.unite }));
+        if (r.konu) kart.appendChild(el('p', { class: 'yp-konu' }, [el('b', { text: 'Konu: ' }), r.konu]));
+        if (r.kazanimlar.length) {
+          var ol = el('ul', { class: 'yp-kazanimlar' });
+          r.kazanimlar.forEach(function (k) { ol.appendChild(kazanimLi(k)); });
+          kart.appendChild(ol);
+        }
+        var ek = [r.saat ? r.saat + ' ders saati' : '', r.aciklama].filter(Boolean).join(' · ');
+        if (ek) kart.appendChild(el('p', { class: 'yp-aciklama', text: ek }));
+      });
+      dugme.addEventListener('click', function () { kopyala(ypHaftaMetni(planAdi(p), hafta), dugme); });
+      kap.appendChild(kart);
+    });
+    kap.appendChild(el('p', { class: 'mini', text: '“Kopyala” haftanın ünite, konu ve kazanımlarını ders defterine yapıştırılacak düz metin olarak kopyalar.' }));
+  }
+
+  function yilCiz(hs) {
+    var kap = $('yp-icerik');
+    kap.textContent = '';
+    if (!db.planlar.length) { kap.appendChild(el('p', { class: 'bos', text: 'Henüz plan yok.' })); return; }
+    var p = db.planlar.filter(function (x) { return x.id === yilPlan; })[0] || db.planlar[0];
+    yilPlan = p.id;
+    $('yp-h-baslik').textContent = planAdi(p);
+    $('yp-h-tarih').textContent = db.takvim.yil + ' öğretim yılı · ' + kaynakMetni(p);
+    var sec = el('select', { class: 'inp yp-yil-sec', 'aria-label': 'Plan' });
+    db.planlar.forEach(function (x) { sec.appendChild(el('option', { value: x.id, text: planAdi(x) })); });
+    sec.value = p.id;
+    sec.addEventListener('change', function () { yilPlan = this.value; ciz(); });
+    kap.appendChild(sec);
+    var y = ypYerlestir(p.satirlar, db.takvim);
+    var bugun = ypHaftaBul(hs, ypIso(new Date()));
+    var govde = el('tbody');
+    y.haftalar.forEach(function (h, i) {
+      var tr = el('tr', { class: (i === bugun ? 'simdi ' : '') + (h.tatil ? 'tatil' : ''), id: 'yp-yil-' + i });
+      tr.appendChild(el('th', { scope: 'row' }, [h.no ? h.no + '. hafta' : 'Tatil', el('small', { text: ypAralikMetni(h.bas, h.bit) })]));
+      if (h.tatil) {
+        tr.appendChild(el('td', { colspan: '2', text: h.tatil }));
+      } else {
+        var u = h.satirlar.map(function (r) { return [r.unite, r.konu].filter(Boolean).join(' — '); }).filter(Boolean).join('\n');
+        tr.appendChild(el('td', { text: u || '–' }));
+        var ul = el('ul', { class: 'yp-kazanimlar' });
+        h.satirlar.forEach(function (r) { r.kazanimlar.forEach(function (k) { ul.appendChild(kazanimLi(k)); }); });
+        tr.appendChild(el('td', {}, [h.satirlar.length ? ul : '–']));
+      }
+      govde.appendChild(tr);
+    });
+    kap.appendChild(el('div', { class: 'tablo-kap kay yp-yil-kap' }, [el('table', { class: 'yp-yil' }, [
+      el('thead', {}, [el('tr', {}, [el('th', { scope: 'col', text: 'Hafta' }), el('th', { scope: 'col', text: 'Ünite / konu' }), el('th', { scope: 'col', text: 'Kazanımlar' })])]),
+      govde
+    ])]));
+    var simdi = document.getElementById('yp-yil-' + bugun);
+    if (simdi && !$('panel-yillik').hidden) { var k = kap.querySelector('.yp-yil-kap'); k.scrollTop = Math.max(0, simdi.offsetTop - 60); }
+  }
+
+  $('yp-yazdir').addEventListener('click', function () {
+    document.body.classList.add('yazdir-yillik');
+    window.addEventListener('afterprint', function () { document.body.classList.remove('yazdir-yillik'); }, { once: true });
+    window.print();
+  });
+
+  ciz();
+})();
+</script>
+
+    </section>
   </main>
 </div>
 
 <script>
   (function () {
-    var idler = ['nobet', 'sinav', 'mentor'];
+    var idler = ['nobet', 'sinav', 'mentor', 'yillik'];
     function sec(id) {
       idler.forEach(function (k) {
         var acik = k === id;
