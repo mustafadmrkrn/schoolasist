@@ -45,3 +45,8 @@ function sinavAnaliz(token, girdi) {
   authOturumZorunlu(token);
   return sinavAnaliziYap(girdi);
 }
+
+function denemeAnaliz(token, girdi) {
+  authOturumZorunlu(token);
+  return denemeAnaliziYap(girdi);
+}

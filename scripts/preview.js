@@ -1,6 +1,6 @@
 // Önizleme derleyici. src/index.html içindeki
 //   - <?!= include('ad') ?> satırlarını src/ad.html ile,
-//   - /*__NOBET__*/ ve /*__SINAV__*/ yer tutucularını Nobet.gs ve Sinav.gs ile
+//   - /*__NOBET__*/, /*__SINAV__*/ ve /*__DENEME__*/ yer tutucularını ilgili .gs dosyalarıyla
 // doldurur; böylece sayfa Apps Script olmadan tarayıcıda çalışır.
 // Kullanım: node scripts/preview.js [hedef-dosya]
 var fs = require('fs');
@@ -17,6 +17,7 @@ html = html.replace(/<\?!=\s*include\('([^']+)'\)\s*;?\s*\?>/g, function (_, ad)
 });
 html = html.replace('/*__NOBET__*/', function () { return oku('Nobet.gs'); });
 html = html.replace('/*__SINAV__*/', function () { return oku('Sinav.gs'); });
+html = html.replace('/*__DENEME__*/', function () { return oku('Deneme.gs'); });
 
 var hedef = process.argv[2] || path.join(kok, 'dist', 'preview.html');
 fs.mkdirSync(path.dirname(hedef), { recursive: true });
