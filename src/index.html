@@ -1,4 +1,4 @@
-<title>School Asist Nöbet</title>
+<title>MD Education Asist</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;700&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
@@ -176,97 +176,56 @@
   .durum { font-size: 0.85rem; color: var(--accent); }
   #kopya-alan { font-family: var(--font-mono); font-size: 0.8rem; min-height: 9rem; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-</style>
 
-<main class="app">
-  <header class="top">
-    <div>
-      <h1>Nöbet Çizelgesi</h1>
-      <p class="alt">Öğretmenlerin okulda olduğu günlere göre, aynı gün çakışmadan ve eşit dağılımlı haftalık nöbet planı.</p>
-    </div>
-    <div class="top-actions">
-      <span class="badge" id="ornek-etiket">Örnek veri</span>
-      <button type="button" class="btn" id="btn-ornek">Örneği yükle</button>
-      <button type="button" class="btn" id="btn-temizle">Temizle</button>
-    </div>
-  </header>
+  [hidden] { display: none !important; }
 
-  <div class="layout">
-    <section class="panel" aria-label="Girdiler">
-      <div class="blok">
-        <div class="blok-baslik"><h2>Nöbet günleri</h2></div>
-        <div class="gunler" id="gunler"></div>
-      </div>
-
-      <div class="blok">
-        <div class="blok-baslik"><h2>Nöbet yerleri</h2><span class="say">yer · kişi/gün</span></div>
-        <div id="yerler" class="og-liste"></div>
-        <div><button type="button" class="btn" id="yer-ekle">Yer ekle</button></div>
-      </div>
-
-      <div class="blok">
-        <div class="blok-baslik"><h2>Öğretmenler</h2><span class="say" id="og-sayi">0</span></div>
-        <div id="ogretmenler" class="og-liste"></div>
-        <div class="alt-aksiyon"><button type="button" class="btn" id="og-ekle">Öğretmen ekle</button></div>
-        <details class="toplu">
-          <summary>Listeyi toplu yapıştır</summary>
-          <label class="mini" for="toplu">Her satıra bir ad soyad. Hepsi tüm günler müsait eklenir.</label>
-          <textarea class="inp" id="toplu" placeholder="Ayşe Demir&#10;Mehmet Kaya"></textarea>
-          <div><button type="button" class="btn" id="toplu-ekle">Listeye ekle</button></div>
-        </details>
-      </div>
-    </section>
-
-    <section class="panel" aria-label="Çizelge">
-      <div class="blok">
-        <div class="blok-baslik"><h2>Haftalık çizelge</h2><span class="durum" id="durum" role="status"></span></div>
-        <div id="sonuc" class="blok" aria-live="polite"></div>
-        <div class="alt-aksiyon">
-          <button type="button" class="btn btn-primary" id="kopyala">Çizelgeyi kopyala</button>
-        </div>
-        <textarea class="inp" id="kopya-alan" readonly hidden aria-label="Çizelge metni"></textarea>
-      </div>
-    </section>
-  </div>
-</main>
-
-<script>/*__NOBET__*/</script>
-<script>
-  var GUN = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma'];
-  var KISA = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum'];
-  var TUM = [0, 1, 2, 3, 4];
-
-  function ornek() {
-    return {
-      gunler: [0, 1, 2, 3, 4],
-      yerler: [
-        { ad: 'Bahçe', kisi: 2 },
-        { ad: 'Zemin kat', kisi: 1 },
-        { ad: '1. kat', kisi: 1 },
-        { ad: 'Kantin', kisi: 1 }
-      ],
-      ogretmenler: [
-        { ad: 'Ayşe Demir', gunler: [0, 1, 2, 3, 4], max: 0 },
-        { ad: 'Mehmet Kaya', gunler: [0, 1, 2, 3, 4], max: 0 },
-        { ad: 'Elif Şahin', gunler: [0, 1, 2], max: 0 },
-        { ad: 'Burak Yıldız', gunler: [1, 2, 3, 4], max: 0 },
-        { ad: 'Zeynep Çelik', gunler: [0, 1, 2, 3, 4], max: 0 },
-        { ad: 'Hasan Arslan', gunler: [0, 2, 4], max: 0 },
-        { ad: 'Fatma Koç', gunler: [0, 1, 2, 3, 4], max: 0 },
-        { ad: 'Ali Öztürk', gunler: [0, 1, 2, 3], max: 0 },
-        { ad: 'Selin Aydın', gunler: [2, 3, 4], max: 0 },
-        { ad: 'Murat Polat', gunler: [0, 1, 2, 3, 4], max: 0 },
-        { ad: 'Derya Güneş', gunler: [0, 1, 3, 4], max: 0 },
-        { ad: 'Emre Kılıç', gunler: [1, 2, 3], max: 1 }
-      ]
-    };
+  /* Marka ve sekmeler */
+  .marka { display: grid; gap: 0.2rem; }
+  .marka .alt { margin: 0; }
+  .sekmeler { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--line); overflow-x: auto; }
+  .sekme {
+    padding: 0.65rem 1rem; border: 0; border-bottom: 3px solid transparent; margin-bottom: -1px;
+    background: transparent; color: var(--muted); font-family: var(--font-display); font-weight: 700;
+    font-size: 1rem; cursor: pointer; white-space: nowrap;
+  }
+  .sekme:hover { color: var(--ink); }
+  .sekme[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+  .arac { display: grid; gap: 1.25rem; }
+  .panel-ad {
+    margin: 0; font-family: var(--font-display); font-weight: 700;
+    font-size: clamp(1.2rem, 1.05rem + 0.8vw, 1.6rem); line-height: 1.2;
   }
 
-  var state = ornek();
-  var son = null;
-  var zaman = null;
-  var istek = 0;
+  /* Sınav analizi */
+  @media (min-width: 62rem) { .layout-sinav { grid-template-columns: minmax(0, 34rem) minmax(0, 1fr); } }
+  .gecme-satir { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
+  .soru-bas, .soru-satir { display: grid; grid-template-columns: 2.4rem 4.2rem minmax(0, 1fr) auto; gap: 0.5rem; align-items: center; }
+  .soru-bas { font-size: 0.75rem; color: var(--muted); }
+  .soru-no { font-family: var(--font-mono); font-size: 0.85rem; color: var(--muted); }
+  .puan-tablo { min-width: 0; width: max-content; }
+  .puan-tablo th, .puan-tablo td { padding: 0.3rem 0.35rem; }
+  .puan-tablo thead th { font-size: 0.75rem; text-align: center; }
+  .puan-tablo thead th:first-child, .puan-tablo tbody th { position: sticky; left: 0; z-index: 1; text-align: left; }
+  .puan-tablo thead th:first-child { background: var(--surface-2); }
+  .puan-tablo tbody th { background: var(--surface); min-width: 9.5rem; font-weight: 400; }
+  .puan-tablo .inp-sayi { width: 3.4rem; padding-inline: 0.25rem; }
+  .puan-tablo .sayi { text-align: center; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .puan-tablo .toplam { font-weight: 500; }
+  .etiket {
+    display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 0.05rem 0.4rem; border-radius: 4px;
+    background: var(--accent-soft); white-space: nowrap;
+  }
+  .etiket-uyari { background: var(--warn-soft); color: var(--warn); }
+  .kay { max-height: 24rem; overflow: auto; }
+  .sayisal { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .iz.esikli { position: relative; overflow: visible; }
+  .esik { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); opacity: 0.55; }
+  .dolgu.uyari-dolgu { background: var(--warn); }
+</style>
 
+<script>/*__NOBET__*/</script>
+<script>/*__SINAV__*/</script>
+<script>
   function $(id) { return document.getElementById(id); }
 
   function el(tag, props, kids) {
@@ -284,290 +243,56 @@
     });
     return e;
   }
+</script>
 
-  function planla() {
-    $('ornek-etiket').hidden = true;
-    clearTimeout(zaman);
-    zaman = setTimeout(hesapla, 150);
-  }
+<main class="app">
+  <header class="marka">
+    <h1>MD Education Asist</h1>
+    <p class="alt">Öğretmenlerin gündelik işleri için araçlar.</p>
+  </header>
 
-  /* ---------- Girdi panelleri ---------- */
-  function renderGunler() {
-    var kap = $('gunler');
-    kap.textContent = '';
-    GUN.forEach(function (ad, i) {
-      var b = el('button', {
-        type: 'button', class: 'chip', 'aria-label': ad,
-        'aria-pressed': String(state.gunler.indexOf(i) > -1), text: KISA[i]
-      });
-      b.addEventListener('click', function () {
-        var k = state.gunler.indexOf(i);
-        if (k > -1) state.gunler.splice(k, 1); else state.gunler.push(i);
-        b.setAttribute('aria-pressed', String(k === -1));
-        planla();
-      });
-      kap.appendChild(b);
-    });
-  }
+  <div class="sekmeler" role="tablist" aria-label="Araçlar">
+    <button type="button" role="tab" class="sekme" id="sekme-nobet" aria-controls="panel-nobet" aria-selected="true">Nöbet çizelgesi</button>
+    <button type="button" role="tab" class="sekme" id="sekme-sinav" aria-controls="panel-sinav" aria-selected="false" tabindex="-1">Sınav analizi</button>
+  </div>
 
-  function renderYerler() {
-    var kap = $('yerler');
-    kap.textContent = '';
-    state.yerler.forEach(function (y, i) {
-      var ad = el('input', {
-        type: 'text', id: 'yer-ad-' + i, class: 'inp', value: y.ad, placeholder: 'Nöbet yeri',
-        'aria-label': 'Nöbet yeri adı', oninput: function () { y.ad = this.value; planla(); }
-      });
-      var kisi = el('input', {
-        type: 'number', id: 'yer-kisi-' + i, class: 'inp inp-sayi', min: '1', max: '20', value: String(y.kisi),
-        'aria-label': 'Günlük kişi sayısı', oninput: function () { y.kisi = parseInt(this.value, 10) || 0; planla(); }
-      });
-      var sil = el('button', {
-        type: 'button', class: 'ikon-btn', 'aria-label': (y.ad || 'Bu yeri') + ' sil', text: '×',
-        onclick: function () { state.yerler.splice(i, 1); renderYerler(); planla(); }
-      });
-      kap.appendChild(el('div', { class: 'yer-satir' }, [ad, el('label', { class: 'mini', for: 'yer-kisi-' + i, text: 'kişi' }), kisi, sil]));
-    });
-  }
+  <section class="arac" id="panel-nobet" role="tabpanel" aria-labelledby="sekme-nobet">
+    <?!= include('nobet-panel') ?>
+  </section>
 
-  function renderOgretmenler() {
-    var kap = $('ogretmenler');
-    kap.textContent = '';
-    $('og-sayi').textContent = state.ogretmenler.length + ' kişi';
-    state.ogretmenler.forEach(function (o, i) {
-      var ad = el('input', {
-        type: 'text', id: 'og-ad-' + i, class: 'inp og-ad', value: o.ad, placeholder: 'Ad soyad',
-        'aria-label': 'Öğretmen adı', oninput: function () { o.ad = this.value; planla(); }
-      });
-      var sil = el('button', {
-        type: 'button', class: 'ikon-btn og-sil', 'aria-label': (o.ad || 'Bu öğretmeni') + ' sil', text: '×',
-        onclick: function () { state.ogretmenler.splice(i, 1); renderOgretmenler(); planla(); }
-      });
-      var gunler = el('div', { class: 'og-gun', role: 'group', 'aria-label': 'Okulda olduğu günler' });
-      GUN.forEach(function (g, d) {
-        var b = el('button', {
-          type: 'button', class: 'chip chip-mini', 'aria-label': g,
-          'aria-pressed': String(o.gunler.indexOf(d) > -1), text: KISA[d]
-        });
-        b.addEventListener('click', function () {
-          var k = o.gunler.indexOf(d);
-          if (k > -1) o.gunler.splice(k, 1); else o.gunler.push(d);
-          b.setAttribute('aria-pressed', String(k === -1));
-          planla();
-        });
-        gunler.appendChild(b);
-      });
-      var max = el('input', {
-        type: 'number', id: 'og-max-' + i, class: 'inp inp-sayi', min: '0', max: '5', placeholder: '–',
-        value: o.max > 0 ? String(o.max) : '', 'aria-label': 'Haftada en fazla nöbet sayısı',
-        oninput: function () { o.max = parseInt(this.value, 10) || 0; planla(); }
-      });
-      kap.appendChild(el('div', { class: 'og-satir' }, [
-        ad, sil, gunler,
-        el('div', { class: 'og-max' }, [el('label', { class: 'mini', for: 'og-max-' + i, text: 'en fazla' }), max])
-      ]));
-    });
-  }
+  <section class="arac" id="panel-sinav" role="tabpanel" aria-labelledby="sekme-sinav" hidden>
+    <?!= include('sinav-panel') ?>
+  </section>
+</main>
 
-  function renderGirdi() { renderGunler(); renderYerler(); renderOgretmenler(); }
-
-  /* ---------- Hesaplama ---------- */
-  function girdiOlustur() {
-    return {
-      gunler: state.gunler.slice().sort(),
-      yerler: state.yerler
-        .filter(function (y) { return y.ad.trim() && y.kisi > 0; })
-        .map(function (y) { return { ad: y.ad.trim(), kisi: y.kisi }; }),
-      ogretmenler: state.ogretmenler
-        .filter(function (o) { return o.ad.trim(); })
-        .map(function (o) { return { ad: o.ad.trim(), gunler: o.gunler.slice(), haftalikMax: o.max > 0 ? o.max : 0 }; })
-    };
-  }
-
-  function hesapla() {
-    var girdi = girdiOlustur();
-    var no = ++istek;
-    var p;
-    if (typeof olusturNobetCizelgesi === 'function') {
-      p = Promise.resolve(olusturNobetCizelgesi(girdi));
-    } else {
-      p = new Promise(function (ok, hata) {
-        google.script.run.withSuccessHandler(ok).withFailureHandler(hata).cizelgeUret(girdi);
+<script>
+  (function () {
+    var idler = ['nobet', 'sinav'];
+    function sec(id, odak) {
+      idler.forEach(function (k) {
+        var acik = k === id;
+        $('sekme-' + k).setAttribute('aria-selected', String(acik));
+        $('sekme-' + k).tabIndex = acik ? 0 : -1;
+        $('panel-' + k).hidden = !acik;
       });
+      if (odak) $('sekme-' + id).focus();
     }
-    p.then(function (s) { if (no === istek) renderSonuc(girdi, s); })
-      .catch(function (e) {
-        var kap = $('sonuc');
-        kap.textContent = '';
-        kap.appendChild(el('p', { class: 'bos', text: 'Çizelge oluşturulamadı: ' + (e && e.message ? e.message : e) }));
+    idler.forEach(function (k, i) {
+      var b = $('sekme-' + k);
+      b.addEventListener('click', function () { sec(k, false); });
+      b.addEventListener('keydown', function (e) {
+        var yon = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+        if (yon) {
+          e.preventDefault();
+          sec(idler[(i + yon + idler.length) % idler.length], true);
+        }
       });
-  }
-
-  /* ---------- Sonuç ---------- */
-  function renderSonuc(girdi, s) {
-    var kap = $('sonuc');
-    kap.textContent = '';
-    son = null;
-    $('kopyala').disabled = true;
-    $('kopya-alan').hidden = true;
-
-    if (!girdi.gunler.length || !girdi.yerler.length || !girdi.ogretmenler.length) {
-      kap.appendChild(el('p', { class: 'bos', text: 'En az bir gün, bir nöbet yeri ve bir öğretmen ekleyince çizelge burada oluşur.' }));
-      return;
+    });
+    function hasheGit() {
+      var h = (location.hash || '').replace('#', '');
+      if (idler.indexOf(h) > -1) sec(h, false);
     }
-
-    var harita = {};
-    s.atamalar.forEach(function (a) {
-      var k = a.gun + '|' + a.yer;
-      (harita[k] = harita[k] || []).push(a.ogretmen);
-    });
-
-    var gunlukKisi = girdi.yerler.reduce(function (t, y) { return t + y.kisi; }, 0);
-    var kontenjan = gunlukKisi * girdi.gunler.length;
-    var acik = kontenjan - s.atamalar.length;
-    var sayilar = girdi.ogretmenler.map(function (o) {
-      return { ad: o.ad, n: s.sayaclar[o.ad] || 0, max: o.haftalikMax };
-    });
-    var enAz = Math.min.apply(null, sayilar.map(function (c) { return c.n; }));
-    var enCok = Math.max.apply(null, sayilar.map(function (c) { return c.n; }));
-
-    /* Özet */
-    function stat(etiket, deger, uyari) {
-      return el('div', {}, [el('dt', { text: etiket }), el('dd', { class: uyari ? 'uyari-deger' : '', text: deger })]);
-    }
-    kap.appendChild(el('dl', { class: 'ozet' }, [
-      stat('Öğretmen', String(girdi.ogretmenler.length)),
-      stat('Yerleşen nöbet', s.atamalar.length + ' / ' + kontenjan),
-      stat('Açık kalan', String(acik), acik > 0),
-      stat('Kişi başı nöbet', enAz === enCok ? String(enCok) : enAz + '–' + enCok)
-    ]));
-
-    /* Uyarılar */
-    var adSayac = {};
-    girdi.ogretmenler.forEach(function (o) { adSayac[o.ad] = (adSayac[o.ad] || 0) + 1; });
-    var tekrar = Object.keys(adSayac).filter(function (a) { return adSayac[a] > 1; });
-    if (s.uyarilar.length || tekrar.length) {
-      var liste = el('ul');
-      s.uyarilar.forEach(function (u) { liste.appendChild(el('li', { text: u })); });
-      tekrar.forEach(function (a) { liste.appendChild(el('li', { text: '“' + a + '” iki kez girilmiş, sayılar birleşiyor.' })); });
-      var kutu = el('div', { class: 'uyari', role: 'status' }, [el('strong', { text: s.uyarilar.length ? 'Dolmayan nöbetler' : 'Dikkat' }), liste]);
-      if (s.uyarilar.length) {
-        kutu.appendChild(el('p', { text: 'O gün müsait öğretmen kalmadı. Öğretmenlerin günlerini açın, “en fazla” sınırını yükseltin ya da kişi sayısını azaltın.' }));
-      }
-      kap.appendChild(kutu);
-    }
-
-    /* Tablo */
-    var basliklar = [el('th', { scope: 'col', text: 'Yer' })];
-    girdi.gunler.forEach(function (g) {
-      basliklar.push(el('th', { scope: 'col' }, [el('span', { class: 'uzun', text: GUN[g] }), el('span', { class: 'kisa', text: KISA[g] })]));
-    });
-    var govde = el('tbody');
-    girdi.yerler.forEach(function (y) {
-      var satir = el('tr', {}, [el('th', { scope: 'row' }, [y.ad, el('small', { text: y.kisi + ' kişi/gün' })])]);
-      girdi.gunler.forEach(function (g) {
-        var adlar = harita[g + '|' + y.ad] || [];
-        var hucre = el('div', { class: 'adlar' });
-        adlar.forEach(function (a) { hucre.appendChild(el('span', { class: 'ad', text: a })); });
-        var eksik = y.kisi - adlar.length;
-        if (eksik > 0) hucre.appendChild(el('span', { class: 'ad acik', text: 'Açık' + (eksik > 1 ? ' ×' + eksik : '') }));
-        satir.appendChild(el('td', {}, [hucre]));
-      });
-      govde.appendChild(satir);
-    });
-    kap.appendChild(el('div', { class: 'tablo-kap' }, [
-      el('table', {}, [el('thead', {}, [el('tr', {}, basliklar)]), govde])
-    ]));
-
-    /* Nöbet yükü */
-    var olcek = Math.max(enCok, 1);
-    var yuk = el('div', { class: 'yuk' });
-    sayilar.forEach(function (c) {
-      var ad = el('span', { class: 'yuk-ad', title: c.ad }, [c.ad, c.max > 0 ? el('small', { text: ' (en çok ' + c.max + ')' }) : null]);
-      var dolgu = el('div', { class: 'dolgu' });
-      dolgu.style.width = (c.n / olcek * 100) + '%';
-      yuk.appendChild(el('div', { class: 'yuk-satir' }, [ad, el('div', { class: 'iz' }, [dolgu]), el('span', { class: 'yuk-n', text: String(c.n) })]));
-    });
-    kap.appendChild(el('h2', { text: 'Kişi başı nöbet sayısı' }));
-    kap.appendChild(yuk);
-
-    son = metinUret(girdi, harita);
-    $('kopyala').disabled = false;
-  }
-
-  function metinUret(girdi, harita) {
-    var satirlar = [];
-    girdi.gunler.forEach(function (g) {
-      satirlar.push(GUN[g]);
-      girdi.yerler.forEach(function (y) {
-        var adlar = (harita[g + '|' + y.ad] || []).slice();
-        var eksik = y.kisi - adlar.length;
-        if (eksik > 0) adlar.push('(açık' + (eksik > 1 ? ' ×' + eksik : '') + ')');
-        satirlar.push('  ' + y.ad + ': ' + adlar.join(', '));
-      });
-      satirlar.push('');
-    });
-    return satirlar.join('\n').trim();
-  }
-
-  function bildir(m) {
-    $('durum').textContent = m;
-    setTimeout(function () { $('durum').textContent = ''; }, 2500);
-  }
-
-  /* ---------- Olaylar ---------- */
-  $('kopyala').addEventListener('click', function () {
-    if (!son) return;
-    var alan = $('kopya-alan');
-    function yedek() {
-      alan.value = son;
-      alan.hidden = false;
-      alan.focus();
-      alan.select();
-      bildir('Metni seçip kopyalayın');
-    }
-    try {
-      navigator.clipboard.writeText(son).then(function () { bildir('Kopyalandı'); }, yedek);
-    } catch (e) { yedek(); }
-  });
-
-  $('yer-ekle').addEventListener('click', function () {
-    state.yerler.push({ ad: '', kisi: 1 });
-    renderYerler();
-    $('yer-ad-' + (state.yerler.length - 1)).focus();
-    planla();
-  });
-
-  $('og-ekle').addEventListener('click', function () {
-    state.ogretmenler.push({ ad: '', gunler: TUM.slice(), max: 0 });
-    renderOgretmenler();
-    $('og-ad-' + (state.ogretmenler.length - 1)).focus();
-    planla();
-  });
-
-  $('toplu-ekle').addEventListener('click', function () {
-    $('toplu').value.split(/\n/).map(function (s) { return s.trim(); }).filter(Boolean).forEach(function (ad) {
-      state.ogretmenler.push({ ad: ad, gunler: TUM.slice(), max: 0 });
-    });
-    $('toplu').value = '';
-    renderOgretmenler();
-    planla();
-  });
-
-  $('btn-ornek').addEventListener('click', function () {
-    state = ornek();
-    renderGirdi();
-    hesapla();
-    $('ornek-etiket').hidden = false;
-  });
-
-  $('btn-temizle').addEventListener('click', function () {
-    state = { gunler: TUM.slice(), yerler: [], ogretmenler: [] };
-    renderGirdi();
-    hesapla();
-    $('ornek-etiket').hidden = true;
-  });
-
-  renderGirdi();
-  hesapla();
+    window.addEventListener('hashchange', hasheGit);
+    hasheGit();
+  })();
 </script>

@@ -4,8 +4,15 @@
 function doGet() {
   return HtmlService.createTemplateFromFile('index')
     .evaluate()
-    .setTitle('Nöbet Çizelgesi')
+    .setTitle('MD Education Asist')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+/**
+ * index.html içinde <?!= include('dosya-adi') ?> ile parça dosyalar eklenir.
+ */
+function include(ad) {
+  return HtmlService.createHtmlOutputFromFile(ad).getContent();
 }
 
 /**
@@ -13,4 +20,11 @@ function doGet() {
  */
 function cizelgeUret(girdi) {
   return olusturNobetCizelgesi(girdi);
+}
+
+/**
+ * Arayüzden çağrılır: google.script.run.sinavAnaliz(girdi)
+ */
+function sinavAnaliz(girdi) {
+  return sinavAnaliziYap(girdi);
 }
