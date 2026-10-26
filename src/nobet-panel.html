@@ -192,13 +192,14 @@
       p = Promise.resolve(olusturNobetCizelgesi(girdi));
     } else {
       p = new Promise(function (ok, hata) {
-        google.script.run.withSuccessHandler(ok).withFailureHandler(hata).cizelgeUret(girdi);
+        google.script.run.withSuccessHandler(ok).withFailureHandler(hata).cizelgeUret(MDEA.token, girdi);
       });
     }
     p.then(function (s) { if (no === istek) renderSonuc(girdi, s); })
       .catch(function (e) {
         var kap = $('sonuc');
         kap.textContent = '';
+        if (e && e.message && /Oturum/.test(e.message)) { MDEA.oturumBitti(); return; }
         kap.appendChild(el('p', { class: 'bos', text: 'Çizelge oluşturulamadı: ' + (e && e.message ? e.message : e) }));
       });
   }

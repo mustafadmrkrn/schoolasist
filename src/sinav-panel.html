@@ -1,41 +1,47 @@
 <div class="top">
   <div>
     <p class="panel-ad">Sınav Analizi</p>
-    <p class="alt">Öğrenci puanlarından sınıf özeti, soru güçlüğü, ayırt edicilik ve kazanım başarısı.</p>
+    <p class="alt">Excel dosyanızı yükleyin; sınıf özeti, soru güçlüğü, ayırt edicilik ve kazanım başarısı otomatik hazırlanır.</p>
   </div>
   <div class="top-actions">
-    <span class="badge" id="sn-ornek-etiket">Örnek veri</span>
-    <button type="button" class="btn" id="sn-btn-ornek">Örneği yükle</button>
+    <span class="badge" id="sn-ornek-etiket" hidden>Örnek veri</span>
+    <button type="button" class="btn" id="sn-btn-ornek">Örnek veriyle dene</button>
     <button type="button" class="btn" id="sn-btn-temizle">Temizle</button>
   </div>
 </div>
 
 <div class="layout layout-sinav">
-  <section class="panel" aria-label="Sınav girdileri">
+  <section class="panel" aria-label="Excel yükleme ve ayarlar">
     <div class="blok">
-      <div class="blok-baslik"><h2>Sınav</h2></div>
+      <div class="blok-baslik"><h2>1. Excel dosyası</h2></div>
+      <label class="yukle" id="sn-yukle" for="sn-dosya">
+        <span class="yukle-baslik">Dosyayı buraya bırakın ya da seçin</span>
+        <span class="mini">.xlsx, .xls veya .csv. Dosya tarayıcınızda okunur.</span>
+        <input type="file" id="sn-dosya" class="gizli-girdi" accept=".xlsx,.xls,.csv">
+      </label>
+      <p class="mini" id="sn-dosya-bilgi" role="status"></p>
+    </div>
+
+    <div class="blok" id="sn-eslesme" hidden>
+      <div class="blok-baslik"><h2>2. Sütunları kontrol edin</h2><span class="say" id="sn-okunan"></span></div>
+      <div class="eslesme-ayar">
+        <label class="mini" for="sn-sayfa">Sayfa</label>
+        <select id="sn-sayfa" class="inp"></select>
+        <label class="mini" for="sn-baslik">Başlık satırı</label>
+        <input type="number" id="sn-baslik" class="inp inp-sayi" min="1" value="1">
+        <label class="mini" for="sn-adcol">Ad soyad sütunu</label>
+        <select id="sn-adcol" class="inp"></select>
+      </div>
+      <div class="tablo-kap kay"><table class="sutun-tablo" id="sn-sutunlar"></table></div>
+      <p class="mini">Tikli sütunlar soru sayılır. “En yüksek puan” sorunun tam puanıdır: Excel’de “Soru puanı” satırı varsa oradan okunur, yoksa sütundaki en yüksek değer alınır. Kazanım yazarsanız konu bazlı başarı da hesaplanır.</p>
+    </div>
+
+    <div class="blok">
+      <div class="blok-baslik"><h2>3. Geçme notu</h2></div>
       <div class="gecme-satir">
-        <label class="mini" for="sn-gecme">Geçme notu (100 üzerinden)</label>
+        <label class="mini" for="sn-gecme">100 üzerinden</label>
         <input type="number" id="sn-gecme" class="inp inp-sayi" min="0" max="100" value="50">
       </div>
-    </div>
-
-    <div class="blok">
-      <div class="blok-baslik"><h2>Sorular</h2><span class="say" id="sn-soru-sayi"></span></div>
-      <div id="sn-sorular" class="og-liste"></div>
-      <div><button type="button" class="btn" id="sn-soru-ekle">Soru ekle</button></div>
-    </div>
-
-    <div class="blok">
-      <div class="blok-baslik"><h2>Öğrenci puanları</h2><span class="say" id="sn-ogr-sayi"></span></div>
-      <div class="tablo-kap kay"><table class="puan-tablo" id="sn-puanlar"></table></div>
-      <div class="alt-aksiyon"><button type="button" class="btn" id="sn-ogr-ekle">Öğrenci ekle</button></div>
-      <details class="toplu">
-        <summary>Excel’den yapıştır</summary>
-        <label class="mini" for="sn-toplu">Her satırda önce ad soyad, sonra soru puanları (sekme veya noktalı virgülle ayrılmış). Soru sayısı kadar sütun yoksa sorular otomatik eklenir. Mevcut öğrenci listesi bununla değişir.</label>
-        <textarea class="inp" id="sn-toplu" placeholder="Ayşe Demir&#9;8&#9;10&#9;7&#10;Mehmet Kaya&#9;5&#9;6&#9;0"></textarea>
-        <div><button type="button" class="btn" id="sn-toplu-ekle">Listeyi bununla değiştir</button></div>
-      </details>
     </div>
   </section>
 
@@ -56,163 +62,302 @@
   function f(n, d) { return Number(n).toFixed(d).replace('.', ','); }
   function g(n) { return String(Math.round(n * 10) / 10).replace('.', ','); }
 
+  /* Başlığı bunlarla başlayan sütunlar soru sayılmaz (toplam, sıra, numara vb.) */
+  var HARIC = /^(sıra|sira|no\b|numara|okul\s*no|öğrenci\s*no|ogrenci\s*no|tc\b|toplam|top\.|puan|not(u)?\b|ortalama|ort\.|yüzde|yuzde|yüz\b|%|sınıf|sinif|şube|sube|cinsiyet|doğru|dogru|yanlış|yanlis|boş|bos|net\b|başarı|basari)/i;
+  var ADSUT = /(ad[ıi]?\s*soyad[ıi]?|öğrenci\s*ad|ogrenci\s*ad|^ad[ıi]?$|isim|^öğrenci$|^ogrenci$)/i;
+  var OZET = /^(sınıf\s*)?(ortalama|toplam|genel|ort\.?|min|max|maks|en\s*(yüksek|düşük))/i;
+  var PUANSATIRI = /^(soru\s*)?(puan|max|maks|tam\s*puan|ağırlık)/i;
+
   var ADLAR = ['Ahmet', 'Ayşe', 'Mehmet', 'Zeynep', 'Mustafa', 'Elif', 'Emre', 'Defne', 'Can', 'Ece', 'Kerem', 'Nehir'];
   var SOYADLAR = ['Yılmaz', 'Kaya', 'Demir', 'Çelik', 'Şahin', 'Aydın', 'Arslan', 'Doğan', 'Koç', 'Polat', 'Güneş', 'Kılıç'];
-  var MAX_SORU = 30;
 
-  /* Örnek: 8 soruluk matematik sınavı, 24 öğrenci (uydurma, sabit tohumla üretilir) */
-  function ornek() {
-    var kaz = ['Doğal sayılarla işlemler', 'Doğal sayılarla işlemler', 'Kesirleri karşılaştırma', 'Kesirleri karşılaştırma',
-      'Ondalık gösterim', 'Ondalık gösterim', 'Problem çözme', 'Problem çözme'];
+  function bosDurum() {
+    return { dosya: '', sayfalar: {}, sayfa: '', baslik: 0, adCol: 0, sutunlar: [], veri: [], gecme: 50 };
+  }
+  var state = bosDurum();
+  var son = null;
+  var zaman = null;
+  var istek = 0;
+
+  /* ---------- Küçük yardımcılar ---------- */
+  function bos(v) { return v === '' || v === null || v === undefined; }
+  function sayiMi(v) {
+    return (typeof v === 'number' && isFinite(v)) || (typeof v === 'string' && /^\s*-?\d+([.,]\d+)?\s*$/.test(v));
+  }
+  function sayi(v) {
+    if (typeof v === 'number') return v;
+    var n = parseFloat(String(v).replace(',', '.'));
+    return isNaN(n) ? '' : n;
+  }
+  function sutunAdi(i) {
+    var s = '';
+    i++;
+    while (i > 0) {
+      var m = (i - 1) % 26;
+      s = String.fromCharCode(65 + m) + s;
+      i = Math.floor((i - 1) / 26);
+    }
+    return s;
+  }
+  function baslikBul(rows) {
+    for (var i = 0; i < Math.min(rows.length - 1, 25); i++) {
+      var dolu = rows[i].filter(function (v) { return !bos(v); }).length;
+      if (dolu >= 3 && rows[i + 1].some(sayiMi)) return i;
+    }
+    return 0;
+  }
+  function planla() {
+    clearTimeout(zaman);
+    zaman = setTimeout(hesapla, 150);
+  }
+  function bilgi(metin, hata) {
+    var p = $('sn-dosya-bilgi');
+    p.textContent = metin || '';
+    p.style.color = hata ? 'var(--warn)' : '';
+  }
+  function bildir(m) {
+    $('sn-durum').textContent = m;
+    setTimeout(function () { $('sn-durum').textContent = ''; }, 2500);
+  }
+
+  /* ---------- Excel okuma ---------- */
+  function satirlar() { return state.sayfalar[state.sayfa] || []; }
+
+  function eslestir(adKor) {
+    var rows = satirlar();
+    var bas = rows[state.baslik] || [];
+    var veri = rows.slice(state.baslik + 1);
+    var maxSatir = null;
+    if (veri.length && veri[0].slice(0, 3).some(function (v) { return typeof v === 'string' && PUANSATIRI.test(v.trim()); })) {
+      maxSatir = veri[0];
+      veri = veri.slice(1);
+    }
+    var kolon = rows.reduce(function (m, r) { return Math.max(m, r.length); }, 0);
+    kolon = Math.max(kolon, bas.length);
+    function hucreler(c) {
+      return veri.map(function (r) { return r[c]; }).filter(function (v) { return !bos(v); });
+    }
+
+    var c;
+    if (!adKor) {
+      var ad = -1;
+      for (c = 0; c < kolon && ad < 0; c++) {
+        if (ADSUT.test(String(bos(bas[c]) ? '' : bas[c]).trim())) ad = c;
+      }
+      for (c = 0; c < kolon && ad < 0; c++) {
+        var h = hucreler(c);
+        var metin = h.filter(function (v) { return typeof v === 'string' && !sayiMi(v) && v.trim().length >= 3; }).length;
+        if (h.length >= 2 && metin / h.length >= 0.7) ad = c;
+      }
+      state.adCol = ad < 0 ? 0 : ad;
+    }
+
+    state.sutunlar = [];
+    for (c = 0; c < kolon; c++) {
+      if (c === state.adCol) continue;
+      var baslik = String(bos(bas[c]) ? '' : bas[c]).trim();
+      var dolu = hucreler(c);
+      var sayisal = dolu.filter(sayiMi);
+      var oran = dolu.length ? sayisal.length / dolu.length : 0;
+      var enBuyuk = sayisal.length ? Math.max.apply(null, sayisal.map(sayi)) : 0;
+      var dahil = dolu.length > 0 && oran >= 0.7 && enBuyuk <= 1000 && !HARIC.test(baslik);
+      var puan;
+      if (maxSatir && sayiMi(maxSatir[c]) && sayi(maxSatir[c]) > 0) puan = sayi(maxSatir[c]);
+      else puan = enBuyuk > 0 ? Math.round(enBuyuk * 10) / 10 : 1;
+      state.sutunlar.push({ idx: c, baslik: baslik || 'Sütun ' + sutunAdi(c), dahil: dahil, puan: puan, kazanim: '' });
+    }
+    state.veri = veri;
+  }
+
+  function ogrencileriOku() {
+    var dahil = state.sutunlar.filter(function (c) { return c.dahil; });
+    var ogr = [];
+    var bosSay = 0;
+    state.veri.forEach(function (r) {
+      var ad = r[state.adCol];
+      if (bos(ad) || sayiMi(ad)) return;
+      ad = String(ad).trim();
+      if (!ad || OZET.test(ad)) return;
+      var p = dahil.map(function (c) { return bos(r[c.idx]) ? '' : sayi(r[c.idx]); });
+      if (p.every(function (v) { return v === ''; })) { bosSay++; return; }
+      ogr.push({ ad: ad, puanlar: p });
+    });
+    return { ogr: ogr, bosSay: bosSay, dahil: dahil };
+  }
+
+  function yeniDosya(ad, sayfalar, ornek, kazanimlar) {
+    state = bosDurum();
+    state.dosya = ad;
+    state.sayfalar = sayfalar;
+    state.sayfa = Object.keys(sayfalar)[0];
+    state.baslik = baslikBul(satirlar());
+    eslestir(false);
+    if (kazanimlar) {
+      state.sutunlar.filter(function (c) { return c.dahil; }).forEach(function (c, j) { c.kazanim = kazanimlar[j] || ''; });
+    }
+    $('sn-gecme').value = String(state.gecme);
+    $('sn-ornek-etiket').hidden = !ornek;
+    renderUst();
+    renderSutunlar();
+    bilgi(ad + (ornek ? ' (örnek) yüklendi.' : ' okundu.'));
+    planla();
+  }
+
+  function dosyaOku(dosya) {
+    if (!dosya) return;
+    bilgi('Okunuyor…');
+    if (typeof XLSX === 'undefined') {
+      bilgi('Excel okuyucu yüklenemedi. İnternet bağlantınızı kontrol edip sayfayı yenileyin.', true);
+      return;
+    }
+    var csv = /\.csv$/i.test(dosya.name);
+    var okuyucu = new FileReader();
+    okuyucu.onerror = function () { bilgi('Dosya okunamadı.', true); };
+    okuyucu.onload = function () {
+      try {
+        var kitap = csv
+          ? XLSX.read(okuyucu.result, { type: 'string', raw: true })
+          : XLSX.read(okuyucu.result, { type: 'array' });
+        var sayfalar = {};
+        var adet = 0;
+        kitap.SheetNames.forEach(function (ad) {
+          var rows = XLSX.utils.sheet_to_json(kitap.Sheets[ad], { header: 1, raw: true, defval: '' });
+          var dolu = rows.filter(function (r) { return r.some(function (v) { return !bos(v); }); });
+          if (dolu.length >= 2) { sayfalar[ad] = rows; adet++; }
+        });
+        if (!adet) { bilgi('Dosyada okunabilir veri bulunamadı.', true); return; }
+        yeniDosya(dosya.name, sayfalar, false);
+      } catch (e) {
+        bilgi('Dosya okunamadı: ' + (e && e.message ? e.message : e), true);
+      }
+    };
+    if (csv) okuyucu.readAsText(dosya, 'utf-8'); else okuyucu.readAsArrayBuffer(dosya);
+  }
+
+  /* ---------- Örnek veri: 8 soruluk matematik sınavı, 24 öğrenci (uydurma) ---------- */
+  function ornekSatirlar() {
     var puan = [10, 10, 10, 10, 15, 15, 15, 15];
     var zorluk = [0, 0.03, 0.08, 0.12, 0.15, 0.2, 0.5, 0.3];
     var tohum = 7;
     function rnd() { tohum = (tohum * 48271) % 2147483647; return tohum / 2147483647; }
-    var ogr = [];
+    var bas = ['Sıra', 'Öğrenci No', 'Ad Soyad'].concat(puan.map(function (p, j) { return 'S' + (j + 1); }), ['Toplam']);
+    var rows = [['Matematik 1. Dönem 1. Yazılı · 6/A'], [], bas, ['', '', 'Soru puanı'].concat(puan, [100])];
+    var toplamlar = puan.map(function () { return 0; });
     for (var i = 0; i < 24; i++) {
       var yetenek = 0.5 + rnd() * 0.5;
       var ps = puan.map(function (p, j) {
         var oran = Math.min(1, Math.max(0, yetenek - zorluk[j] + (rnd() - 0.5) * 0.3));
         return Math.round(p * oran);
       });
-      ogr.push({ ad: ADLAR[i % 12] + ' ' + SOYADLAR[(i * 5 + 3 + (i >= 12 ? 1 : 0)) % 12], puanlar: ps });
+      ps.forEach(function (v, j) { toplamlar[j] += v; });
+      var ad = ADLAR[i % 12] + ' ' + SOYADLAR[(i * 5 + 3 + (i >= 12 ? 1 : 0)) % 12];
+      rows.push([i + 1, 1001 + i, ad].concat(ps, [ps.reduce(function (t, v) { return t + v; }, 0)]));
     }
-    return {
-      gecme: 50,
-      sorular: puan.map(function (p, j) { return { puan: p, kazanim: kaz[j] }; }),
-      ogrenciler: ogr
-    };
+    var ort = toplamlar.map(function (t) { return Math.round(t / 24 * 10) / 10; });
+    rows.push(['', '', 'Sınıf ortalaması'].concat(ort, [Math.round(ort.reduce(function (t, v) { return t + v; }, 0) * 10) / 10]));
+    return rows;
   }
 
-  var state = ornek();
-  var son = null;
-  var zaman = null;
-  var istek = 0;
-
-  function planla() {
-    $('sn-ornek-etiket').hidden = true;
-    clearTimeout(zaman);
-    zaman = setTimeout(hesapla, 150);
+  /* ---------- Eşleştirme arayüzü ---------- */
+  function renderUst() {
+    $('sn-eslesme').hidden = false;
+    var sec = $('sn-sayfa');
+    sec.textContent = '';
+    Object.keys(state.sayfalar).forEach(function (ad) {
+      sec.appendChild(el('option', { value: ad, text: ad, selected: ad === state.sayfa ? 'selected' : false }));
+    });
+    sec.value = state.sayfa;
+    $('sn-baslik').value = String(state.baslik + 1);
   }
 
-  function toplamPuan() {
-    return state.sorular.reduce(function (t, s) { return t + (s.puan > 0 ? s.puan : 0); }, 0);
-  }
+  function renderSutunlar() {
+    var rows = satirlar();
+    var bas = rows[state.baslik] || [];
+    var kolon = state.sutunlar.length + 1;
+    var adSec = $('sn-adcol');
+    adSec.textContent = '';
+    var tum = state.sutunlar.map(function (c) { return c.idx; }).concat([state.adCol]).sort(function (a, b) { return a - b; });
+    tum.forEach(function (c) {
+      var etiket = String(bos(bas[c]) ? '' : bas[c]).trim() || 'Sütun ' + sutunAdi(c);
+      adSec.appendChild(el('option', { value: String(c), text: etiket + ' (' + sutunAdi(c) + ')' }));
+    });
+    adSec.value = String(state.adCol);
 
-  /* ---------- Girdi ---------- */
-  function renderSorular() {
-    var kap = $('sn-sorular');
-    kap.textContent = '';
-    $('sn-soru-sayi').textContent = state.sorular.length + ' soru · ' + g(toplamPuan()) + ' puan';
-    kap.appendChild(el('div', { class: 'soru-bas' }, [
-      el('span', { text: 'Soru' }), el('span', { text: 'Puan' }), el('span', { text: 'Kazanım' }), el('span')
-    ]));
-    state.sorular.forEach(function (s, j) {
+    var t = $('sn-sutunlar');
+    t.textContent = '';
+    t.appendChild(el('thead', {}, [el('tr', {}, [
+      el('th', { scope: 'col', 'aria-label': 'Soru olarak kullan' }),
+      el('th', { scope: 'col', text: 'Sütun' }),
+      el('th', { scope: 'col', text: 'En yüksek puan' }),
+      el('th', { scope: 'col', text: 'Kazanım' })
+    ])]));
+    var govde = el('tbody');
+    state.sutunlar.forEach(function (c) {
+      var satir = el('tr', { class: c.dahil ? '' : 'pasif' });
+      var kutu = el('input', {
+        type: 'checkbox', id: 'sn-d-' + c.idx, 'aria-label': c.baslik + ' sütununu soru say',
+        checked: c.dahil ? 'checked' : false
+      });
+      kutu.checked = c.dahil;
+      kutu.addEventListener('change', function () {
+        c.dahil = this.checked;
+        satir.className = c.dahil ? '' : 'pasif';
+        planla();
+      });
       var puan = el('input', {
-        type: 'number', id: 'sn-sp-' + j, class: 'inp inp-sayi', min: '0', step: 'any', value: String(s.puan),
-        'aria-label': 'Soru ' + (j + 1) + ' puanı',
-        oninput: function () {
-          s.puan = parseFloat(this.value) || 0;
-          $('sn-soru-sayi').textContent = state.sorular.length + ' soru · ' + g(toplamPuan()) + ' puan';
-          renderPuanlar();
-          planla();
-        }
+        type: 'number', id: 'sn-sp-' + c.idx, class: 'inp inp-sayi', min: '0', step: 'any', value: String(c.puan),
+        'aria-label': c.baslik + ' en yüksek puan',
+        oninput: function () { c.puan = parseFloat(this.value) || 0; planla(); }
       });
       var kaz = el('input', {
-        type: 'text', id: 'sn-sk-' + j, class: 'inp', value: s.kazanim || '', placeholder: 'Kazanım (isteğe bağlı)',
-        'aria-label': 'Soru ' + (j + 1) + ' kazanımı', oninput: function () { s.kazanim = this.value; planla(); }
+        type: 'text', id: 'sn-sk-' + c.idx, class: 'inp', value: c.kazanim, placeholder: 'İsteğe bağlı',
+        'aria-label': c.baslik + ' kazanımı', oninput: function () { c.kazanim = this.value; planla(); }
       });
-      var sil = el('button', {
-        type: 'button', class: 'ikon-btn', 'aria-label': 'Soru ' + (j + 1) + ' sil', text: '×',
-        disabled: state.sorular.length <= 1,
-        onclick: function () {
-          state.sorular.splice(j, 1);
-          state.ogrenciler.forEach(function (o) { o.puanlar.splice(j, 1); });
-          renderSorular(); renderPuanlar(); planla();
-        }
-      });
-      kap.appendChild(el('div', { class: 'soru-satir' }, [el('span', { class: 'soru-no', text: 'S' + (j + 1) }), puan, kaz, sil]));
-    });
-  }
-
-  function renderPuanlar() {
-    var t = $('sn-puanlar');
-    t.textContent = '';
-    $('sn-ogr-sayi').textContent = state.ogrenciler.length + ' öğrenci';
-    var bas = [el('th', { scope: 'col', text: 'Öğrenci' })];
-    state.sorular.forEach(function (s, j) { bas.push(el('th', { scope: 'col', text: 'S' + (j + 1) })); });
-    bas.push(el('th', { scope: 'col', text: 'Top.' }));
-    bas.push(el('th', { scope: 'col', 'aria-label': 'Sil' }));
-    t.appendChild(el('thead', {}, [el('tr', {}, bas)]));
-
-    var govde = el('tbody');
-    state.ogrenciler.forEach(function (o, i) {
-      var toplam = el('td', { class: 'sayi toplam' });
-      function guncelle() {
-        var s = 0;
-        state.sorular.forEach(function (soru, j) {
-          var v = Number(o.puanlar[j]) || 0;
-          s += Math.min(Math.max(v, 0), soru.puan > 0 ? soru.puan : 0);
-        });
-        toplam.textContent = g(s);
-      }
-      var ad = el('input', {
-        type: 'text', id: 'sn-ad-' + i, class: 'inp', value: o.ad, placeholder: 'Ad soyad',
-        'aria-label': 'Öğrenci adı', oninput: function () { o.ad = this.value; planla(); }
-      });
-      var satir = el('tr', {}, [el('th', { scope: 'row' }, [ad])]);
-      state.sorular.forEach(function (s, j) {
-        var v = o.puanlar[j];
-        satir.appendChild(el('td', {}, [el('input', {
-          type: 'number', id: 'sn-p-' + i + '-' + j, class: 'inp inp-sayi', min: '0', max: String(s.puan), step: 'any',
-          value: v === '' || v === null || v === undefined ? '' : String(v),
-          'aria-label': (o.ad || 'Öğrenci') + ' soru ' + (j + 1),
-          oninput: function () { o.puanlar[j] = this.value === '' ? '' : parseFloat(this.value); guncelle(); planla(); }
-        })]));
-      });
-      satir.appendChild(toplam);
-      satir.appendChild(el('td', {}, [el('button', {
-        type: 'button', class: 'ikon-btn', 'aria-label': (o.ad || 'Bu öğrenciyi') + ' sil', text: '×',
-        onclick: function () { state.ogrenciler.splice(i, 1); renderPuanlar(); planla(); }
-      })]));
-      guncelle();
+      satir.appendChild(el('td', {}, [kutu]));
+      satir.appendChild(el('th', { scope: 'row', text: c.baslik }));
+      satir.appendChild(el('td', {}, [puan]));
+      satir.appendChild(el('td', {}, [kaz]));
       govde.appendChild(satir);
     });
     t.appendChild(govde);
+    if (kolon <= 1) t.appendChild(el('caption', { text: 'Sütun bulunamadı.' }));
   }
 
-  function renderGirdi() {
-    $('sn-gecme').value = String(state.gecme);
-    renderSorular();
-    renderPuanlar();
+  function guncelleOkunan(o) {
+    var metin = o.ogr.length + ' öğrenci · ' + o.dahil.length + ' soru';
+    $('sn-okunan').textContent = metin;
+    var notlar = [];
+    if (o.bosSay) notlar.push(o.bosSay + ' öğrenci hiç puan girilmediği için dışarıda bırakıldı.');
+    var b = state.dosya ? (state.dosya + ' okundu.') : '';
+    bilgi((b + ' ' + notlar.join(' ')).trim());
   }
 
   /* ---------- Hesaplama ---------- */
-  function girdiOlustur() {
-    return {
-      gecmeNotu: state.gecme,
-      sorular: state.sorular.map(function (s, j) {
-        return { no: j + 1, puan: s.puan > 0 ? s.puan : 0, kazanim: (s.kazanim || '').trim() };
-      }),
-      ogrenciler: state.ogrenciler
-        .filter(function (o) { return o.ad.trim(); })
-        .map(function (o) { return { ad: o.ad.trim(), puanlar: o.puanlar.slice() }; })
-    };
-  }
-
   function hesapla() {
-    var girdi = girdiOlustur();
+    if (!state.sutunlar.length) {
+      if (state.dosya) $('sn-okunan').textContent = '0 öğrenci · 0 soru';
+      renderSonuc({ gecerli: false, dosyaYok: !state.dosya });
+      return;
+    }
+    var o = ogrencileriOku();
+    guncelleOkunan(o);
+    var girdi = {
+      gecmeNotu: state.gecme,
+      sorular: o.dahil.map(function (c, j) { return { no: j + 1, puan: c.puan > 0 ? c.puan : 0, kazanim: c.kazanim.trim() }; }),
+      ogrenciler: o.ogr
+    };
     var no = ++istek;
     var p;
     if (typeof sinavAnaliziYap === 'function') {
       p = Promise.resolve(sinavAnaliziYap(girdi));
     } else {
       p = new Promise(function (ok, hata) {
-        google.script.run.withSuccessHandler(ok).withFailureHandler(hata).sinavAnaliz(girdi);
+        google.script.run.withSuccessHandler(ok).withFailureHandler(hata).sinavAnaliz(MDEA.token, girdi);
       });
     }
     p.then(function (a) { if (no === istek) renderSonuc(a); })
       .catch(function (e) {
+        if (e && e.message && /Oturum/.test(e.message)) { MDEA.oturumBitti(); return; }
         var kap = $('sn-sonuc');
         kap.textContent = '';
         kap.appendChild(el('p', { class: 'bos', text: 'Analiz yapılamadı: ' + (e && e.message ? e.message : e) }));
@@ -232,7 +377,12 @@
     $('sn-kopya-alan').hidden = true;
 
     if (!a.gecerli) {
-      kap.appendChild(el('p', { class: 'bos', text: 'Puanı 0’dan büyük en az bir soru ve en az bir öğrenci ekleyince analiz burada oluşur.' }));
+      kap.appendChild(el('p', {
+        class: 'bos',
+        text: a.dosyaYok
+          ? 'Excel dosyanızı yüklediğinizde analiz burada görünür. Denemek için “Örnek veriyle dene” düğmesini kullanabilirsiniz.'
+          : 'Analiz için puanı 0’dan büyük en az bir soru ve puanı girilmiş en az bir öğrenci gerekli. Başlık satırını, ad soyad sütununu ve tikli soru sütunlarını kontrol edin.'
+      }));
       return;
     }
 
@@ -270,7 +420,7 @@
       kap.appendChild(el('div', { class: 'uyari', role: 'status' }, [el('strong', { text: 'Öne çıkanlar' }), liste]));
     }
 
-    /* Not dağılımı */
+    /* Puan dağılımı */
     var enCok = Math.max.apply(null, a.dagilim.map(function (d) { return d.sayi; })) || 1;
     var dag = el('div', { class: 'yuk' });
     a.dagilim.forEach(function (d) {
@@ -350,7 +500,7 @@
 
   function raporMetni(a) {
     var s = [];
-    s.push('Sınav analizi');
+    s.push('Sınav analizi' + (state.dosya ? ' · ' + state.dosya : ''));
     s.push('Öğrenci: ' + a.n + ' · Ortalama: ' + f(a.ortalama, 1) + ' · Medyan: ' + f(a.medyan, 1) +
       ' · Geçen: ' + a.gecenSayisi + '/' + a.n + ' (geçme notu ' + g(a.gecmeNotu) + ')');
     s.push('');
@@ -370,84 +520,77 @@
     return s.join('\n');
   }
 
-  function bildir(m) {
-    $('sn-durum').textContent = m;
-    setTimeout(function () { $('sn-durum').textContent = ''; }, 2500);
-  }
-
   /* ---------- Olaylar ---------- */
+  $('sn-dosya').addEventListener('change', function () { dosyaOku(this.files && this.files[0]); });
+
+  var alan = $('sn-yukle');
+  ['dragenter', 'dragover'].forEach(function (ad) {
+    alan.addEventListener(ad, function (e) { e.preventDefault(); alan.classList.add('surukle'); });
+  });
+  ['dragleave', 'drop'].forEach(function (ad) {
+    alan.addEventListener(ad, function () { alan.classList.remove('surukle'); });
+  });
+  alan.addEventListener('drop', function (e) {
+    e.preventDefault();
+    var d = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (d) dosyaOku(d);
+  });
+
+  $('sn-sayfa').addEventListener('change', function () {
+    state.sayfa = this.value;
+    state.baslik = baslikBul(satirlar());
+    eslestir(false);
+    $('sn-baslik').value = String(state.baslik + 1);
+    renderSutunlar();
+    planla();
+  });
+
+  $('sn-baslik').addEventListener('input', function () {
+    var v = parseInt(this.value, 10);
+    if (!(v >= 1)) return;
+    state.baslik = v - 1;
+    eslestir(false);
+    renderSutunlar();
+    planla();
+  });
+
+  $('sn-adcol').addEventListener('change', function () {
+    state.adCol = parseInt(this.value, 10);
+    eslestir(true);
+    renderSutunlar();
+    planla();
+  });
+
   $('sn-gecme').addEventListener('input', function () {
     state.gecme = parseFloat(this.value) || 0;
     planla();
   });
 
-  $('sn-soru-ekle').addEventListener('click', function () {
-    if (state.sorular.length >= MAX_SORU) { bildir('En fazla ' + MAX_SORU + ' soru eklenebilir'); return; }
-    state.sorular.push({ puan: 10, kazanim: '' });
-    state.ogrenciler.forEach(function (o) { o.puanlar.push(''); });
-    renderSorular(); renderPuanlar();
-    $('sn-sp-' + (state.sorular.length - 1)).focus();
-    planla();
-  });
-
-  $('sn-ogr-ekle').addEventListener('click', function () {
-    state.ogrenciler.push({ ad: '', puanlar: state.sorular.map(function () { return ''; }) });
-    renderPuanlar();
-    $('sn-ad-' + (state.ogrenciler.length - 1)).focus();
-    planla();
-  });
-
-  $('sn-toplu-ekle').addEventListener('click', function () {
-    var yeni = [];
-    var enCok = 0;
-    $('sn-toplu').value.split(/\r?\n/).forEach(function (satir) {
-      if (!satir.trim()) return;
-      var h = satir.split(/\t|;/).map(function (x) { return x.trim(); });
-      if (h.length < 2) return;
-      var sayilar = h.slice(1).map(function (x) {
-        var v = x === '' ? NaN : parseFloat(x.replace(',', '.'));
-        return isNaN(v) ? '' : v;
-      });
-      if (sayilar.every(function (v) { return v === ''; })) return; // başlık satırı
-      yeni.push({ ad: h[0], puanlar: sayilar });
-      enCok = Math.max(enCok, sayilar.length);
-    });
-    if (!yeni.length) { bildir('Okunabilir satır bulunamadı'); return; }
-    enCok = Math.min(enCok, MAX_SORU);
-    while (state.sorular.length < enCok) state.sorular.push({ puan: 10, kazanim: '' });
-    yeni.forEach(function (o) {
-      o.puanlar = o.puanlar.slice(0, state.sorular.length);
-      while (o.puanlar.length < state.sorular.length) o.puanlar.push('');
-    });
-    state.ogrenciler = yeni;
-    $('sn-toplu').value = '';
-    renderGirdi();
-    planla();
-    bildir(yeni.length + ' öğrenci yüklendi');
-  });
-
   $('sn-btn-ornek').addEventListener('click', function () {
-    state = ornek();
-    renderGirdi();
-    hesapla();
-    $('sn-ornek-etiket').hidden = false;
+    yeniDosya('ornek-sinav.xlsx', { 'Sınav': ornekSatirlar() }, true, [
+      'Doğal sayılarla işlemler', 'Doğal sayılarla işlemler', 'Kesirleri karşılaştırma', 'Kesirleri karşılaştırma',
+      'Ondalık gösterim', 'Ondalık gösterim', 'Problem çözme', 'Problem çözme'
+    ]);
   });
 
   $('sn-btn-temizle').addEventListener('click', function () {
-    state = { gecme: 50, sorular: [{ puan: 10, kazanim: '' }], ogrenciler: [] };
-    renderGirdi();
-    hesapla();
+    state = bosDurum();
+    $('sn-eslesme').hidden = true;
+    $('sn-dosya').value = '';
+    $('sn-gecme').value = '50';
     $('sn-ornek-etiket').hidden = true;
+    bilgi('');
+    hesapla();
   });
 
   $('sn-kopyala').addEventListener('click', function () {
     if (!son) return;
-    var alan = $('sn-kopya-alan');
+    var kutu = $('sn-kopya-alan');
     function yedek() {
-      alan.value = son;
-      alan.hidden = false;
-      alan.focus();
-      alan.select();
+      kutu.value = son;
+      kutu.hidden = false;
+      kutu.focus();
+      kutu.select();
       bildir('Metni seçip kopyalayın');
     }
     try {
@@ -455,7 +598,6 @@
     } catch (e) { yedek(); }
   });
 
-  renderGirdi();
   hesapla();
 })();
 </script>

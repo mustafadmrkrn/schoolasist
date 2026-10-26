@@ -1,0 +1,281 @@
+<div class="giris-kap">
+  <section class="giris-tanitim" aria-label="Tanıtım">
+    <div class="yan-marka">
+      <span class="yan-logo" aria-hidden="true">MD</span>
+      <p class="yan-ad">MD Education Asist</p>
+    </div>
+    <h1>Okul işleri için tek yerde araçlar</h1>
+    <ul class="giris-liste">
+      <li><strong>Nöbet çizelgesi</strong><span>Öğretmenlerin müsait günlerine göre adil dağılım.</span></li>
+      <li><strong>Sınav analizi</strong><span>Excel dosyanızı yükleyin, soru ve kazanım analizi hazır olsun.</span></li>
+    </ul>
+  </section>
+
+  <section class="giris-form-kap" aria-label="Giriş">
+    <div class="giris-kart">
+      <div class="segment" role="tablist" aria-label="Giriş veya kayıt">
+        <button type="button" role="tab" class="seg" id="mod-giris" aria-selected="true">Giriş yap</button>
+        <button type="button" role="tab" class="seg" id="mod-kayit" aria-selected="false">Kayıt ol</button>
+      </div>
+
+      <form id="giris-form" novalidate>
+        <div class="alan" id="alan-ad" hidden>
+          <label for="g-ad">Ad soyad</label>
+          <input id="g-ad" class="inp" type="text" autocomplete="name" maxlength="60">
+        </div>
+        <div class="alan">
+          <label for="g-kullanici">Kullanıcı adı</label>
+          <input id="g-kullanici" class="inp" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="30">
+        </div>
+        <div class="alan">
+          <label for="g-sifre">Şifre</label>
+          <input id="g-sifre" class="inp" type="password" autocomplete="current-password" maxlength="100">
+        </div>
+        <div class="alan" id="alan-sifre2" hidden>
+          <label for="g-sifre2">Şifre tekrar</label>
+          <input id="g-sifre2" class="inp" type="password" autocomplete="new-password" maxlength="100">
+        </div>
+        <p class="ipucu" id="g-ipucu" hidden>Kullanıcı adı 3-30 karakter: harf, rakam, nokta, tire veya alt çizgi. Şifre en az 8 karakter.</p>
+        <p class="hata-kutu" id="giris-hata" role="alert" hidden></p>
+        <button type="submit" class="btn btn-primary btn-genis" id="g-gonder">Giriş yap</button>
+      </form>
+
+      <p class="demo-not" id="demo-not" hidden>Demo modu: hesaplar yalnızca bu tarayıcıda saklanır ve başka cihazda görünmez. Gerçek hesap sistemi Apps Script sürümünde çalışır.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  /* ---------- Yerel depo (localStorage yoksa bellek) ---------- */
+  var bellek = {};
+  var depo = {
+    oku: function (k) {
+      try { return window.localStorage.getItem(k); }
+      catch (e) { return Object.prototype.hasOwnProperty.call(bellek, k) ? bellek[k] : null; }
+    },
+    yaz: function (k, v) {
+      try { window.localStorage.setItem(k, v); } catch (e) { bellek[k] = v; }
+    },
+    sil: function (k) {
+      try { window.localStorage.removeItem(k); } catch (e) { delete bellek[k]; }
+    }
+  };
+  var TOKEN_ANAHTARI = 'mdea_token';
+
+  /* ---------- Ortak doğrulama (sunucudaki kurallarla aynı) ---------- */
+  function kontrol(ad, k, s, kayit) {
+    if (kayit && (!ad || ad.length > 60)) return 'Ad soyad 1 ile 60 karakter arasında olmalı.';
+    if (!/^[a-z0-9._-]{3,30}$/.test(k)) return 'Kullanıcı adı 3-30 karakter olmalı; yalnızca a-z, rakam, nokta, tire ve alt çizgi kullanılabilir.';
+    if (kayit) {
+      if (s.length < 8 || s.length > 100) return 'Şifre en az 8 karakter olmalı.';
+      if (s.toLowerCase() === k) return 'Şifre kullanıcı adıyla aynı olamaz.';
+    }
+    return '';
+  }
+
+  /* ---------- Sunucu arka ucu (Apps Script) ---------- */
+  function sunucuCagri(ad, args) {
+    return new Promise(function (ok, hata) {
+      var kosucu = google.script.run.withSuccessHandler(ok).withFailureHandler(hata);
+      kosucu[ad].apply(kosucu, args);
+    });
+  }
+  var sunucu = {
+    demo: false,
+    kayit: function (ad, k, s) { return sunucuCagri('kayitOl', [ad, k, s]); },
+    giris: function (k, s) { return sunucuCagri('girisYap', [k, s]); },
+    oturum: function (t) { return sunucuCagri('oturumKontrol', [t]); },
+    cikis: function (t) { return sunucuCagri('cikisYap', [t]); }
+  };
+
+  /* ---------- Yerel demo arka ucu (yalnızca bu tarayıcıda) ---------- */
+  var KULLANICILAR = 'mdea_demo_kullanicilar';
+  var OTURUMLAR = 'mdea_demo_oturumlar';
+  function json(anahtar) {
+    try { return JSON.parse(depo.oku(anahtar) || '{}') || {}; } catch (e) { return {}; }
+  }
+  function onaltili(bayt) {
+    return Array.prototype.map.call(bayt, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+  }
+  function rastgele(n) {
+    var a = new Uint8Array(n);
+    window.crypto.getRandomValues(a);
+    return onaltili(a);
+  }
+  function ozet(sifre, tuz) {
+    if (!window.crypto || !window.crypto.subtle) {
+      return Promise.reject(new Error('Bu tarayıcı güvenli giriş desteklemiyor.'));
+    }
+    var enc = new TextEncoder();
+    return window.crypto.subtle.importKey('raw', enc.encode(sifre), 'PBKDF2', false, ['deriveBits'])
+      .then(function (anahtar) {
+        return window.crypto.subtle.deriveBits({ name: 'PBKDF2', salt: enc.encode(tuz), iterations: 120000, hash: 'SHA-256' }, anahtar, 256);
+      })
+      .then(function (tampon) { return onaltili(new Uint8Array(tampon)); });
+  }
+  function yerelOturumAc(k, ad) {
+    var token = rastgele(32);
+    var oturumlar = json(OTURUMLAR);
+    oturumlar[token] = { k: k, bitis: Date.now() + 7 * 24 * 3600 * 1000 };
+    depo.yaz(OTURUMLAR, JSON.stringify(oturumlar));
+    return { ok: true, token: token, kullanici: k, ad: ad };
+  }
+  var yerel = {
+    demo: true,
+    kayit: function (ad, k, s) {
+      ad = String(ad || '').trim();
+      k = String(k || '').trim().toLowerCase();
+      var h = kontrol(ad, k, String(s || ''), true);
+      if (h) return Promise.resolve({ ok: false, hata: h });
+      var kullanicilar = json(KULLANICILAR);
+      if (kullanicilar[k]) return Promise.resolve({ ok: false, hata: 'Bu kullanıcı adı alınmış.' });
+      var tuz = rastgele(16);
+      return ozet(s, tuz).then(function (hash) {
+        kullanicilar[k] = { ad: ad, tuz: tuz, hash: hash };
+        depo.yaz(KULLANICILAR, JSON.stringify(kullanicilar));
+        return yerelOturumAc(k, ad);
+      });
+    },
+    giris: function (k, s) {
+      k = String(k || '').trim().toLowerCase();
+      var genel = { ok: false, hata: 'Kullanıcı adı veya şifre hatalı.' };
+      var u = json(KULLANICILAR)[k];
+      return ozet(String(s || ''), u ? u.tuz : 'kayit-yok-tuzu').then(function (hash) {
+        return u && hash === u.hash ? yerelOturumAc(k, u.ad) : genel;
+      });
+    },
+    oturum: function (t) {
+      var o = json(OTURUMLAR)[t];
+      var u = o ? json(KULLANICILAR)[o.k] : null;
+      if (!o || !u || o.bitis < Date.now()) return Promise.resolve({ ok: false });
+      return Promise.resolve({ ok: true, kullanici: o.k, ad: u.ad });
+    },
+    cikis: function (t) {
+      var oturumlar = json(OTURUMLAR);
+      delete oturumlar[t];
+      depo.yaz(OTURUMLAR, JSON.stringify(oturumlar));
+      return Promise.resolve({ ok: true });
+    }
+  };
+
+  var arka = (typeof google !== 'undefined' && google.script && google.script.run) ? sunucu : yerel;
+
+  /* ---------- Ekran yönetimi ---------- */
+  function goster(ekran) {
+    $('yukleniyor').hidden = ekran !== 'yukleniyor';
+    $('giris-ekrani').hidden = ekran !== 'giris';
+    $('uygulama').hidden = ekran !== 'uygulama';
+  }
+
+  function hataGoster(metin) {
+    var kutu = $('giris-hata');
+    kutu.textContent = metin || '';
+    kutu.hidden = !metin;
+  }
+
+  var mod = 'giris';
+  function modDegistir(yeni) {
+    mod = yeni;
+    var kayit = yeni === 'kayit';
+    $('mod-giris').setAttribute('aria-selected', String(!kayit));
+    $('mod-kayit').setAttribute('aria-selected', String(kayit));
+    $('alan-ad').hidden = !kayit;
+    $('alan-sifre2').hidden = !kayit;
+    $('g-ipucu').hidden = !kayit;
+    $('g-sifre').setAttribute('autocomplete', kayit ? 'new-password' : 'current-password');
+    $('g-gonder').textContent = kayit ? 'Hesap oluştur' : 'Giriş yap';
+    hataGoster('');
+  }
+
+  function basHarfler(ad) {
+    return String(ad || '?').trim().split(/\s+/).slice(0, 2).map(function (p) {
+      return p.charAt(0).toLocaleUpperCase('tr');
+    }).join('');
+  }
+
+  function uygulamayiAc(r) {
+    MDEA.kullanici = r.kullanici;
+    $('kullanici-ad').textContent = r.ad;
+    $('kullanici-k').textContent = '@' + r.kullanici;
+    $('kullanici-bas').textContent = basHarfler(r.ad);
+    goster('uygulama');
+  }
+
+  function mesgul(m) {
+    $('g-gonder').disabled = m;
+  }
+
+  /* ---------- Olaylar ---------- */
+  $('mod-giris').addEventListener('click', function () { modDegistir('giris'); });
+  $('mod-kayit').addEventListener('click', function () { modDegistir('kayit'); });
+
+  $('giris-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var kayit = mod === 'kayit';
+    var ad = $('g-ad').value.trim();
+    var k = $('g-kullanici').value.trim().toLowerCase();
+    var s = $('g-sifre').value;
+
+    if (!k || !s) { hataGoster('Kullanıcı adı ve şifre gerekli.'); return; }
+    var h = kontrol(ad, k, s, kayit);
+    if (h) { hataGoster(h); return; }
+    if (kayit && s !== $('g-sifre2').value) { hataGoster('Şifreler aynı değil.'); return; }
+
+    hataGoster('');
+    mesgul(true);
+    (kayit ? arka.kayit(ad, k, s) : arka.giris(k, s))
+      .then(function (r) {
+        if (!r || !r.ok) { hataGoster((r && r.hata) || 'İşlem yapılamadı.'); return; }
+        depo.yaz(TOKEN_ANAHTARI, r.token);
+        MDEA.token = r.token;
+        $('g-sifre').value = '';
+        $('g-sifre2').value = '';
+        uygulamayiAc(r);
+      })
+      .catch(function (err) { hataGoster((err && err.message) || 'Bağlantı hatası. Tekrar deneyin.'); })
+      .then(function () { mesgul(false); });
+  });
+
+  // Çıkış düğmesi uygulama kabuğunda, bu betikten sonra oluşur; baslat() içinde bağlanır.
+  function cikisKur() {
+    $('cikis').addEventListener('click', function () {
+      var t = MDEA.token;
+      MDEA.token = null;
+      MDEA.kullanici = null;
+      depo.sil(TOKEN_ANAHTARI);
+      if (t) arka.cikis(t).catch(function () {});
+      // Ortak bilgisayarlarda öğrenci verisi bellekte kalmasın.
+      $('btn-temizle').click();
+      $('sn-btn-temizle').click();
+      $('g-kullanici').value = '';
+      modDegistir('giris');
+      goster('giris');
+      $('g-kullanici').focus();
+    });
+  }
+
+  MDEA.oturumBitti = function () {
+    MDEA.token = null;
+    depo.sil(TOKEN_ANAHTARI);
+    $('btn-temizle').click();
+    $('sn-btn-temizle').click();
+    modDegistir('giris');
+    goster('giris');
+    hataGoster('Oturum süresi doldu. Lütfen yeniden giriş yapın.');
+  };
+
+  MDEA.baslat = function () {
+    cikisKur();
+    $('demo-not').hidden = !arka.demo;
+    var t = depo.oku(TOKEN_ANAHTARI);
+    if (!t) { goster('giris'); return; }
+    arka.oturum(t)
+      .then(function (r) {
+        if (r && r.ok) { MDEA.token = t; uygulamayiAc(r); }
+        else { depo.sil(TOKEN_ANAHTARI); goster('giris'); }
+      })
+      .catch(function () { goster('giris'); });
+  };
+})();
+</script>

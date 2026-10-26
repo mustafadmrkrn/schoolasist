@@ -15,16 +15,33 @@ function include(ad) {
   return HtmlService.createHtmlOutputFromFile(ad).getContent();
 }
 
-/**
- * Arayüzden çağrılır: google.script.run.cizelgeUret(girdi)
- */
-function cizelgeUret(girdi) {
+/* ---------- Hesap işlemleri (giriş yapmadan çağrılabilir) ---------- */
+
+function kayitOl(ad, kullanici, sifre) {
+  return authKayitOl(ad, kullanici, sifre);
+}
+
+function girisYap(kullanici, sifre) {
+  return authGirisYap(kullanici, sifre);
+}
+
+function oturumKontrol(token) {
+  return authOturum(token);
+}
+
+function cikisYap(token) {
+  authCikis(token);
+  return { ok: true };
+}
+
+/* ---------- Araçlar (geçerli oturum gerekir) ---------- */
+
+function cizelgeUret(token, girdi) {
+  authOturumZorunlu(token);
   return olusturNobetCizelgesi(girdi);
 }
 
-/**
- * Arayüzden çağrılır: google.script.run.sinavAnaliz(girdi)
- */
-function sinavAnaliz(girdi) {
+function sinavAnaliz(token, girdi) {
+  authOturumZorunlu(token);
   return sinavAnaliziYap(girdi);
 }

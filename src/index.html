@@ -1,66 +1,39 @@
 <title>MD Education Asist</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;700&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-  /* Yerleşim: solda girdi paneli, sağda canlı çizelge. Dar ekranda alt alta. */
+  /* Yerleşim: solda mavi menü, sağda araç paneli. Giriş ekranı iki parçalı. Yalnızca açık tema. */
   :root {
-    --bg: #EEF2F1;
+    color-scheme: light;
+    --bg: #F2F6FC;
     --surface: #FFFFFF;
-    --surface-2: #F4F7F6;
-    --ink: #12272B;
-    --muted: #58706F;
-    --line: #D3DEDC;
-    --accent: #0E6A73;
+    --surface-2: #EAF1FB;
+    --ink: #10264A;
+    --muted: #566B8C;
+    --line: #D4E0F2;
+    --accent: #1D5FD8;
     --accent-ink: #FFFFFF;
-    --accent-soft: #DCEEF0;
+    --accent-soft: #DCE9FC;
+    --yan: #123F9E;
+    --yan-ink: #FFFFFF;
+    --yan-muted: #B7C9EE;
     --warn: #A64B0B;
-    --warn-soft: #FBEADB;
+    --warn-soft: #FDEEDC;
     --font-display: 'Schibsted Grotesk', 'Segoe UI', system-ui, sans-serif;
     --font-body: 'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
     --font-mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
   }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #0E1A1C;
-      --surface: #152427;
-      --surface-2: #1B2D31;
-      --ink: #E3EEEC;
-      --muted: #8FA9A7;
-      --line: #27403F;
-      --accent: #5CC1C9;
-      --accent-ink: #06191B;
-      --accent-soft: #17383B;
-      --warn: #F0A26A;
-      --warn-soft: #3A2616;
-      color-scheme: dark;
-    }
-  }
-  :root[data-theme="dark"] {
-    --bg: #0E1A1C;
-    --surface: #152427;
-    --surface-2: #1B2D31;
-    --ink: #E3EEEC;
-    --muted: #8FA9A7;
-    --line: #27403F;
-    --accent: #5CC1C9;
-    --accent-ink: #06191B;
-    --accent-soft: #17383B;
-    --warn: #F0A26A;
-    --warn-soft: #3A2616;
-    color-scheme: dark;
-  }
-
-  *, *::before, *::after { box-sizing: border-box; }
+  html, body { height: 100%; }
   body {
     background: var(--bg);
     color: var(--ink);
     font-family: var(--font-body);
     font-size: 16px;
     line-height: 1.5;
-    padding-block: 1.25rem 2.5rem;
-    padding-left: max(16px, env(safe-area-inset-left, 0px));
-    padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
+  [hidden] { display: none !important; }
+*, *::before, *::after { box-sizing: border-box; }
   h1, h2 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
   button, input { font: inherit; color: inherit; }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -179,17 +152,6 @@
 
   [hidden] { display: none !important; }
 
-  /* Marka ve sekmeler */
-  .marka { display: grid; gap: 0.2rem; }
-  .marka .alt { margin: 0; }
-  .sekmeler { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--line); overflow-x: auto; }
-  .sekme {
-    padding: 0.65rem 1rem; border: 0; border-bottom: 3px solid transparent; margin-bottom: -1px;
-    background: transparent; color: var(--muted); font-family: var(--font-display); font-weight: 700;
-    font-size: 1rem; cursor: pointer; white-space: nowrap;
-  }
-  .sekme:hover { color: var(--ink); }
-  .sekme[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
   .arac { display: grid; gap: 1.25rem; }
   .panel-ad {
     margin: 0; font-family: var(--font-display); font-weight: 700;
@@ -221,11 +183,132 @@
   .iz.esikli { position: relative; overflow: visible; }
   .esik { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); opacity: 0.55; }
   .dolgu.uyari-dolgu { background: var(--warn); }
+
+  /* Sol menülü kabuk */
+  .kabuk { display: grid; grid-template-columns: 15.5rem minmax(0, 1fr); min-height: 100%; }
+  .yan {
+    background: var(--yan); color: var(--yan-ink); padding-block: 1.25rem;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 1rem;
+  }
+  .yan :focus-visible, .giris-tanitim :focus-visible { outline-color: #fff; }
+  .yan-ic { position: sticky; top: 1.25rem; display: grid; gap: 1.5rem; }
+  .yan-marka { display: flex; align-items: center; gap: 0.7rem; }
+  .yan-logo {
+    display: grid; place-items: center; flex: none; width: 2.4rem; height: 2.4rem; border-radius: 8px;
+    background: #fff; color: var(--yan); font-family: var(--font-display); font-weight: 700; font-size: 0.95rem;
+  }
+  .yan-ad { margin: 0; font-family: var(--font-display); font-weight: 700; line-height: 1.15; }
+  .yan-alt { margin: 0; font-size: 0.8rem; color: var(--yan-muted); }
+  .hesap {
+    display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 0.7rem; align-items: center;
+    padding: 0.75rem; border-radius: 8px; background: rgba(255, 255, 255, 0.1);
+  }
+  .av {
+    grid-row: span 2; display: grid; place-items: center; width: 2.3rem; height: 2.3rem; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.22); font-weight: 600; font-size: 0.85rem;
+  }
+  .hesap-ad, .hesap .yan-alt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hesap-ad { margin: 0; font-weight: 600; }
+  .cikis {
+    grid-column: 1 / -1; margin-top: 0.6rem; padding: 0.4rem 0.7rem; border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.4); background: transparent; color: var(--yan-ink);
+    font-weight: 600; font-size: 0.85rem; cursor: pointer;
+  }
+  .cikis:hover { background: rgba(255, 255, 255, 0.14); }
+  .yan-nav { display: grid; gap: 0.25rem; }
+  .yan-baslik { margin: 0 0 0.25rem; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--yan-muted); }
+  .nav-btn {
+    display: flex; align-items: center; gap: 0.7rem; width: 100%; padding: 0.6rem 0.75rem; border: 0; border-radius: 8px;
+    background: transparent; color: var(--yan-ink); font-weight: 600; text-align: left; cursor: pointer;
+  }
+  .nav-btn svg { flex: none; }
+  .nav-btn:hover { background: rgba(255, 255, 255, 0.12); }
+  .nav-btn[aria-current="page"] { background: #fff; color: var(--yan); }
+  .icerik {
+    min-width: 0; padding-block: 1.5rem 2.5rem; padding-left: 1.5rem;
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .arac { display: grid; gap: 1.25rem; max-width: 78rem; margin-inline: auto; }
+  .panel-ad {
+    margin: 0; font-family: var(--font-display); font-weight: 700;
+    font-size: clamp(1.2rem, 1.05rem + 0.8vw, 1.6rem); line-height: 1.2;
+  }
+  .yukleniyor { min-height: 100%; display: grid; place-items: center; color: var(--muted); }
+  @media (max-width: 56rem) {
+    .kabuk { grid-template-columns: minmax(0, 1fr); }
+    .yan { padding-block: 0.9rem; padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+    .yan-ic { position: static; gap: 0.8rem; }
+    .yan-baslik { display: none; }
+    .yan-nav { display: flex; overflow-x: auto; gap: 0.35rem; }
+    .nav-btn { width: auto; white-space: nowrap; }
+    .icerik { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-top: 1.1rem; }
+  }
+
+  /* Giriş ekranı */
+  .giris-kap { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 100%; }
+  @media (min-width: 56rem) { .giris-kap { grid-template-columns: minmax(0, 1fr) minmax(0, 34rem); } }
+  .giris-tanitim {
+    background: var(--yan); color: var(--yan-ink); display: grid; align-content: center; gap: 1.5rem;
+    padding-block: 2rem; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 2rem;
+  }
+  @media (min-width: 56rem) { .giris-tanitim { padding-left: 4rem; } }
+  .giris-tanitim h1 { font-size: clamp(1.7rem, 1.2rem + 1.8vw, 2.5rem); line-height: 1.12; max-width: 22rem; }
+  .giris-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.9rem; max-width: 26rem; }
+  .giris-liste li { display: grid; gap: 0.1rem; padding-left: 0.9rem; border-left: 3px solid rgba(255, 255, 255, 0.55); }
+  .giris-liste span { color: var(--yan-muted); }
+  .giris-form-kap {
+    display: grid; place-items: center; padding-block: 2rem;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .giris-kart { width: 100%; max-width: 24rem; display: grid; gap: 1rem; }
+  .giris-kart form { display: grid; gap: 0.9rem; }
+  .segment { display: grid; grid-template-columns: 1fr 1fr; padding: 3px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); }
+  .seg { padding: 0.5rem; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-weight: 600; cursor: pointer; }
+  .seg[aria-selected="true"] { background: #fff; color: var(--accent); box-shadow: 0 1px 2px rgba(16, 38, 74, 0.14); }
+  .alan { display: grid; gap: 0.3rem; }
+  .alan label { font-size: 0.85rem; font-weight: 600; }
+  .alan .inp { background: var(--surface); padding: 0.6rem 0.7rem; }
+  .btn-genis { width: 100%; padding-block: 0.7rem; }
+  .hata-kutu { margin: 0; padding: 0.6rem 0.8rem; border-radius: 6px; background: var(--warn-soft); color: var(--warn); font-size: 0.9rem; }
+  .ipucu { margin: 0; font-size: 0.8rem; color: var(--muted); }
+  .demo-not { margin: 0; padding: 0.6rem 0.8rem; border: 1px dashed var(--line); border-radius: 6px; font-size: 0.8rem; color: var(--muted); }
+
+  /* Sınav analizi */
+  @media (min-width: 62rem) { .layout-sinav { grid-template-columns: minmax(0, 32rem) minmax(0, 1fr); } }
+  .gecme-satir { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
+  .yukle {
+    position: relative; display: grid; gap: 0.25rem; justify-items: center; text-align: center; padding: 1.4rem 1rem;
+    border: 2px dashed var(--accent); border-radius: 8px; background: var(--accent-soft); cursor: pointer;
+  }
+  .yukle.surukle { background: #fff; }
+  .yukle:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .yukle-baslik { font-weight: 600; color: var(--accent); }
+  .gizli-girdi { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+  .eslesme-ayar { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.5rem 0.75rem; align-items: center; }
+  .eslesme-ayar .inp-sayi { width: 4.5rem; text-align: left; }
+  .sutun-tablo { min-width: 28rem; }
+  .sutun-tablo th, .sutun-tablo td { padding: 0.35rem 0.5rem; }
+  .sutun-tablo thead th { font-size: 0.75rem; }
+  .sutun-tablo .inp-sayi { width: 4.2rem; }
+  .sutun-tablo input[type="checkbox"] { width: 1.1rem; height: 1.1rem; accent-color: var(--accent); }
+  .sutun-tablo tr.pasif td { opacity: 0.55; }
+  .etiket {
+    display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 0.05rem 0.4rem; border-radius: 4px;
+    background: var(--accent-soft); white-space: nowrap;
+  }
+  .etiket-uyari { background: var(--warn-soft); color: var(--warn); }
+  .kay { max-height: 24rem; overflow: auto; }
+  .sayisal { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .iz.esikli { position: relative; overflow: visible; }
+  .esik { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); opacity: 0.55; }
+  .dolgu.uyari-dolgu { background: var(--warn); }
 </style>
 
 <script>/*__NOBET__*/</script>
 <script>/*__SINAV__*/</script>
 <script>
+  var MDEA = { token: null, kullanici: null, baslat: function () {}, oturumBitti: function () {} };
+
   function $(id) { return document.getElementById(id); }
 
   function el(tag, props, kids) {
@@ -245,54 +328,75 @@
   }
 </script>
 
-<main class="app">
-  <header class="marka">
-    <h1>MD Education Asist</h1>
-    <p class="alt">Öğretmenlerin gündelik işleri için araçlar.</p>
-  </header>
+<div id="yukleniyor" class="yukleniyor" role="status">Yükleniyor…</div>
 
-  <div class="sekmeler" role="tablist" aria-label="Araçlar">
-    <button type="button" role="tab" class="sekme" id="sekme-nobet" aria-controls="panel-nobet" aria-selected="true">Nöbet çizelgesi</button>
-    <button type="button" role="tab" class="sekme" id="sekme-sinav" aria-controls="panel-sinav" aria-selected="false" tabindex="-1">Sınav analizi</button>
-  </div>
+<div id="giris-ekrani" hidden>
+  <?!= include('giris') ?>
+</div>
 
-  <section class="arac" id="panel-nobet" role="tabpanel" aria-labelledby="sekme-nobet">
-    <?!= include('nobet-panel') ?>
-  </section>
+<div id="uygulama" class="kabuk" hidden>
+  <aside class="yan" aria-label="Ana menü">
+    <div class="yan-ic">
+      <div class="yan-marka">
+        <span class="yan-logo" aria-hidden="true">MD</span>
+        <div>
+          <p class="yan-ad">MD Education</p>
+          <p class="yan-alt">Asist</p>
+        </div>
+      </div>
 
-  <section class="arac" id="panel-sinav" role="tabpanel" aria-labelledby="sekme-sinav" hidden>
-    <?!= include('sinav-panel') ?>
-  </section>
-</main>
+      <div class="hesap">
+        <span class="av" id="kullanici-bas" aria-hidden="true">?</span>
+        <p class="hesap-ad" id="kullanici-ad"></p>
+        <p class="yan-alt" id="kullanici-k"></p>
+        <button type="button" class="cikis" id="cikis">Çıkış yap</button>
+      </div>
+
+      <nav class="yan-nav" aria-label="Araçlar">
+        <p class="yan-baslik">Araçlar</p>
+        <button type="button" class="nav-btn" id="nav-nobet" aria-current="page">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M8 3.5v3M16 3.5v3M3.5 10h17"/></svg>
+          Nöbet çizelgesi
+        </button>
+        <button type="button" class="nav-btn" id="nav-sinav">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20v-8M12 20V5M19 20v-5"/></svg>
+          Sınav analizi
+        </button>
+      </nav>
+    </div>
+  </aside>
+
+  <main class="icerik">
+    <section class="arac" id="panel-nobet" aria-label="Nöbet çizelgesi">
+      <?!= include('nobet-panel') ?>
+    </section>
+
+    <section class="arac" id="panel-sinav" aria-label="Sınav analizi" hidden>
+      <?!= include('sinav-panel') ?>
+    </section>
+  </main>
+</div>
 
 <script>
   (function () {
     var idler = ['nobet', 'sinav'];
-    function sec(id, odak) {
+    function sec(id) {
       idler.forEach(function (k) {
         var acik = k === id;
-        $('sekme-' + k).setAttribute('aria-selected', String(acik));
-        $('sekme-' + k).tabIndex = acik ? 0 : -1;
+        if (acik) $('nav-' + k).setAttribute('aria-current', 'page');
+        else $('nav-' + k).removeAttribute('aria-current');
         $('panel-' + k).hidden = !acik;
       });
-      if (odak) $('sekme-' + id).focus();
     }
-    idler.forEach(function (k, i) {
-      var b = $('sekme-' + k);
-      b.addEventListener('click', function () { sec(k, false); });
-      b.addEventListener('keydown', function (e) {
-        var yon = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
-        if (yon) {
-          e.preventDefault();
-          sec(idler[(i + yon + idler.length) % idler.length], true);
-        }
-      });
+    idler.forEach(function (k) {
+      $('nav-' + k).addEventListener('click', function () { sec(k); });
     });
     function hasheGit() {
       var h = (location.hash || '').replace('#', '');
-      if (idler.indexOf(h) > -1) sec(h, false);
+      if (idler.indexOf(h) > -1) sec(h);
     }
     window.addEventListener('hashchange', hasheGit);
     hasheGit();
+    MDEA.baslat();
   })();
 </script>
