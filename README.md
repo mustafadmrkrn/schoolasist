@@ -13,7 +13,16 @@ src/Code.gs          Web uygulaması giriş noktası (doGet)
 src/Nobet.gs         Çizelge algoritması (saf fonksiyon, Sheets'e bağımlı değil)
 src/index.html       Arayüz (Stitch tasarımı buraya taşınacak)
 tests/nobet.test.js  Algoritma testleri (Node ile çalışır)
+scripts/preview.js   Arayüzü algoritmayla birleştirip tarayıcıda açılabilir önizleme üretir
 ```
+
+## Önizleme
+
+```
+node scripts/preview.js
+```
+
+`dist/preview.html` oluşur; Apps Script olmadan tarayıcıda açılır.
 
 ## Testleri çalıştırma
 
