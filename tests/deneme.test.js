@@ -198,4 +198,31 @@ var a = ctx.denemeAnaliziYap({ baslik: baslik, satirlar: satirlar, yanlisKatsayi
   assert.ok(b.ogrenciler[0].oneriler.some(function (m) { return /Matematik|Mat/.test(m); }));
 })();
 
+// 11) Öğrenciye birden fazla alan ya da yalnızca TYT
+(function () {
+  var b = ctx.denemeAnaliziYap({ baslik: baslik, satirlar: satirlar, alanlar: { 'Ayşe Yılmaz': ['EA', 'SÖZ'], 'Mehmet Kaya': [] } });
+  var k = {};
+  b.ogrenciler.forEach(function (x) { k[x.ad] = x; });
+  var ay = k['Ayşe Yılmaz'];
+  assert.strictEqual(ay.alanlar.join(','), 'EA,SÖZ');
+  assert.strictEqual(ay.alan, 'SÖZ', 'ana alan: seçilenler içinde puanı en yüksek');
+  assert.ok(ay.alanSiralari.EA && ay.alanSiralari['SÖZ'], 'her seçili alan için sıra');
+  assert.ok(!ay.oneriler.some(function (m) { return /belirgin yüksek/.test(m); }), 'seçili alanlar birbirine karşı uyarı vermez');
+  var tar2 = ay.oturumlar[1].dersler[3];
+  assert.strictEqual(tar2.turler.join(','), 'SÖZ', 'Tarih-2 yalnızca SÖZ’e sayılır');
+  assert.strictEqual(ay.oturumlar[1].dersler[0].turler.join(','), 'EA,SÖZ');
+  var me = k['Mehmet Kaya'];
+  assert.strictEqual(me.alanlar.length, 0);
+  assert.strictEqual(me.alan, null);
+  assert.strictEqual(me.alanKaynak, 'yalnızca TYT seçildi');
+  assert.ok(me.oturumlar[1].dersler.every(function (d) { return !d.alanda; }), 'yalnızca TYT: AYT dersleri puana sayılmaz');
+  assert.ok(me.oturumlar[0].dersler[0].alanda);
+  var c = ctx.denemeAnaliziYap({ baslik: baslik, satirlar: satirlar, alan: 'TYT' });
+  assert.ok(c.ogrenciler.every(function (x) { return x.alanlar.length === 0; }), 'tüm sınıf yalnızca TYT');
+  var d = ctx.denemeAnaliziYap({ baslik: baslik, satirlar: satirlar, alan: ['SAY', 'EA'] });
+  assert.ok(d.ogrenciler.every(function (x) { return x.alanlar.join(',') === 'SAY,EA'; }));
+  var e = ctx.denemeAnaliziYap({ baslik: baslik, satirlar: satirlar, alanlar: { 'Ayşe Yılmaz': ['DİL'] } });
+  assert.strictEqual(e.ogrenciler[0].alanlar.length, 0, 'denemede YDT yoksa DİL seçilemez');
+})();
+
 console.log('Deneme testleri geçti.');

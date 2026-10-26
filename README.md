@@ -17,8 +17,10 @@ Kullanıcı adı ve şifreyle girilir; soldaki menüden istenen araç seçilir.
     `puan = 100 + Σ katsayı × net` (ör. TYT Türkçe 3,3; AYT Matematik 3,0 puan/net). ÖSYM standart puan
     kullandığı için gerçek puan farklı çıkar; OBP eklenmez. Hesaplanma şartı kılavuzdaki gibi: TYT için
     Türkçe veya Temel Matematikte, alan puanı için ilgili AYT testlerinden birinde en az 0,5 net.
-  - **Alan:** sınıf adından (12-TM → EA, MF/FEN → SAY, TS → SÖZ, DİL), yoksa AYT'de cevaplanan testlerden;
-    tüm sınıf için ya da öğrenci öğrenci elle seçilebilir.
+  - **Puan türleri (alan):** her öğrenci için TYT / SAY / EA / SÖZ (/ DİL) kutucukları; birden fazla alan
+    seçilebilir, hiçbiri seçilmezse öğrenci yalnızca TYT'ye göre değerlendirilir. Başlangıç seçimi sınıf
+    adından (12-TM → EA, MF/FEN → SAY, TS → SÖZ, DİL), yoksa AYT'de cevaplanan testlerden yapılır; tüm sınıf
+    için toplu da seçilebilir. Sıralar her puan türünde o türü seçen öğrenciler arasındadır.
   - **Öğrenci analizi:** ders ders D/Y/B/net ve sınıf ortalamasıyla farkı, sınıf ve alan sırası, güçlü yönler,
     puan etkisine göre öncelikli dersler, puanı en çok artıracak testler, öneriler; tek tıkla kopyalanan
     öğrenci raporu. Konu bazında eksik için soru/konu analizi dosyası gerekir (henüz yok).

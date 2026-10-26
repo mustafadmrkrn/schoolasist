@@ -480,8 +480,22 @@ function yksSiniftanAlan(sinif) {
 
 /**
  * Tahmini puanlar ve öğrenci bazında analiz.
- * secim: { alan: 'oto' | 'SAY' | 'EA' | 'SÖZ' | 'DİL', alanlar: { 'Öğrenci Adı': 'SAY' } }
+ * secim: {
+ *   alan: '' (otomatik) | 'TYT' (yalnızca TYT) | 'SAY' | ['EA', 'SÖZ'] ...   // tüm sınıf için
+ *   alanlar: { 'Öğrenci Adı': ['EA', 'SÖZ'] }   // öğrenciye özel; [] = yalnızca TYT
+ * }
+ * TYT her öğrencide hesaplanır; seçilen alanlar AYT puan türleridir, birden fazla olabilir.
  */
+function yksAlanSecimi(v, dilVar) {
+  if (v === undefined || v === null || v === '' || v === 'oto') return null;
+  var dizi = Object.prototype.toString.call(v) === '[object Array]' ? v : [v];
+  var sonuc = [];
+  YKS_ALANLAR.forEach(function (t) {
+    if (dizi.indexOf(t) > -1 && (t !== 'DİL' || dilVar)) sonuc.push(t);
+  });
+  return sonuc;
+}
+
 function yksOgrenciAnalizi(ogrenciler, dersler, oturumlar, secim) {
   secim = secim || {};
   var yks = !!secim.yks;
@@ -524,12 +538,15 @@ function yksOgrenciAnalizi(ogrenciler, dersler, oturumlar, secim) {
       puan[t] = Math.min(500, p);
     });
 
-    // Alan
+    // Alanlar (birden fazla olabilir; boş dizi = yalnızca TYT)
+    var alanlar = null;
     var alan = null;
     var kaynak = '';
+    var elle = yks ? yksAlanSecimi(ozel[g.ad], dilVar) : null;
+    var genel = yks ? yksAlanSecimi(secim.alan, dilVar) : null;
     if (!yks) { /* alan yalnızca YKS'de */ }
-    else if (ozel[g.ad] && YKS_ALANLAR.indexOf(ozel[g.ad]) > -1) { alan = ozel[g.ad]; kaynak = 'elle seçildi'; }
-    else if (secim.alan && YKS_ALANLAR.indexOf(secim.alan) > -1) { alan = secim.alan; kaynak = 'tüm sınıf için seçildi'; }
+    else if (elle) { alanlar = elle; kaynak = 'elle seçildi'; }
+    else if (genel) { alanlar = genel; kaynak = 'tüm sınıf için seçildi'; }
     else if (yksSiniftanAlan(g.sinif)) { alan = yksSiniftanAlan(g.sinif); kaynak = 'sınıf adından (' + g.sinif + ')'; }
     else if (aytGirdi) {
       var c = function (dizi) { return dizi.reduce(function (t, x) { return t + (cevap[x] || 0); }, 0); };
@@ -540,7 +557,11 @@ function yksOgrenciAnalizi(ogrenciler, dersler, oturumlar, secim) {
       if (alan) kaynak = 'AYT’de cevapladığı testlerden';
     }
     if (alan === 'DİL' && !dilVar) alan = null;
-    return { g: g, net: net, puan: puan, alan: alan, kaynak: kaynak };
+    if (!alanlar) alanlar = alan ? [alan] : [];
+    if (yks && !alanlar.length && kaynak) kaynak = kaynak === 'elle seçildi' || kaynak === 'tüm sınıf için seçildi' ? 'yalnızca TYT seçildi' : kaynak;
+    // Ana alan: seçilenler içinde puanı en yüksek olan
+    var ana = alanlar.slice().sort(function (a, b) { return (puan[b] || 0) - (puan[a] || 0); })[0] || null;
+    return { g: g, net: net, puan: puan, alan: ana, alanlar: alanlar, kaynak: kaynak, otomatik: !elle && !genel };
   });
 
   // Sıralar: TYT puanı tüm sınıfta, alan puanı aynı alandakiler arasında
@@ -553,18 +574,35 @@ function yksOgrenciAnalizi(ogrenciler, dersler, oturumlar, secim) {
   }
   var tytN = sirala(ogrSonuc, function (x) { return x.puan.TYT; });
   ogrSonuc.forEach(function (x) { x.tytSira = x.puan.TYT ? x._sira : null; x.tytN = tytN; delete x._sira; });
+  ogrSonuc.forEach(function (x) { x.alanSiralari = {}; });
   YKS_ALANLAR.forEach(function (a) {
-    var grup = ogrSonuc.filter(function (x) { return x.alan === a; });
+    var grup = ogrSonuc.filter(function (x) { return x.alanlar.indexOf(a) > -1; });
     var n = sirala(grup, function (x) { return x.puan[a] === undefined ? null : x.puan[a]; });
-    grup.forEach(function (x) { x.alanSira = x.puan[a] !== null && x.puan[a] !== undefined ? x._sira : null; x.alanN = n; delete x._sira; });
+    grup.forEach(function (x) {
+      x.alanSiralari[a] = { sira: x.puan[a] ? x._sira : null, n: n };
+      delete x._sira;
+    });
+  });
+  ogrSonuc.forEach(function (x) {
+    var s = x.alan ? x.alanSiralari[x.alan] : null;
+    x.alanSira = s ? s.sira : null;
+    x.alanN = s ? s.n : 0;
   });
 
   // Öğrenci kartları
   var kartlar = ogrSonuc.map(function (x) {
     var g = x.g;
-    var alanTestleri = !yks ? {} : x.alan ? yksKatsayilar(x.alan) : yksKatsayilar('TYT');
+    // Seçilen puan türlerinde her testin en yüksek net başına puanı; alan yoksa TYT
+    var alanTestleri = {};
+    if (yks) {
+      (x.alanlar.length ? x.alanlar : ['TYT']).forEach(function (t) {
+        var kt = yksKatsayilar(t);
+        Object.keys(kt).forEach(function (test) { alanTestleri[test] = Math.max(alanTestleri[test] || 0, kt[test]); });
+      });
+    }
     var kart = {
-      ad: g.ad, sinif: g.sinif, alan: x.alan, alanKaynak: x.kaynak,
+      ad: g.ad, sinif: g.sinif, alan: x.alan, alanlar: x.alanlar, alanKaynak: x.kaynak, alanOtomatik: x.otomatik,
+      alanSiralari: x.alanSiralari,
       puanlar: x.puan,
       alanPuani: x.alan && x.puan[x.alan] ? x.puan[x.alan] : null,
       tytSira: x.tytSira, tytN: x.tytN,
@@ -596,6 +634,7 @@ function yksOgrenciAnalizi(ogrenciler, dersler, oturumlar, secim) {
             karsilastirma: fark >= esik ? 'üstünde' : fark <= -esik ? 'altında' : 'düzeyinde',
             basari: basari, basariEtiket: denemeBasariEtiketi(basari),
             alanda: yks ? !!(d.test && alanTestleri[d.test]) : true,
+            turler: yks && d.test ? x.alanlar.filter(function (t) { return yksKatsayilar(t)[d.test] && YKS_AGIRLIK[t][d.test]; }) : [],
             puanNet: d.test && alanTestleri[d.test] ? alanTestleri[d.test] : 0
           };
         })
@@ -657,28 +696,30 @@ function yksOgrenciAnalizi(ogrenciler, dersler, oturumlar, secim) {
     }
     if (kart.firsatlar.length) {
       var f0 = kart.firsatlar[0];
-      kart.oneriler.push((x.alan ? x.alan + ' puanına' : 'TYT puanına') + ' en çok katkı ' + f0.test + ' testinden gelir: her net yaklaşık ' +
+      kart.oneriler.push((x.alanlar.length ? x.alanlar.join(' / ') + ' puanına' : 'TYT puanına') + ' en çok katkı ' + f0.test + ' testinden gelir: her net yaklaşık ' +
         denemeYazi(f0.puanNet) + ' puan.');
     }
     if (yks && x.alan && x.puan[x.alan]) {
-      var daha = YKS_ALANLAR.filter(function (t) { return t !== x.alan && x.puan[t] && x.puan[t] - x.puan[x.alan] >= 10; })
+      var daha = YKS_ALANLAR.filter(function (t) { return x.alanlar.indexOf(t) < 0 && x.puan[t] && x.puan[t] - x.puan[x.alan] >= 10; })
         .sort(function (a, b) { return x.puan[b] - x.puan[a]; });
       if (daha.length) {
         kart.oneriler.push('Bu denemede ' + daha[0] + ' puanı (' + denemeYazi(Math.round(x.puan[daha[0]] * 10) / 10) + '), ' + x.alan +
           ' puanından (' + denemeYazi(Math.round(x.puan[x.alan] * 10) / 10) + ') belirgin yüksek. Alan tercihi rehberlikle konuşulabilir.');
       }
     }
-    if (yks && x.alan && g.oturumlar[1] && x.puan.TYT && !x.puan[x.alan]) {
-      kart.oneriler.push(x.alan + ' puanı hesaplanamadı: ' + x.alan + ' puanına sayılan AYT testlerinin hiçbirinde 0,5 net yok.');
+    if (yks && g.oturumlar[1] && x.puan.TYT) {
+      x.alanlar.filter(function (t) { return !x.puan[t]; }).forEach(function (t) {
+        kart.oneriler.push(t + ' puanı hesaplanamadı: ' + t + ' puanına sayılan AYT testlerinin hiçbirinde 0,5 net yok.');
+      });
     }
-    if (yks && !x.alan && g.oturumlar[1]) kart.oneriler.push('Alan belirlenemedi; alan puanı için öğrencinin alanını seçin.');
+    if (yks && !x.alanlar.length && x.otomatik && g.oturumlar[1]) kart.oneriler.push('Alan belirlenemedi; alan puanı için öğrencinin alanını seçin.');
     return kart;
   });
 
   // Sınıf geneli tahmini puan ortalamaları
   var ozet = turler.map(function (t) {
     var v = kartlar.map(function (k) { return k.puanlar[t]; }).filter(function (p) { return p !== null && p !== undefined; });
-    var alanV = t === 'TYT' ? v : kartlar.filter(function (k) { return k.alan === t && k.puanlar[t] !== null; }).map(function (k) { return k.puanlar[t]; });
+    var alanV = t === 'TYT' ? v : kartlar.filter(function (k) { return k.alanlar.indexOf(t) > -1 && k.puanlar[t] !== null; }).map(function (k) { return k.puanlar[t]; });
     return { ad: t, n: v.length, ortalama: denemeOrtalama(v), alanN: alanV.length, alanOrtalama: denemeOrtalama(alanV), enYuksek: v.length ? Math.max.apply(null, v) : 0 };
   });
 
