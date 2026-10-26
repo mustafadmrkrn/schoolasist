@@ -17,8 +17,24 @@ function include(ad) {
 
 /* ---------- Hesap işlemleri (giriş yapmadan çağrılabilir) ---------- */
 
-function kayitOl(ad, kullanici, sifre) {
-  return authKayitOl(ad, kullanici, sifre);
+function kayitOl(ad, kullanici, eposta, sifre) {
+  return authKayitOl(ad, kullanici, eposta, sifre);
+}
+
+function epostaKoduGonder(bilet, eposta) {
+  return authEpostaKoduGonder(bilet, eposta);
+}
+
+function epostaDogrula(bilet, kod) {
+  return authEpostaDogrula(bilet, kod);
+}
+
+function sifreKoduIste(kimlik) {
+  return authSifreKoduIste(kimlik);
+}
+
+function sifreSifirla(kimlik, kod, yeniSifre) {
+  return authSifreSifirla(kimlik, kod, yeniSifre);
 }
 
 function girisYap(kullanici, sifre) {

@@ -82,12 +82,26 @@ node scripts/preview.js docs/index.html   # önizlemeyi yeniden derle
    (klasör olmadan: `Code`, `Auth`, `Nobet`, `Sinav`, `Deneme`, `index`, `mentor-cekirdek`, `mentor-panel`, `giris`, `nobet-panel`, `sinav-panel`).
 2. Proje ayarlarında "appsscript.json manifest dosyasını göster"i aç, içeriğini bu depodaki dosyayla değiştir.
 3. Dağıt → Yeni dağıtım → Web uygulaması. Yürüt: **Ben**. Erişimi olan kişiler: **Herkes**.
-4. İlk açılışta Google izin ister (Script Properties, önbellek ve kilit hizmetleri).
+4. İlk açılışta Google izin ister (Script Properties, önbellek, kilit ve **e-posta gönderme**).
+   Doğrulama e-postaları uygulamayı dağıtan Google hesabının Gmail'inden, "MD Education Asist" adıyla
+   gider. Gönderim kotası günde yaklaşık 100 e-posta (kişisel Gmail) ya da 1500 (Google Workspace);
+   kalan kota `MailApp.getRemainingDailyQuota()` ile görülür. Kurulumdan sonra kendi adresinizle bir
+   kayıt deneyin; ilk e-postalar gereksiz klasörüne düşebilir.
 
 Kodu GitHub'dan eşitlemek için [clasp](https://github.com/google/clasp) kullanılabilir (`rootDir: src`).
 
 ## Giriş sistemi hakkında
 
+- Kayıtta e-posta zorunludur. Adrese 6 haneli kod gider; kod girilmeden oturum açılmaz. Kod 15 dakika
+  geçerlidir, 5 yanlış denemede iptal olur ve depoda yalnızca özeti tutulur. Yeniden gönderme 60 saniyede
+  bir, kullanıcı başına günde en fazla 10 e-posta. Adres yanlış yazıldıysa doğrulama ekranından düzeltilir.
+- Bir e-posta adresi yalnızca doğrulandığında bir hesaba ait sayılır; doğrulanmamış bir kayıt başkasının
+  adresini kilitleyemez.
+- E-postası olmayan eski hesaplar bir sonraki girişte e-posta ekleyip doğrular; o zamana kadar açık
+  oturumları geçersizdir.
+- "Şifremi unuttum": kullanıcı adı ya da e-postayla kod istenir, kodla yeni şifre belirlenir; tüm eski
+  oturumlar kapanır. Yanıt, hesabın var olup olmadığını belli etmez.
+- Önizlemede (demo) e-posta gönderilmez; kod ekranda gösterilir.
 - Şifreler düz metin saklanmaz: kullanıcıya özel tuz ve tekrarlı HMAC-SHA256 ile özetlenir.
   Apps Script'te PBKDF2/bcrypt yoktur, bu yüzden tekrar sayısı sınırlıdır (`AUTH_TUR`).
 - Oturum belirteci sunucuda yalnızca özet olarak tutulur; süre 7 gündür.
