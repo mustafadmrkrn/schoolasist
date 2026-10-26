@@ -98,6 +98,10 @@ node scripts/preview.js docs/index.html   # önizlemeyi yeniden derle
    gider. Gönderim kotası günde yaklaşık 100 e-posta (kişisel Gmail) ya da 1500 (Google Workspace);
    kalan kota `MailApp.getRemainingDailyQuota()` ile görülür. Kurulumdan sonra kendi adresinizle bir
    kayıt deneyin; ilk e-postalar gereksiz klasörüne düşebilir.
+5. **E-posta izni:** düzenleyicide üstteki işlev listesinden `epostaTesti` seçip **Çalıştır**'a basın ve izin
+   verin. Kendi adresinize deneme e-postası gelir. Bu yapılmadan web uygulaması doğrulama e-postası
+   gönderemez. Kodu her güncellediğinizde **Dağıt → Dağıtımları yönet → düzenle → Sürüm: Yeni sürüm** ile
+   dağıtımı yenileyin; yoksa web uygulaması eski kodla çalışmaya devam eder.
 
 Kodu GitHub'dan eşitlemek için [clasp](https://github.com/google/clasp) kullanılabilir (`rootDir: src`).
 
