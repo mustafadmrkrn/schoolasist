@@ -314,6 +314,13 @@ assert.strictEqual(ctx.authOturum('a'.repeat(64)).ok, false);
   kota = 0;
   assert.ok(/gönderim sınırına/.test(ctx.authKayitOl('Gül', 'gul', 'gul@ornek.com', 'gul-sifre-12').hata));
   kota = 100;
+  // İzin verilmemiş: kota okunurken bile hata atar; Türkçe ve yol gösteren mesaj dönmeli
+  var eskiKota = ctx.MailApp.getRemainingDailyQuota;
+  ctx.MailApp.getRemainingDailyQuota = function () { throw new Error('You do not have permission to call MailApp.getRemainingDailyQuota. Required permissions: https://www.googleapis.com/auth/script.send_mail'); };
+  var izinsiz = ctx.authKayitOl('Gül', 'gul', 'gul@ornek.com', 'gul-sifre-12');
+  assert.strictEqual(izinsiz.ok, false);
+  assert.ok(/epostaTesti/.test(izinsiz.hata), izinsiz.hata);
+  ctx.MailApp.getRemainingDailyQuota = eskiKota;
   assert.strictEqual(kayitVeDogrula('Gül', 'gul', 'gul@ornek.com', 'gul-sifre-12').ok, true);
 })();
 

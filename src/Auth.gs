@@ -146,9 +146,20 @@ function authBiletKullanici(bilet) {
   return CacheService.getScriptCache().get('bilet:' + authTokenAnahtar(bilet));
 }
 
+var AUTH_IZIN_HATASI = 'E-posta gönderme izni verilmemiş. Uygulama sahibi Apps Script düzenleyicisinde epostaTesti işlevini bir kez çalıştırıp izin vermeli.';
+
+function authIzinHatasiMi(e) {
+  return /permission|authoriz|izin|yetki|script\.send_mail/i.test(String(e && e.message ? e.message : e));
+}
+
 function authPostaGonder(eposta, ad, kod, amac) {
-  if (MailApp.getRemainingDailyQuota() < 1) {
-    return 'Bugünlük e-posta gönderim sınırına ulaşıldı. Yarın tekrar deneyin.';
+  try {
+    if (MailApp.getRemainingDailyQuota() < 1) {
+      return 'Bugünlük e-posta gönderim sınırına ulaşıldı. Yarın tekrar deneyin.';
+    }
+  } catch (e) {
+    console.error('E-posta kotası okunamadı: ' + (e && e.message ? e.message : e));
+    return authIzinHatasiMi(e) ? AUTH_IZIN_HATASI : 'E-posta gönderilemedi. Biraz sonra tekrar deneyin.';
   }
   var sifre = amac === 'sifre';
   var konu = AUTH_UYGULAMA + (sifre ? ' şifre yenileme kodu: ' : ' doğrulama kodu: ') + kod;
@@ -169,9 +180,7 @@ function authPostaGonder(eposta, ad, kod, amac) {
     MailApp.sendEmail({ to: eposta, subject: konu, body: duz, htmlBody: html, name: AUTH_UYGULAMA });
   } catch (e) {
     console.error('E-posta gönderilemedi: ' + (e && e.message ? e.message : e));
-    if (/permission|authoriz|izin|yetki/i.test(String(e && e.message))) {
-      return 'E-posta gönderme izni verilmemiş. Uygulama sahibi Apps Script düzenleyicisinde epostaTesti işlevini bir kez çalıştırıp izin vermeli.';
-    }
+    if (authIzinHatasiMi(e)) return AUTH_IZIN_HATASI;
     return 'E-posta gönderilemedi. Adresi kontrol edip tekrar deneyin.';
   }
   return '';

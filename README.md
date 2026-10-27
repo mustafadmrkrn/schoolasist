@@ -58,6 +58,8 @@ src/yillik-cekirdek.html  Yıllık plan saf yardımcıları (tablo okuma, takvim
 src/yillik-panel.html  Yıllık plan paneli
 tests/                 Algoritma ve giriş testleri (Node ile çalışır)
 scripts/preview.js     Parçaları birleştirip tarayıcıda açılabilir önizleme üretir
+scripts/kurulum.js     Apps Script için iki dosyalık paket üretir (kurulum/Kod.gs, kurulum/index.html)
+kurulum/               Apps Script'e yapıştırılacak iki dosya
 docs/index.html        Yayınlanan önizleme (GitHub Pages için, preview.js çıktısı)
 ornekler/              Deneme için örnek Excel dosyası
 ```
@@ -75,6 +77,7 @@ node tests/mentor.test.js    # mentörlük programı testleri
 node tests/yillik.test.js    # yıllık plan testleri
 node tests/auth.test.js      # giriş testleri (Apps Script servisleri taklit edilir)
 node scripts/preview.js docs/index.html   # önizlemeyi yeniden derle
+node scripts/kurulum.js                    # Apps Script kurulum paketini yeniden üret
 ```
 
 ## İki çalışma biçimi
@@ -87,23 +90,34 @@ node scripts/preview.js docs/index.html   # önizlemeyi yeniden derle
 
 Önizlemedeki giriş yalnızca gösterim içindir ve gerçek güvenlik sağlamaz.
 
-## Apps Script'e kurulum
+## Apps Script'e kurulum (iki dosya)
 
-1. script.google.com'da yeni proje aç, `src/` altındaki tüm `.gs` ve `.html` dosyalarını aynı adlarla ekle
-   (klasör olmadan: `Code`, `Auth`, `Nobet`, `Sinav`, `Deneme`, `index`, `mentor-cekirdek`, `mentor-panel`, `yillik-cekirdek`, `yillik-panel`, `giris`, `nobet-panel`, `sinav-panel`).
-2. Proje ayarlarında "appsscript.json manifest dosyasını göster"i aç, içeriğini bu depodaki dosyayla değiştir.
-3. Dağıt → Yeni dağıtım → Web uygulaması. Yürüt: **Ben**. Erişimi olan kişiler: **Herkes**.
-4. İlk açılışta Google izin ister (Script Properties, önbellek, kilit ve **e-posta gönderme**).
-   Doğrulama e-postaları uygulamayı dağıtan Google hesabının Gmail'inden, "MD Education Asist" adıyla
-   gider. Gönderim kotası günde yaklaşık 100 e-posta (kişisel Gmail) ya da 1500 (Google Workspace);
-   kalan kota `MailApp.getRemainingDailyQuota()` ile görülür. Kurulumdan sonra kendi adresinizle bir
-   kayıt deneyin; ilk e-postalar gereksiz klasörüne düşebilir.
-5. **E-posta izni:** düzenleyicide üstteki işlev listesinden `epostaTesti` seçip **Çalıştır**'a basın ve izin
-   verin. Kendi adresinize deneme e-postası gelir. Bu yapılmadan web uygulaması doğrulama e-postası
-   gönderemez. Kodu her güncellediğinizde **Dağıt → Dağıtımları yönet → düzenle → Sürüm: Yeni sürüm** ile
-   dağıtımı yenileyin; yoksa web uygulaması eski kodla çalışmaya devam eder.
+Kurulum için yalnızca `kurulum/` klasöründeki iki dosya gerekir: **Kod.gs** (tüm sunucu kodu) ve
+**index.html** (tüm arayüz). Bu dosyalar `node scripts/kurulum.js` ile `src/` altından üretilir.
 
-Kodu GitHub'dan eşitlemek için [clasp](https://github.com/google/clasp) kullanılabilir (`rootDir: src`).
+1. script.google.com'da projeyi açın (ilk kez kuruyorsanız **Yeni proje**).
+2. Sol taraftaki dosya listesinde `Kod.gs` (ya da `Code.gs`) ve `index` dışında dosya varsa (eski kurulumdan
+   kalan `Auth`, `Nobet`, `Sinav`, `giris`, `nobet-panel` vb.) üç noktadan **Sil**. Eski dosyalar kalırsa
+   yeni kodun üzerine yazabilir.
+3. `Kod.gs` dosyasının içeriğini tamamen silin, `kurulum/Kod.gs` içeriğini yapıştırın.
+4. `index` HTML dosyası yoksa **+ → HTML** ile `index` adıyla oluşturun; içeriğini tamamen silin,
+   `kurulum/index.html` içeriğini yapıştırın. **Kaydet** (disket simgesi).
+5. **E-posta izni:** üstteki işlev listesinden `epostaTesti` seçip **Çalıştır**. Google izin ister:
+   hesabınızı seçin → "Google bu uygulamayı doğrulamadı" ekranında **Gelişmiş → (proje adı)'na git (güvenli
+   değil)** → **İzin ver**. Kendi Gmail adresinize "MD Education Asist e-posta testi" gelir. Bu adım
+   yapılmadan doğrulama e-postaları gitmez.
+6. **Dağıt:** ilk kez ise **Dağıt → Yeni dağıtım → Web uygulaması**, Yürüt: **Ben**, Erişimi olanlar: **Herkes**.
+   Daha önce dağıttıysanız **Dağıt → Dağıtımları yönet → kalem → Sürüm: Yeni sürüm → Dağıt**. Bu yapılmazsa
+   web uygulaması eski kodla çalışmaya devam eder.
+7. Web uygulaması bağlantısını açın. Giriş ekranının altında **"Sürüm 27.10.2026 · e-posta hazır"** yazmalı.
+   Turuncu bir uyarı çıkarsa ne yapılacağını söyler.
+
+Doğrulama e-postaları uygulamayı dağıtan Google hesabının Gmail'inden, "MD Education Asist" adıyla gider.
+Kota günde yaklaşık 100 e-posta (kişisel Gmail) ya da 1500 (Google Workspace). İlk e-postalar gereksiz ya da
+Promosyonlar klasörüne düşebilir. GitHub Pages önizlemesi (`docs/index.html`) e-posta göndermez; kodu ekranda
+gösterir.
+
+Kodu GitHub'dan eşitlemek için [clasp](https://github.com/google/clasp) de kullanılabilir (`rootDir: src`).
 
 ## Giriş sistemi hakkında
 

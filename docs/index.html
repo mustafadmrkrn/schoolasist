@@ -279,6 +279,9 @@
   .link-btn[disabled] { color: var(--muted); cursor: default; text-decoration: none; }
   .kod-inp { font-family: var(--font-mono); font-size: 1.4rem !important; letter-spacing: 0.4em; text-align: center; }
   .bilgi-kutu { margin: 0; padding: 0.6rem 0.8rem; border-radius: 6px; background: var(--accent-soft); color: var(--ink); font-size: 0.9rem; }
+  .uyari-kutu { margin: 0; padding: 0.65rem 0.85rem; border-radius: 6px; background: var(--warn-soft); color: var(--ink); border-left: 3px solid var(--warn); font-size: 0.9rem; }
+  .uyari-kutu strong { color: var(--warn); }
+  .surum { margin: 0; font-size: 0.75rem; color: var(--muted); text-align: center; }
   .demo-not { margin: 0; padding: 0.6rem 0.8rem; border: 1px dashed var(--line); border-radius: 6px; font-size: 0.8rem; color: var(--muted); }
 
   /* Sınav analizi */
@@ -1296,6 +1299,7 @@ function yksOgrenciAnalizi(ogrenciler, dersler, oturumlar, secim) {
 function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', ','); }
 </script>
 <script>
+  var MDEA_SURUM = '27.10.2026';
   var MDEA = { token: null, kullanici: null, baslat: function () {}, oturumBitti: function () {} };
 
   function $(id) { return document.getElementById(id); }
@@ -1337,6 +1341,7 @@ function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', '
 
   <section class="giris-form-kap" aria-label="Giriş">
     <div class="giris-kart" id="kart-giris">
+      <p class="uyari-kutu" id="mod-uyari" role="status" hidden></p>
       <div class="segment" role="tablist" aria-label="Giriş veya kayıt">
         <button type="button" role="tab" class="seg" id="mod-giris" aria-selected="true">Giriş yap</button>
         <button type="button" role="tab" class="seg" id="mod-kayit" aria-selected="false">Kayıt ol</button>
@@ -1369,7 +1374,8 @@ function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', '
         <button type="button" class="link-btn giris-link" id="g-unuttum">Şifremi unuttum</button>
       </form>
 
-      <p class="demo-not" id="demo-not" hidden>Demo modu: hesaplar yalnızca bu tarayıcıda saklanır ve başka cihazda görünmez; e-posta gönderilmez, kod ekranda gösterilir. Gerçek hesap sistemi Apps Script sürümünde çalışır.</p>
+      <p class="demo-not" id="demo-not" hidden>Hesaplar yalnızca bu tarayıcıda saklanır ve başka cihazda görünmez. Gerçek hesap sistemi ve e-posta gönderimi yalnızca Google Apps Script'e kurulan sürümde çalışır.</p>
+      <p class="surum" id="surum"></p>
     </div>
 
     <div class="giris-kart" id="kart-dogrula" hidden>
@@ -1952,9 +1958,41 @@ function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', '
     hataGoster('Oturum süresi doldu. Lütfen yeniden giriş yapın.');
   };
 
+  function durumGoster() {
+    var u = $('mod-uyari');
+    var istemci = window.MDEA_SURUM || '';
+    if (arka.demo) {
+      u.innerHTML = '';
+      u.appendChild(el('strong', { text: 'Bu sayfa önizleme: e-posta gönderilmez.' }));
+      u.appendChild(document.createTextNode(' Doğrulama kodu e-posta yerine ekranda gösterilir. Gerçek e-posta için uygulamanın Google Apps Script sürümünü kullanın.'));
+      u.hidden = false;
+      $('surum').textContent = 'Sürüm ' + istemci + ' · önizleme';
+      return;
+    }
+    $('surum').textContent = 'Sürüm ' + istemci;
+    sunucuCagri('sistemDurumu', []).then(function (r) {
+      var parca = ['Sürüm ' + istemci];
+      if (r && r.surum && r.surum !== istemci) parca.push('sunucu ' + r.surum);
+      if (r && r.epostaIzni) parca.push('e-posta hazır (bugün kalan ' + r.kota + ')');
+      $('surum').textContent = parca.join(' · ');
+      if (!r || !r.epostaIzni) {
+        u.textContent = 'E-posta gönderme izni verilmemiş, doğrulama kodları gitmez. Uygulama sahibi: Apps Script düzenleyicisinde epostaTesti işlevini seçip Çalıştır’a basın ve izin verin.';
+        u.hidden = false;
+      } else if (r.kota < 1) {
+        u.textContent = 'Bugünkü e-posta gönderim kotası doldu. Doğrulama kodları yarın gönderilebilir.';
+        u.hidden = false;
+      }
+    }).catch(function () {
+      $('surum').textContent = 'Sürüm ' + istemci + ' · sunucu yanıt vermedi';
+      u.textContent = 'Sunucuya ulaşılamadı ya da sunucu kodu eski. Apps Script’te Kod.gs dosyasının güncel olduğunu ve dağıtımın yeni sürümle yenilendiğini kontrol edin.';
+      u.hidden = false;
+    });
+  }
+
   MDEA.baslat = function () {
     cikisKur();
     $('demo-not').hidden = !arka.demo;
+    durumGoster();
     var t = depo.oku(TOKEN_ANAHTARI);
     if (!t) { goster('giris'); return; }
     arka.oturum(t)

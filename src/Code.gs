@@ -1,3 +1,5 @@
+var SURUM = '27.10.2026';
+
 /**
  * Web uygulaması giriş noktası.
  */
@@ -16,6 +18,21 @@ function include(ad) {
 }
 
 /* ---------- Hesap işlemleri (giriş yapmadan çağrılabilir) ---------- */
+
+/**
+ * Giriş ekranı açılışta çağırır: sunucu kodunun sürümü ve e-posta gönderme izni.
+ * İzin yoksa MailApp hata fırlatır; giriş ekranı uyarı gösterir.
+ */
+function sistemDurumu() {
+  var r = { surum: SURUM, epostaIzni: false, kota: 0 };
+  try {
+    r.kota = MailApp.getRemainingDailyQuota();
+    r.epostaIzni = true;
+  } catch (e) {
+    r.hata = String(e && e.message ? e.message : e);
+  }
+  return r;
+}
 
 function kayitOl(ad, kullanici, eposta, sifre) {
   return authKayitOl(ad, kullanici, eposta, sifre);
