@@ -4,11 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#FFF8EE">
-<title>Anaokulu Öğrenci Yorumları</title>
+<title>Anaokulu Dönem Notları</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700;800&display=swap">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <script src="ayar.js"></script>
 <style>
   :root {
@@ -144,12 +143,6 @@
   }
   textarea.yorum:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
   .sayac { font-size: 12.5px; color: var(--muted); font-weight: 700; }
-  .hazir { display: flex; gap: 6px; overflow-x: auto; padding: 2px 0 8px; margin: 0 -2px 6px; scrollbar-width: none; }
-  .hazir::-webkit-scrollbar { display: none; }
-  .hazir button {
-    flex: none; border: 1px dashed color-mix(in srgb, var(--ink) 25%, var(--line)); background: var(--surface-2); border-radius: 99px;
-    padding: 6px 11px; font-size: 13.5px; font-weight: 700;
-  }
   .secim-notu { background: var(--accent-soft); color: #8A2E1C; border-radius: 12px; padding: 8px 12px; font-size: 14px; font-weight: 700; display: flex; justify-content: space-between; gap: 8px; align-items: center; margin-bottom: 8px; }
   .secim-notu button { border: 0; background: none; font-weight: 800; text-decoration: underline; color: inherit; padding: 0; }
 
@@ -265,6 +258,19 @@
   }
   .durum td:first-child, .durum th:first-child { position: sticky; left: 0; background: var(--surface); z-index: 1; box-shadow: 1px 0 0 var(--line); }
   .durum th:first-child { background: var(--surface-2); }
+  .btn-pdf { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .mikrofon {
+    width: 100%; display: flex; align-items: center; gap: 12px; text-align: left; border: 0; border-radius: 16px;
+    background: var(--accent-soft); color: #7A2716; padding: 12px 14px; margin-bottom: 12px; min-height: 64px;
+  }
+  .mik-ikon { width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; flex: none; }
+  .mik-ikon svg { width: 22px; height: 22px; }
+  .mik-metin b { display: block; font-weight: 800; font-size: 16px; }
+  .mik-metin small { font-weight: 600; font-size: 13px; opacity: .85; }
+  .mikrofon.dinliyor { background: #FCE1E1; color: #8E1F1F; }
+  .mikrofon.dinliyor .mik-ikon { background: var(--danger); animation: nabiz 1.3s ease-out infinite; }
+  @keyframes nabiz { 0% { box-shadow: 0 0 0 0 rgba(194,58,58,.45); } 100% { box-shadow: 0 0 0 14px rgba(194,58,58,0); } }
+  @media (prefers-reduced-motion: reduce) { .mikrofon.dinliyor .mik-ikon { animation: none; } }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -278,7 +284,7 @@
         <path d="M11 27c2-7 5-13 9-13s7 6 9 13" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
         <circle cx="14" cy="14" r="3" fill="#F2B300"/><circle cx="26" cy="13" r="3" fill="#7C4DCC"/><circle cx="20" cy="27" r="3" fill="#2C78DB"/>
       </svg>
-      <span><h1>Öğrenci Yorumları</h1><small>Anaokulu · 2026–2027</small></span>
+      <span><h1>Dönem Notları</h1><small>Anaokulu · 2026–2027</small></span>
     </button>
     <span class="rozet" id="denemeRozet" hidden>Deneme</span>
     <button class="btn-hafif" id="yoneticiBtn" type="button">
@@ -291,7 +297,7 @@
 <main id="ana">
   <div id="ogretmenAlani">
     <div class="deneme-uyari" id="denemeUyari" hidden>
-      Deneme modu: sunucu bağlanmadı, yorumlar yalnızca bu cihazda saklanıyor. Yönetici şifresi: <b>1234</b>
+      Deneme modu: sunucu henüz bağlanmadı, notlar yalnızca bu cihazda saklanıyor.
     </div>
     <div class="ilerleme" id="ilerleme" aria-hidden="true"><b></b><b></b><b></b><b></b><b></b></div>
     <div class="izler" id="izler"></div>
@@ -341,11 +347,7 @@ var DERSLER = [
   { ad: 'Görsel Sanatlar', ogretmen: 'Emine Balaban', ikon: '🎨' },
   { ad: 'BSK', ogretmen: 'Atike Yılmaz', ikon: '🤸' }
 ];
-var HAZIR_IFADELER = [
-  'Derse istekle katıldı.', 'Yönergeleri dikkatle takip etti.', 'Arkadaşlarıyla uyumlu çalıştı.',
-  'Etkinliği başarıyla tamamladı.', 'Kendini ifade etmekte zorlandı.', 'Dikkatini toplamakta zorlandı.',
-  'Yeni öğrendiklerini uyguladı.', 'Desteğe ihtiyaç duydu.', 'Paylaşmaya ve sıra beklemeye özen gösterdi.'
-];
+var DEMO_TUZ = '47f8da4cc9203110bb54a51ede8f9f0a', DEMO_OZET = 'ab7692f662ea7261b4638e22eaf5266c838135c61c2edae4020c372851ca88a8';
 var GUNLER = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
 
 /* ================= YARDIMCILAR ================= */
@@ -373,9 +375,6 @@ function sakla(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch
 function oku(k, varsayilan) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : varsayilan; } catch (e) { return varsayilan; } }
 function trSirala(a, b) { return String(a).localeCompare(String(b), 'tr'); }
 function normal(s) { return String(s || '').toLocaleLowerCase('tr-TR'); }
-function tarihIso(tarih) { // dd.MM.yyyy -> yyyy-MM-dd
-  var m = /^(\d{2})\.(\d{2})\.(\d{4})/.exec(tarih || ''); return m ? m[3] + '-' + m[2] + '-' + m[1] : '';
-}
 function zamanYazi(k) { return (k.tarih || '') + ' ' + (k.gun || '') + ' · ' + (k.saat || ''); }
 
 var bildirimZaman;
@@ -389,16 +388,37 @@ function bildir(mesaj, hata) {
 var API_URL = (window.YORUM_AYAR && window.YORUM_AYAR.API_URL || '').trim();
 var DENEME = !API_URL;
 var anahtarlar = oku('yorum_anahtarlar', {});
+function anahtarAl(id) { var a = anahtarlar[id]; return a && typeof a === 'object' ? a.anahtar : a; }
+
+function donemHesapla(d) {
+  var ay = d.getMonth() + 1, yil = d.getFullYear(), bas = ay >= 8 ? yil : yil - 1;
+  return bas + '-' + (bas + 1) + ' ' + ((ay >= 2 && ay <= 7) ? '2. Dönem' : '1. Dönem');
+}
 
 function api(islem, veri) {
   veri = Object.assign({ islem: islem }, veri || {});
-  if (DENEME) return Promise.resolve(denemeApi(veri));
+  if (DENEME) return denemeApi(veri);
   return fetch(API_URL, { method: 'POST', body: JSON.stringify(veri) })
     .then(function (r) { return r.json(); })
     .catch(function () { return { ok: false, hata: 'Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edin.' }; });
 }
 
+// Deneme modunda yönetici şifresi açık yazılmaz; yalnızca PBKDF2 özeti karşılaştırılır.
+function denemeSifreDogru(sifre) {
+  if (!sifre || !window.crypto || !crypto.subtle) return Promise.resolve(false);
+  var tuz = new Uint8Array(DEMO_TUZ.match(/../g).map(function (h) { return parseInt(h, 16); }));
+  return crypto.subtle.importKey('raw', new TextEncoder().encode(sifre), 'PBKDF2', false, ['deriveBits'])
+    .then(function (k) { return crypto.subtle.deriveBits({ name: 'PBKDF2', salt: tuz, iterations: 310000, hash: 'SHA-256' }, k, 256); })
+    .then(function (b) { return Array.from(new Uint8Array(b)).map(function (x) { return (x < 16 ? '0' : '') + x.toString(16); }).join('') === DEMO_OZET; })
+    .catch(function () { return false; });
+}
+
 function denemeApi(v) {
+  var gerek = v.sifre && (v.islem === 'hepsi' || !v.anahtar);
+  return (gerek ? denemeSifreDogru(v.sifre) : Promise.resolve(false)).then(function (yonetici) { return denemeIsle(v, yonetici); });
+}
+
+function denemeIsle(v, yonetici) {
   var db = oku('yorum_deneme', []);
   var simdi = new Date();
   function kayit(r) { var k = Object.assign({}, r); delete k.anahtar; return k; }
@@ -406,47 +426,47 @@ function denemeApi(v) {
   function zaman(d) {
     return { tarih: iki(d.getDate()) + '.' + iki(d.getMonth() + 1) + '.' + d.getFullYear(), gun: GUNLER[d.getDay()], saat: iki(d.getHours()) + ':' + iki(d.getMinutes()) };
   }
-  function yetki(r) { return v.sifre === '1234' || (v.anahtar && v.anahtar === r.anahtar); }
+  function yetki(r) { return yonetici || (v.anahtar && v.anahtar === r.anahtar); }
   var i;
   switch (v.islem) {
     case 'ekle':
       var z = zaman(simdi);
-      var r = { id: 'd' + Date.now() + Math.random().toString(36).slice(2, 6), sube: v.sube, ogrenci: v.ogrenci, ders: v.ders, ogretmen: v.ogretmen,
+      var r = { id: 'd' + Date.now() + Math.random().toString(36).slice(2, 6), donem: donemHesapla(simdi), sube: v.sube, ogrenci: v.ogrenci, ders: v.ders, ogretmen: v.ogretmen,
         yorum: v.yorum, tarih: z.tarih, gun: z.gun, saat: z.saat, olusturma: simdi.toISOString(), duzenleme: '', anahtar: 'k' + Math.random().toString(36).slice(2) };
       db.push(r); sakla('yorum_deneme', db);
       return { ok: true, anahtar: r.anahtar, kayit: kayit(r) };
     case 'duzenle':
       for (i = 0; i < db.length; i++) if (db[i].id === v.id) {
-        if (!yetki(db[i])) return { ok: false, hata: 'Bu yorumu yalnızca yazıldığı cihazdan veya yönetici düzenleyebilir.' };
+        if (!yetki(db[i])) return { ok: false, hata: 'Bu notu yalnızca yazıldığı cihazdan veya yönetici düzenleyebilir.' };
         var z2 = zaman(simdi); db[i].yorum = v.yorum; db[i].duzenleme = z2.tarih + ' ' + z2.gun + ' ' + z2.saat;
         sakla('yorum_deneme', db); return { ok: true, kayit: kayit(db[i]) };
       }
-      return { ok: false, hata: 'Yorum bulunamadı.' };
+      return { ok: false, hata: 'Not bulunamadı.' };
     case 'sil':
       for (i = 0; i < db.length; i++) if (db[i].id === v.id) {
-        if (!yetki(db[i])) return { ok: false, hata: 'Bu yorumu yalnızca yazıldığı cihazdan veya yönetici silebilir.' };
+        if (!yetki(db[i])) return { ok: false, hata: 'Bu notu yalnızca yazıldığı cihazdan veya yönetici silebilir.' };
         db.splice(i, 1); sakla('yorum_deneme', db); return { ok: true };
       }
       return { ok: true };
     case 'liste':
-      return { ok: true, kayitlar: db.filter(function (r) { return r.sube === v.sube && r.ogrenci === v.ogrenci && (!v.ogretmen || r.ogretmen === v.ogretmen); }).map(kayit) };
+      var istek = {}; (v.kimlikler || []).forEach(function (k) { istek[k.id] = k.anahtar; });
+      return { ok: true, kayitlar: db.filter(function (r) { return istek[r.id] && istek[r.id] === r.anahtar; }).map(kayit) };
     case 'hepsi':
-      if (v.sifre !== '1234') return { ok: false, hata: 'Yönetici şifresi hatalı.' };
+      if (!yonetici) return { ok: false, hata: 'Yönetici şifresi hatalı.' };
       return { ok: true, kayitlar: db.map(kayit) };
-    case 'yonetici':
-      return { ok: v.sifre === '1234' };
   }
   return { ok: false, hata: 'Bilinmeyen işlem.' };
 }
 
 /* ================= DURUM ================= */
 var S = { adim: 1, sube: null, ogrenci: null, ders: null, ogretmen: null, kayitlar: [], secili: null, arama: '', sonGonderilen: false };
-var Y = { sifre: null, kayitlar: [], sekme: 'yorumlar', f: { sube: '', ogretmen: '', ders: '', ara: '', bas: '', bit: '' }, durumSube: SUBELER[0].ad };
+var Y = { sifre: null, kayitlar: [], sekme: 'yorumlar', f: { sube: '', ogretmen: '', ders: '', ara: '', donem: '' }, durumSube: SUBELER[0].ad };
 
 /* ================= ÖĞRETMEN AKIŞI ================= */
-var ADIM_BASLIK = { 1: 'Şube seçin', 2: 'Öğrenci seçin', 3: 'Ders seçin', 4: 'Kendinizi seçin', 5: 'Yorum yazın' };
+var ADIM_BASLIK = { 1: 'Şube seçin', 2: 'Öğrenci seçin', 3: 'Ders seçin', 4: 'Kendinizi seçin', 5: 'Dönem notu yazın' };
 
 function adimaGit(n, gecmiseEkleme) {
+  if (ses.acik) sesDurdur();
   S.adim = n;
   if (n < 5) { S.secili = null; S.sonGonderilen = false; }
   if (n <= 1) S.sube = null;
@@ -539,15 +559,18 @@ function yorumEkrani() {
     baslik(5) +
     '<div class="ozet" style="background:' + r.ana + ';color:' + (sariMi ? 'var(--sari-ink)' : '#fff') + '">' +
       '<span class="avatar" style="color:' + (sariMi ? 'var(--sari-ink)' : r.ana) + '">' + esc(basHarf(S.ogrenci)) + '</span>' +
-      '<span><b>' + esc(guzelAd(S.ogrenci)) + '</b><small>' + esc(b.renk) + ' Sınıf · ' + esc(S.ders) + '</small></span></div>' +
+      '<span><b>' + esc(guzelAd(S.ogrenci)) + '</b><small>' + esc(b.renk) + ' Sınıf · ' + esc(S.ders) + ' · ' + esc(donemHesapla(new Date())) + '</small></span></div>' +
     '<div class="kart">' +
       '<div id="secimNotu"></div>' +
-      '<p class="alan-baslik"><span>Yorumunuz</span><span class="sayac" id="sayac">0 karakter</span></p>' +
-      '<div class="hazir" aria-label="Hazır ifadeler">' + HAZIR_IFADELER.map(function (h) { return '<button type="button" data-hazir="' + esc(h) + '">+ ' + esc(h) + '</button>'; }).join('') + '</div>' +
-      '<textarea class="yorum" id="yorumMetni" maxlength="5000" placeholder="' + esc(guzelAd(S.ogrenci).split(' ')[0]) + ' bugün derste…"></textarea>' +
+      '<button type="button" class="mikrofon" id="mikBtn" aria-pressed="false">' +
+        '<span class="mik-ikon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span>' +
+        '<span class="mik-metin"><b id="mikBaslik">Konuşarak yaz</b><small id="mikAlt">Dokunun ve konuşun, söyledikleriniz yazıya dönüşür</small></span></button>' +
+      '<p class="alan-baslik"><span>Dönem notunuz</span><span class="sayac" id="sayac">0 karakter</span></p>' +
+      '<textarea class="yorum" id="yorumMetni" maxlength="6000" placeholder="Öğrencinin bu dönemki gelişimi hakkındaki görüşleriniz…"></textarea>' +
+      '<p class="sayac" style="margin:6px 2px 0">Notunuzu yalnızca yönetici görür.</p>' +
       '<div class="sonraki" id="sonraki"></div>' +
     '</div>' +
-    '<div class="gecmis"><p class="alan-baslik" style="margin:0"><span>Bu öğrenciye yazdığınız yorumlar</span><span class="sayac" id="gecmisSayi"></span></p><div id="gecmisListe"><div class="yukleniyor">Yükleniyor…</div></div></div>';
+    '<div class="gecmis"><p class="alan-baslik" style="margin:0"><span>Bu cihazdan yazdığınız not</span><span class="sayac" id="gecmisSayi"></span></p><div id="gecmisListe"><div class="yukleniyor">Yükleniyor…</div></div></div>';
   var t = $('#yorumMetni');
   t.value = taslak[taslakAnahtar] || '';
   t.addEventListener('input', function () {
@@ -556,6 +579,65 @@ function yorumEkrani() {
   });
   sayacGuncelle(); butonlar();
   gecmisYukle();
+}
+
+/* ---------- Sesle yazma (tarayıcının konuşma tanıma özelliği, Türkçe) ---------- */
+var KonusmaTanima = window.SpeechRecognition || window.webkitSpeechRecognition;
+var ses = { tanima: null, acik: false, sabit: '' };
+function sesKomutlari(m) {
+  return m.replace(/\s*\b(yeni satır|alt satır)\b\s*/gi, '\n').replace(/\s*\bnokta\b/gi, '.').replace(/\s*\bvirgül\b/gi, ',')
+    .replace(/\s*\bsoru işareti\b/gi, '?').replace(/\s*\bünlem\b/gi, '!');
+}
+function buyukBasla(onceki, m) {
+  m = m.trim(); if (!m) return m;
+  if (!onceki.trim() || /[.!?\n]\s*$/.test(onceki)) m = m.charAt(0).toLocaleUpperCase('tr-TR') + m.slice(1);
+  return m;
+}
+function mikGorunum() {
+  var btn = $('#mikBtn'); if (!btn) return;
+  btn.classList.toggle('dinliyor', ses.acik); btn.setAttribute('aria-pressed', String(ses.acik));
+  $('#mikBaslik').textContent = ses.acik ? 'Dinleniyor… bitirmek için dokunun' : 'Konuşarak yaz';
+  $('#mikAlt').textContent = ses.acik ? '"nokta", "virgül", "yeni satır" diyerek noktalama ekleyebilirsiniz' : 'Dokunun ve konuşun, söyledikleriniz yazıya dönüşür';
+}
+function sesDurdur() {
+  ses.acik = false;
+  if (ses.tanima) { try { ses.tanima.stop(); } catch (e) {} }
+  ses.tanima = null; mikGorunum();
+}
+function sesBaslat() {
+  if (!KonusmaTanima) {
+    bildir('Bu tarayıcı sesle yazmayı desteklemiyor. Chrome veya Safari kullanın ya da klavyedeki mikrofon tuşuna basın.', true);
+    return;
+  }
+  var t = $('#yorumMetni');
+  ses.acik = true; ses.sabit = t.value; mikGorunum();
+  (function tur() {
+    if (!ses.acik) return;
+    var rec = new KonusmaTanima();
+    rec.lang = 'tr-TR'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+    rec.onresult = function (e) {
+      var kesin = '', ara = '';
+      for (var i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) kesin += e.results[i][0].transcript; else ara += e.results[i][0].transcript;
+      }
+      var ayirac = ses.sabit && !/[\s\n]$/.test(ses.sabit) ? ' ' : '';
+      if (kesin) {
+        var parca = buyukBasla(ses.sabit, sesKomutlari(kesin));
+        ses.sabit = (ses.sabit + (/^[.,!?\n]/.test(parca) ? '' : ayirac) + parca).replace(/ +\n/g, '\n');
+        t.value = ses.sabit;
+      } else {
+        t.value = ses.sabit + ayirac + ara;
+      }
+      t.dispatchEvent(new Event('input'));
+    };
+    rec.onerror = function (e) {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { bildir('Mikrofon izni verilmedi. Tarayıcı ayarlarından izin verin.', true); sesDurdur(); }
+      else if (e.error === 'network') { bildir('Sesle yazma için internet bağlantısı gerekiyor.', true); sesDurdur(); }
+    };
+    rec.onend = function () { t.value = ses.sabit; t.dispatchEvent(new Event('input')); if (ses.acik) setTimeout(tur, 150); };
+    ses.tanima = rec;
+    try { rec.start(); } catch (er) { sesDurdur(); }
+  })();
 }
 
 function taslakSil() {
@@ -575,13 +657,22 @@ function butonlar() {
   $('#duzenleBtn').disabled = !S.secili || !dolu;
   $('#silBtn').disabled = !S.secili;
   var not = $('#secimNotu');
-  if (not) not.innerHTML = S.secili ? '<div class="secim-notu"><span>Seçili yorumu düzenliyorsunuz</span><button type="button" id="secimKaldir">Seçimi kaldır</button></div>' : '';
+  if (not) not.innerHTML = S.secili ? '<div class="secim-notu"><span>Seçili notu düzenliyorsunuz</span><button type="button" id="secimKaldir">Seçimi kaldır</button></div>' : '';
+}
+
+function benimKimliklerim() {
+  return Object.keys(anahtarlar).filter(function (id) {
+    var a = anahtarlar[id];
+    return a && typeof a === 'object' && a.sube === S.sube && a.ogrenci === S.ogrenci && a.ders === S.ders && a.ogretmen === S.ogretmen;
+  }).map(function (id) { return { id: id, anahtar: anahtarlar[id].anahtar }; });
 }
 
 function gecmisYukle() {
-  var anahtar = [S.sube, S.ogrenci, S.ogretmen].join('|');
-  api('liste', { sube: S.sube, ogrenci: S.ogrenci, ogretmen: S.ogretmen }).then(function (c) {
-    if (S.adim !== 5 || [S.sube, S.ogrenci, S.ogretmen].join('|') !== anahtar) return;
+  var anahtar = [S.sube, S.ogrenci, S.ders, S.ogretmen].join('|');
+  var kimlikler = benimKimliklerim();
+  if (!kimlikler.length) { S.kayitlar = []; gecmisCiz(); return; }
+  api('liste', { kimlikler: kimlikler }).then(function (c) {
+    if (S.adim !== 5 || [S.sube, S.ogrenci, S.ders, S.ogretmen].join('|') !== anahtar) return;
     if (!c.ok) { $('#gecmisListe').innerHTML = '<div class="bos">' + esc(c.hata) + '</div>'; return; }
     S.kayitlar = c.kayitlar.sort(function (a, b) { return String(b.olusturma).localeCompare(String(a.olusturma)); });
     gecmisCiz();
@@ -589,16 +680,17 @@ function gecmisYukle() {
 }
 
 function gecmisCiz() {
-  $('#gecmisSayi').textContent = S.kayitlar.length ? S.kayitlar.length + ' yorum' : '';
+  $('#gecmisSayi').textContent = S.kayitlar.length > 1 ? S.kayitlar.length + ' not' : '';
   $('#gecmisListe').innerHTML = S.kayitlar.length ? '<div class="gecmis" style="margin:0">' + S.kayitlar.map(function (k) {
     return '<button type="button" class="yorum-kart' + (S.secili === k.id ? ' secili' : '') + '" data-kayit="' + esc(k.id) + '">' +
-      '<p>' + esc(k.yorum) + '</p><span class="alt"><span class="etiket" style="background:var(--surface-2);color:var(--ink)">' + esc(k.ders) + '</span>' +
-      '<span>' + esc(zamanYazi(k)) + '</span>' + (k.duzenleme ? '<span>· düzenlendi ' + esc(k.duzenleme) + '</span>' : '') + '</span></button>';
-  }).join('') + '</div><p class="sayac" style="margin:8px 2px 0">Düzenlemek veya silmek için bir yoruma dokunun.</p>' : '<div class="bos">Henüz yorum yazmadınız.</div>';
+      '<p>' + esc(k.yorum) + '</p><span class="alt"><span class="etiket" style="background:var(--surface-2);color:var(--ink)">' + esc(k.donem || '') + '</span>' +
+      '<span>' + esc(k.tarih) + '</span>' + (k.duzenleme ? '<span>· düzenlendi</span>' : '') + '</span></button>';
+  }).join('') + '</div><p class="sayac" style="margin:8px 2px 0">Düzenlemek veya silmek için nota dokunun.</p>' : '<div class="bos">Bu öğrenci için bu dersten henüz not yazmadınız.</div>';
 }
 
 function yorumSec(id) {
   var t = $('#yorumMetni');
+  if (ses.acik) sesDurdur();
   if (S.secili === id) { yorumSecimKaldir(); return; }
   var k = S.kayitlar.filter(function (x) { return x.id === id; })[0]; if (!k) return;
   S.secili = id; t.value = k.yorum; sayacGuncelle(); gecmisCiz();
@@ -618,10 +710,11 @@ function gonder() {
   api('ekle', { sube: S.sube, ogrenci: S.ogrenci, ders: S.ders, ogretmen: S.ogretmen, yorum: metin }).then(function (c) {
     mesgul(btn, false);
     if (!c.ok) { bildir(c.hata || 'Gönderilemedi.', true); return; }
-    anahtarlar[c.kayit.id] = c.anahtar; sakla('yorum_anahtarlar', anahtarlar);
+    if (ses.acik) sesDurdur();
+    anahtarlar[c.kayit.id] = { anahtar: c.anahtar, sube: S.sube, ogrenci: S.ogrenci, ders: S.ders, ogretmen: S.ogretmen }; sakla('yorum_anahtarlar', anahtarlar);
     taslakSil(); t.value = ''; sayacGuncelle();
     S.kayitlar.unshift(c.kayit); gecmisCiz();
-    bildir('Yorum gönderildi ✓');
+    bildir('Notunuz gönderildi ✓');
     sonrakiGoster();
   });
 }
@@ -639,26 +732,26 @@ function sonrakiGoster() {
 function duzenle() {
   var t = $('#yorumMetni'), metin = t.value.trim(); if (!metin || !S.secili) return;
   var btn = $('#duzenleBtn'); mesgul(btn, true);
-  api('duzenle', { id: S.secili, anahtar: anahtarlar[S.secili], yorum: metin }).then(function (c) {
+  api('duzenle', { id: S.secili, anahtar: anahtarAl(S.secili), yorum: metin }).then(function (c) {
     mesgul(btn, false);
     if (!c.ok) { bildir(c.hata || 'Kaydedilemedi.', true); return; }
     S.kayitlar = S.kayitlar.map(function (k) { return k.id === c.kayit.id ? c.kayit : k; });
     S.secili = null; t.value = ''; sayacGuncelle(); gecmisCiz();
-    bildir('Yorum güncellendi ✓');
+    bildir('Notunuz güncellendi ✓');
   });
 }
 
 function sil() {
   if (!S.secili) return;
-  onayla('Yorum silinsin mi?', 'Bu işlem geri alınamaz.', 'Sil', function () {
+  onayla('Not silinsin mi?', 'Bu işlem geri alınamaz.', 'Sil', function () {
     var id = S.secili, btn = $('#silBtn'); mesgul(btn, true);
-    api('sil', { id: id, anahtar: anahtarlar[id] }).then(function (c) {
+    api('sil', { id: id, anahtar: anahtarAl(id) }).then(function (c) {
       mesgul(btn, false);
       if (!c.ok) { bildir(c.hata || 'Silinemedi.', true); return; }
       delete anahtarlar[id]; sakla('yorum_anahtarlar', anahtarlar);
       S.kayitlar = S.kayitlar.filter(function (k) { return k.id !== id; });
       S.secili = null; $('#yorumMetni').value = ''; sayacGuncelle(); gecmisCiz();
-      bildir('Yorum silindi');
+      bildir('Not silindi');
     });
   });
 }
@@ -675,8 +768,8 @@ function onayla(baslikY, metin, evet, fn) {
 }
 
 function sifreSor() {
-  pencereAc('<h3>Yönetici girişi</h3><p>Tüm yorumları görmek ve indirmek için şifrenizi girin.</p>' +
-    '<form id="sifreForm"><input id="sifreGir" type="password" inputmode="numeric" autocomplete="current-password" placeholder="Şifre" required>' +
+  pencereAc('<h3>Yönetici girişi</h3><p>Notları yalnızca yönetici görebilir.</p>' +
+    '<form id="sifreForm"><input id="sifreGir" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false" placeholder="Şifre" required>' +
     '<div class="hata-yazi" id="sifreHata"></div><div class="ikili"><button type="button" class="btn btn-ikinci" id="pIptal">Vazgeç</button><button class="btn btn-ana" type="submit">Giriş</button></div></form>');
   $('#pIptal').onclick = pencereKapat;
   setTimeout(function () { $('#sifreGir').focus(); }, 50);
@@ -716,9 +809,7 @@ function filtrele() {
     if (f.sube && k.sube !== f.sube) return false;
     if (f.ogretmen && k.ogretmen !== f.ogretmen) return false;
     if (f.ders && k.ders !== f.ders) return false;
-    var t = tarihIso(k.tarih);
-    if (f.bas && t < f.bas) return false;
-    if (f.bit && t > f.bit) return false;
+    if (f.donem && k.donem !== f.donem) return false;
     if (q && normal(k.ogrenci + ' ' + k.yorum).indexOf(q) === -1) return false;
     return true;
   }).sort(function (a, b) { return String(b.olusturma).localeCompare(String(a.olusturma)); });
@@ -735,15 +826,16 @@ function yoneticiCiz() {
   var yorumAlan = {}; Y.kayitlar.forEach(function (k) { yorumAlan[k.sube + '|' + k.ogrenci] = 1; });
   var ogretmenSay = {}; Y.kayitlar.forEach(function (k) { ogretmenSay[k.ogretmen] = 1; });
   var h =
-    '<div class="y-ust"><h2>Tüm yorumlar</h2><div class="y-butonlar">' +
+    '<div class="y-ust"><h2>Dönem notları</h2><div class="y-butonlar">' +
       '<button class="btn-hafif" id="yYenile">↻ Yenile</button>' +
-      '<button class="btn-hafif" id="yIndir" style="background:var(--ok);color:#fff;border-color:var(--ok)">⬇ Excel indir</button>' +
+      '<button class="btn-hafif btn-pdf" id="yPdfKarne">⬇ PDF: Öğrenci raporları</button>' +
+      '<button class="btn-hafif btn-pdf" id="yPdfListe">⬇ PDF: Liste</button>' +
       '<button class="btn-hafif" id="yCikis">Çıkış</button></div></div>' +
-    '<div class="istat"><div><b>' + Y.kayitlar.length + '</b><small>toplam yorum</small></div>' +
+    '<div class="istat"><div><b>' + Y.kayitlar.length + '</b><small>toplam not</small></div>' +
       '<div><b>' + Object.keys(ogretmenSay).length + '/' + DERSLER.length + '</b><small>yazan öğretmen</small></div>' +
-      '<div><b>' + Object.keys(yorumAlan).length + '/' + tumOgrenci + '</b><small>yorum alan öğrenci</small></div></div>' +
+      '<div><b>' + Object.keys(yorumAlan).length + '/' + tumOgrenci + '</b><small>not alan öğrenci</small></div></div>' +
     '<div class="sekmeler" role="tablist">' +
-      sekme('yorumlar', 'Yorumlar') + sekme('ogretmenler', 'Kim ne yazdı') + sekme('durum', 'Öğrenci durumu') +
+      sekme('yorumlar', 'Notlar') + sekme('ogretmenler', 'Kim ne yazdı') + sekme('durum', 'Öğrenci durumu') +
     '</div><div id="ySekme"></div>';
   $('#yoneticiAlani').innerHTML = h;
   sekmeCiz();
@@ -759,9 +851,8 @@ function sekmeCiz() {
         '<label>Şube<select data-f="sube">' + secenek(SUBELER.map(function (s) { return s.ad; }), f.sube, 'Tümü') + '</select></label>' +
         '<label>Öğretmen<select data-f="ogretmen">' + secenek(DERSLER.map(function (d) { return d.ogretmen; }), f.ogretmen, 'Tümü') + '</select></label>' +
         '<label>Ders<select data-f="ders">' + secenek(DERSLER.map(function (d) { return d.ad; }), f.ders, 'Tümü') + '</select></label>' +
-        '<label>Başlangıç<input type="date" data-f="bas" value="' + esc(f.bas) + '"></label>' +
-        '<label>Bitiş<input type="date" data-f="bit" value="' + esc(f.bit) + '"></label>' +
-        '<label>Ara<input type="search" data-f="ara" placeholder="Öğrenci veya kelime" value="' + esc(f.ara) + '"></label>' +
+        '<label>Dönem<select data-f="donem">' + secenek(donemler(), f.donem, 'Tümü') + '</select></label>' +
+        '<label class="genis">Ara<input type="search" data-f="ara" placeholder="Öğrenci veya kelime" value="' + esc(f.ara) + '"></label>' +
       '</div><div id="yListe"></div>';
     yorumTablosu();
   } else if (Y.sekme === 'ogretmenler') {
@@ -769,24 +860,24 @@ function sekmeCiz() {
   } else {
     k.innerHTML = '<div class="filtreler"><label class="genis">Şube<select id="durumSube">' + SUBELER.map(function (s) {
       return '<option' + (s.ad === Y.durumSube ? ' selected' : '') + '>' + esc(s.ad) + '</option>'; }).join('') + '</select></label></div>' +
-      '<p class="sonuc-bilgi">Her hücre, o öğrenciye o derste yazılan yorum sayısı. Kırmızı: henüz yorum yok.</p>' +
+      '<p class="sonuc-bilgi">Her hücre, o öğrenciye o derste yazılan not sayısı. Kırmızı: henüz not yok. Öğrenci adına dokunarak tek öğrencinin PDF raporunu indirebilirsiniz.</p>' +
       '<div class="kaydir">' + durumTablosu(Y.durumSube) + '</div>';
   }
 }
 
 function yorumTablosu() {
   var liste = filtrele();
-  $('#yListe').innerHTML = '<p class="sonuc-bilgi">' + liste.length + ' yorum gösteriliyor</p>' + (liste.length ?
-    '<table class="tablo kartli"><thead><tr><th>Tarih</th><th>Şube</th><th>Öğrenci</th><th>Ders / Öğretmen</th><th>Yorum</th><th></th></tr></thead><tbody>' +
+  $('#yListe').innerHTML = '<p class="sonuc-bilgi">' + liste.length + ' not gösteriliyor</p>' + (liste.length ?
+    '<table class="tablo kartli"><thead><tr><th>Tarih</th><th>Şube</th><th>Öğrenci</th><th>Ders / Öğretmen</th><th>Not</th><th></th></tr></thead><tbody>' +
     liste.map(function (k) {
       var b = subeBilgi(k.sube) || { sinif: 'mor', renk: k.sube };
-      return '<tr><td class="kucuk">' + esc(k.tarih) + '<br>' + esc(k.gun) + ' ' + esc(k.saat) + (k.duzenleme ? '<br><span style="font-weight:600">düz. ' + esc(k.duzenleme) + '</span>' : '') + '</td>' +
+      return '<tr><td class="kucuk">' + esc(k.donem || '') + '<br>' + esc(k.tarih) + ' ' + esc(k.gun) + ' ' + esc(k.saat) + (k.duzenleme ? '<br><span style="font-weight:600">düz. ' + esc(k.duzenleme) + '</span>' : '') + '</td>' +
         '<td data-k="Şube"><span class="nokta" style="display:inline-block;background:var(--' + b.sinif + ')"></span> ' + esc(b.renk) + '</td>' +
         '<td data-k="Öğrenci"><b>' + esc(guzelAd(k.ogrenci)) + '</b></td>' +
         '<td data-k="Ders">' + esc(k.ders) + '<br><span class="kucuk">' + esc(k.ogretmen) + '</span></td>' +
         '<td class="yorum-hucre">' + esc(k.yorum) + '</td>' +
         '<td class="islem" style="white-space:nowrap"><button class="mini-btn" data-ydz="' + esc(k.id) + '">Düzenle</button> <button class="mini-btn sil" data-ysil="' + esc(k.id) + '">Sil</button></td></tr>';
-    }).join('') + '</tbody></table>' : '<div class="bos">Bu filtrelere uyan yorum yok.</div>');
+    }).join('') + '</tbody></table>' : '<div class="bos">Bu filtrelere uyan not yok.</div>');
 }
 
 function ogretmenOzeti() {
@@ -813,7 +904,7 @@ function ogretmenTablosu() {
 function durumVerisi(sube) {
   return OGRENCILER[sube].map(function (o) {
     return { ogrenci: o, sayilar: DERSLER.map(function (d) {
-      return Y.kayitlar.filter(function (k) { return k.sube === sube && k.ogrenci === o && k.ders === d.ad; }).length;
+      return Y.kayitlar.filter(function (k) { return k.sube === sube && k.ogrenci === o && k.ders === d.ad && (!Y.f.donem || k.donem === Y.f.donem); }).length;
     }) };
   });
 }
@@ -821,7 +912,7 @@ function durumVerisi(sube) {
 function durumTablosu(sube) {
   return '<table class="tablo durum"><thead><tr><th>Öğrenci</th>' + DERSLER.map(function (d) { return '<th class="dik" title="' + esc(d.ad) + '">' + d.ikon + '<br>' + esc(d.ad) + '</th>'; }).join('') + '</tr></thead><tbody>' +
     durumVerisi(sube).map(function (r) {
-      return '<tr><td style="white-space:nowrap"><b>' + esc(guzelAd(r.ogrenci)) + '</b></td>' + r.sayilar.map(function (n) {
+      return '<tr><td style="white-space:nowrap"><button class="mini-btn" style="border:0;background:none;padding:0;font-size:15px;text-decoration:underline" data-pdf-ogrenci="' + esc(r.ogrenci) + '">' + esc(guzelAd(r.ogrenci)) + '</button></td>' + r.sayilar.map(function (n) {
         return '<td class="hucre ' + (n ? 'var' : 'yok') + '">' + (n || '–') + '</td>'; }).join('') + '</tr>';
     }).join('') + '</tbody></table>';
 }
@@ -851,34 +942,108 @@ function yoneticiSil(id) {
   });
 }
 
-/* ---------- Excel ---------- */
-function excelIndir() {
-  if (!window.XLSX) { bildir('Excel kütüphanesi yüklenemedi, sayfayı yenileyin.', true); return; }
+/* ---------- PDF (pdfmake, Roboto: Türkçe karakterler tam) ---------- */
+var pdfYukleniyor = null;
+function scriptYukle(src) {
+  return new Promise(function (ok, hata) {
+    var e = document.createElement('script'); e.src = src; e.onload = ok; e.onerror = hata; document.head.appendChild(e);
+  });
+}
+function pdfHazir() {
+  if (window.pdfMake && window.pdfMake.vfs) return Promise.resolve();
+  if (!pdfYukleniyor) pdfYukleniyor = scriptYukle('lib/pdfmake.min.js').then(function () { return scriptYukle('lib/vfs_fonts.js'); });
+  return pdfYukleniyor;
+}
+var PDF_RENK = { mor: '#7C4DCC', mavi: '#2C78DB', sari: '#F2B300' };
+function bugunYazi() { var d = new Date(), iki = function (n) { return (n < 10 ? '0' : '') + n; }; return iki(d.getDate()) + '.' + iki(d.getMonth() + 1) + '.' + d.getFullYear(); }
+function dosyaAdi(s) {
+  return normal(s).replace(/[çğıöşü]/g, function (c) { return { 'ç': 'c', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ş': 's', 'ü': 'u' }[c]; }).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+function donemler() {
+  var d = {}; Y.kayitlar.forEach(function (k) { if (k.donem) d[k.donem] = 1; });
+  return Object.keys(d).sort();
+}
+function pdfOlustur(dd, ad) {
+  bildir('PDF hazırlanıyor…');
+  pdfHazir().then(function () {
+    dd.defaultStyle = Object.assign({ font: 'Roboto', fontSize: 10.5, lineHeight: 1.25, color: '#2A2238' }, dd.defaultStyle || {});
+    dd.info = { title: ad, author: 'Anaokulu Dönem Notları' };
+    pdfMake.createPdf(dd).download(dosyaAdi(ad) + '.pdf');
+    bildir('PDF indirildi');
+  }).catch(function () { bildir('PDF oluşturulamadı. Sayfayı yenileyip tekrar deneyin.', true); });
+}
+function altBilgi(sol) {
+  return function (sayfa, toplam) {
+    return { columns: [{ text: sol, color: '#8A8299', fontSize: 8 }, { text: sayfa + ' / ' + toplam, alignment: 'right', color: '#8A8299', fontSize: 8 }], margin: [40, 12, 40, 0] };
+  };
+}
+
+/** Her öğrenci için ayrı sayfa: dersler ve öğretmenlerin dönem notları. */
+function pdfKarne(sube, tekOgrenci) {
+  var donem = Y.f.donem;
+  var subeler = sube ? [sube] : SUBELER.map(function (x) { return x.ad; });
+  var icerik = [], ilk = true;
+  subeler.forEach(function (sa) {
+    var b = subeBilgi(sa), renk = PDF_RENK[b.sinif];
+    OGRENCILER[sa].filter(function (o) { return !tekOgrenci || o === tekOgrenci; }).forEach(function (o) {
+      var notlar = Y.kayitlar.filter(function (k) { return k.sube === sa && k.ogrenci === o && (!donem || k.donem === donem); });
+      icerik.push({
+        table: { widths: ['*'], body: [[{ stack: [
+          { text: 'DÖNEM DEĞERLENDİRME RAPORU', fontSize: 8.5, bold: true, color: b.sinif === 'sari' ? '#5B4200' : '#FFFFFF', characterSpacing: 1 },
+          { text: guzelAd(o), fontSize: 22, bold: true, color: b.sinif === 'sari' ? '#3D2C00' : '#FFFFFF', margin: [0, 4, 0, 2] },
+          { text: sa + '   ·   ' + (donem || 'Tüm dönemler'), fontSize: 10, color: b.sinif === 'sari' ? '#5B4200' : '#FFFFFF' }
+        ], fillColor: renk, margin: [14, 12, 14, 12] }]] },
+        layout: 'noBorders', margin: [0, 0, 0, 16], pageBreak: ilk ? undefined : 'before'
+      });
+      ilk = false;
+      DERSLER.forEach(function (d) {
+        var dn = notlar.filter(function (k) { return k.ders === d.ad; }).sort(function (x, y) { return String(x.olusturma).localeCompare(String(y.olusturma)); });
+        var govde = [
+          { columns: [{ text: d.ad, bold: true, fontSize: 12 }, { text: d.ogretmen, alignment: 'right', color: '#6E6680', fontSize: 9.5, margin: [0, 2, 0, 0] }] }
+        ];
+        if (dn.length) dn.forEach(function (k, i) {
+          govde.push({ text: k.yorum, margin: [0, i ? 8 : 5, 0, 0] });
+          if (k.ogretmen !== d.ogretmen) govde.push({ text: '— ' + k.ogretmen, color: '#6E6680', fontSize: 9, margin: [0, 2, 0, 0] });
+        });
+        else govde.push({ text: 'Not girilmedi.', italics: true, color: '#A39DB0', margin: [0, 4, 0, 0] });
+        icerik.push({
+          table: { widths: ['*'], body: [[{ stack: govde }]] },
+          layout: { hLineWidth: function () { return 0; }, vLineWidth: function (i) { return i === 0 ? 3 : 0; }, vLineColor: function () { return renk; },
+                    paddingLeft: function () { return 12; }, paddingRight: function () { return 4; }, paddingTop: function () { return 3; }, paddingBottom: function () { return 3; } },
+          margin: [0, 0, 0, 12]
+        });
+      });
+    });
+  });
+  if (!icerik.length) { bildir('PDF için öğrenci bulunamadı.', true); return; }
+  var ad = tekOgrenci ? guzelAd(tekOgrenci) + ' dönem notları' : (sube ? subeBilgi(sube).renk + ' sınıf' : 'Tüm sınıflar') + ' dönem notları';
+  pdfOlustur({ pageSize: 'A4', pageMargins: [40, 40, 40, 44], content: icerik, footer: altBilgi('Oluşturulma: ' + bugunYazi()) }, ad);
+}
+
+/** Filtrelenmiş notların tablo hâlinde listesi (yatay A4). */
+function pdfListe() {
   var liste = filtrele().slice().sort(function (a, b) {
-    return trSirala(a.sube, b.sube) || trSirala(a.ogrenci, b.ogrenci) || String(a.olusturma).localeCompare(String(b.olusturma));
+    return trSirala(a.sube, b.sube) || trSirala(a.ogrenci, b.ogrenci) || trSirala(a.ders, b.ders) || String(a.olusturma).localeCompare(String(b.olusturma));
   });
-  var bas = ['Şube', 'Öğrenci', 'Ders', 'Öğretmen', 'Yorum', 'Tarih', 'Gün', 'Saat', 'Son Düzenleme'];
-  function satirlar(l) { return l.map(function (k) { return [k.sube, guzelAd(k.ogrenci), k.ders, k.ogretmen, k.yorum, k.tarih, k.gun, k.saat, k.duzenleme || '']; }); }
-  var gen = [{ wch: 16 }, { wch: 26 }, { wch: 22 }, { wch: 24 }, { wch: 70 }, { wch: 11 }, { wch: 11 }, { wch: 7 }, { wch: 24 }];
-  var wb = XLSX.utils.book_new();
-  function ekle(ad, aoa, cols) {
-    var ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = cols;
-    if (aoa.length > 1) ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: aoa.length - 1, c: aoa[0].length - 1 } }) };
-    XLSX.utils.book_append_sheet(wb, ws, ad.slice(0, 31));
-  }
-  ekle('Tüm Yorumlar', [bas].concat(satirlar(liste)), gen);
-  SUBELER.forEach(function (s) {
-    ekle(s.renk + ' Sınıf', [bas].concat(satirlar(liste.filter(function (k) { return k.sube === s.ad; }))), gen);
-  });
-  ekle('Öğretmen Özeti', [['Öğretmen', 'Ders'].concat(SUBELER.map(function (s) { return s.renk; }), ['Toplam', 'Öğrenci sayısı', 'Son yorum'])]
-    .concat(ogretmenOzeti().map(function (o) { return [o.ogretmen, o.ders].concat(o.subeSay, [o.toplam, o.ogrenci, o.son]); })),
-    [{ wch: 26 }, { wch: 24 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 14 }, { wch: 28 }]);
-  var durum = [['Şube', 'Öğrenci'].concat(DERSLER.map(function (d) { return d.ad; }))];
-  SUBELER.forEach(function (s) { durumVerisi(s.ad).forEach(function (r) { durum.push([s.ad, guzelAd(r.ogrenci)].concat(r.sayilar)); }); });
-  ekle('Öğrenci Durumu', durum, [{ wch: 16 }, { wch: 26 }].concat(DERSLER.map(function () { return { wch: 14 }; })));
-  var d = new Date(), iki = function (n) { return (n < 10 ? '0' : '') + n; };
-  XLSX.writeFile(wb, 'ogrenci-yorumlari-' + d.getFullYear() + '-' + iki(d.getMonth() + 1) + '-' + iki(d.getDate()) + '.xlsx');
-  bildir(liste.length + ' yorum Excel olarak indirildi');
+  if (!liste.length) { bildir('Filtrelere uyan not yok.', true); return; }
+  var bas = ['Şube', 'Öğrenci', 'Ders', 'Öğretmen', 'Not', 'Tarih'].map(function (t) { return { text: t, bold: true, color: '#6E6680', fontSize: 9, fillColor: '#FBF1E3' }; });
+  var govde = [bas].concat(liste.map(function (k) {
+    var b = subeBilgi(k.sube) || { renk: k.sube };
+    return [b.renk, { text: guzelAd(k.ogrenci), bold: true }, k.ders, k.ogretmen, k.yorum,
+            { text: k.tarih + '\n' + k.gun + ' ' + k.saat + (k.duzenleme ? '\n(düz. ' + k.duzenleme.split(' ')[0] + ')' : ''), fontSize: 8.5, color: '#6E6680' }];
+  }));
+  var f = Y.f, alt = [f.donem, f.sube, f.ogretmen, f.ders, f.ara && ('“' + f.ara + '”')].filter(Boolean).join(' · ') || 'Tüm notlar';
+  pdfOlustur({
+    pageSize: 'A4', pageOrientation: 'landscape', pageMargins: [32, 36, 32, 40], defaultStyle: { fontSize: 9.5 },
+    content: [
+      { text: 'Dönem Notları', fontSize: 18, bold: true },
+      { text: alt + '   ·   ' + liste.length + ' not', color: '#6E6680', margin: [0, 2, 0, 12] },
+      { table: { headerRows: 1, widths: [40, 90, 80, 85, '*', 62], body: govde },
+        layout: { hLineWidth: function (i) { return i === 0 ? 0 : 0.5; }, vLineWidth: function () { return 0; }, hLineColor: function () { return '#EEE2D0'; },
+                  paddingTop: function () { return 5; }, paddingBottom: function () { return 5; } } }
+    ],
+    footer: altBilgi('Oluşturulma: ' + bugunYazi())
+  }, 'Dönem notları listesi');
 }
 
 /* ================= OLAYLAR ================= */
@@ -890,20 +1055,22 @@ document.addEventListener('click', function (e) {
   if (d.ders) { S.ders = d.ders; adimaGit(4); return; }
   if (d.ogretmen) { S.ogretmen = d.ogretmen; adimaGit(5); return; }
   if (d.git) { adimaGit(Number(d.git)); return; }
-  if (d.hazir) { var t = $('#yorumMetni'); t.value = (t.value.trim() ? t.value.replace(/\s*$/, ' ') : '') + d.hazir; t.dispatchEvent(new Event('input')); t.focus(); return; }
   if (d.kayit) { yorumSec(d.kayit); return; }
   if (d.sekme) { Y.sekme = d.sekme; yoneticiCiz(); return; }
   if (d.ydz) { yoneticiDuzenle(d.ydz); return; }
   if (d.ysil) { yoneticiSil(d.ysil); return; }
-  if (d.ogrGoster) { Y.f = { sube: '', ogretmen: d.ogrGoster, ders: '', ara: '', bas: '', bit: '' }; Y.sekme = 'yorumlar'; yoneticiCiz(); return; }
+  if (d.pdfOgrenci) { pdfKarne(Y.durumSube, d.pdfOgrenci); return; }
+  if (d.ogrGoster) { Y.f = { sube: '', ogretmen: d.ogrGoster, ders: '', ara: '', donem: Y.f.donem }; Y.sekme = 'yorumlar'; yoneticiCiz(); return; }
   switch (el.id) {
     case 'secimKaldir': yorumSecimKaldir(); break;
     case 'sonrakiBtn': {
-      var l = OGRENCILER[S.sube]; S.ogrenci = l[l.indexOf(S.ogrenci) + 1]; S.secili = null; S.sonGonderilen = false; ciz(); window.scrollTo(0, 0); break;
+      if (ses.acik) sesDurdur(); var l = OGRENCILER[S.sube]; S.ogrenci = l[l.indexOf(S.ogrenci) + 1]; S.secili = null; S.sonGonderilen = false; ciz(); window.scrollTo(0, 0); break;
     }
     case 'listeyeDon': adimaGit(2); break;
     case 'yYenile': yoneticiYenile(); break;
-    case 'yIndir': excelIndir(); break;
+    case 'yPdfKarne': pdfKarne(Y.f.sube || null); break;
+    case 'yPdfListe': pdfListe(); break;
+    case 'mikBtn': if (ses.acik) sesDurdur(); else sesBaslat(); break;
     case 'yCikis': Y.sifre = null; try { sessionStorage.removeItem('yorum_yonetici'); } catch (er) {} yoneticiKapat(); break;
   }
 });

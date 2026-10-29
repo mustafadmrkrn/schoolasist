@@ -1,31 +1,32 @@
 /**
- * Anaokulu Öğrenci Yorumları — Google Apps Script sunucusu.
+ * Anaokulu Dönem Notları — Google Apps Script sunucusu.
  *
  * Kurulum (bir kez):
- *  1. Yeni bir Google E-Tablo açın (ör. "Anaokulu Yorumları").
+ *  1. Yeni bir Google E-Tablo açın (ör. "Anaokulu Dönem Notları").
  *  2. Uzantılar > Apps Script. Açılan Kod.gs içeriğini silip bu dosyanın tamamını yapıştırın.
- *  3. Aşağıdaki YONETICI_SIFRE değerini değiştirin, kaydedin.
+ *  3. Aşağıdaki YONETICI_SIFRE değerine kendi şifrenizi yazın, kaydedin.
+ *     (Bu dosya herkese açık depoda şifresiz durur; şifre yalnızca sizin Apps Script projenizde olur.)
  *  4. Dağıt > Yeni dağıtım > Tür: Web uygulaması
  *       Şu kullanıcı olarak çalıştır: Ben
  *       Erişimi olan kullanıcılar: Herkes
  *     Dağıt'a basın, izinleri onaylayın, "Web uygulaması URL'sini" kopyalayın.
  *  5. Bu URL'yi docs/yorum/ayar.js içindeki API_URL alanına yazın.
  *
- * Kodu değiştirirseniz: Dağıt > Dağıtımları yönet > Düzenle > Sürüm: Yeni sürüm.
- * (Böylece URL değişmez.)
+ * Kodu değiştirirseniz: Dağıt > Dağıtımları yönet > Düzenle > Sürüm: Yeni sürüm (URL değişmez).
  */
 
-var YONETICI_SIFRE = '1234';   // <-- MUTLAKA DEĞİŞTİRİN
-var SAYFA_ADI = 'Yorumlar';
+var YONETICI_SIFRE = 'BURAYA-SIFRENIZI-YAZIN';
+var SAYFA_ADI = 'Notlar';
 var SAAT_DILIMI = 'Europe/Istanbul';
 var GUNLER = ['', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
-var BASLIK = ['ID', 'Şube', 'Öğrenci', 'Ders', 'Öğretmen', 'Yorum',
+var BASLIK = ['ID', 'Dönem', 'Şube', 'Öğrenci', 'Ders', 'Öğretmen', 'Not',
               'Tarih', 'Gün', 'Saat', 'Oluşturma (ISO)', 'Son Düzenleme', 'Anahtar'];
+var C = { id: 0, donem: 1, sube: 2, ogrenci: 3, ders: 4, ogretmen: 5, not: 6, tarih: 7, gun: 8, saat: 9, iso: 10, duz: 11, anahtar: 12 };
+var AZAMI_HATA = 8;          // bu kadar hatalı şifreden sonra
+var KILIT_SANIYE = 15 * 60;  // 15 dakika yönetici girişi kapanır
 
-function doGet(e) {
-  var islem = e && e.parameter && e.parameter.islem;
-  if (islem) return cevap_(isle_(e.parameter));
-  return cevap_({ ok: true, mesaj: 'Anaokulu yorum sunucusu çalışıyor.' });
+function doGet() {
+  return cevap_({ ok: true, mesaj: 'Sunucu çalışıyor.' });
 }
 
 function doPost(e) {
@@ -36,8 +37,7 @@ function doPost(e) {
 }
 
 function cevap_(nesne) {
-  return ContentService.createTextOutput(JSON.stringify(nesne))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(nesne)).setMimeType(ContentService.MimeType.JSON);
 }
 
 function isle_(v) {
@@ -48,7 +48,6 @@ function isle_(v) {
       case 'sil': return kilitli_(function () { return sil_(v); });
       case 'liste': return liste_(v);
       case 'hepsi': return hepsi_(v);
-      case 'yonetici': return { ok: yoneticiMi_(v.sifre) };
       default: return { ok: false, hata: 'Bilinmeyen işlem.' };
     }
   } catch (hata) {
@@ -70,24 +69,38 @@ function sayfa_() {
     sh.appendRow(BASLIK);
     sh.setFrozenRows(1);
     sh.getRange(1, 1, 1, BASLIK.length).setFontWeight('bold').setBackground('#EDE7F6');
-    sh.setColumnWidth(6, 420);
-    sh.hideColumns(12); // Anahtar sütunu gizli
+    sh.setColumnWidth(C.not + 1, 460);
+    sh.hideColumns(C.anahtar + 1);
   }
   return sh;
 }
 
+/* ---------- Yönetici şifresi ve deneme sınırı ---------- */
 function yoneticiMi_(sifre) {
-  return String(sifre || '') === String(YONETICI_SIFRE);
+  if (!sifre) return false;
+  var cache = CacheService.getScriptCache();
+  var hata = Number(cache.get('hatali') || 0);
+  if (hata >= AZAMI_HATA) throw new Error('Çok fazla hatalı deneme. 15 dakika sonra tekrar deneyin.');
+  if (String(sifre) === String(YONETICI_SIFRE) && YONETICI_SIFRE !== 'BURAYA-SIFRENIZI-YAZIN') return true;
+  cache.put('hatali', String(hata + 1), KILIT_SANIYE);
+  return false;
 }
 
 function temizle_(s, uzunluk) {
   s = String(s == null ? '' : s).trim();
-  // Formül enjeksiyonunu önle
-  if (/^[=+\-@]/.test(s)) s = "'" + s;
+  if (/^[=+\-@]/.test(s)) s = "'" + s; // formül enjeksiyonunu önle
   return s.slice(0, uzunluk || 200);
 }
 
-function zamanBilgisi_(d) {
+function donem_(d) {
+  var ay = Number(Utilities.formatDate(d, SAAT_DILIMI, 'M'));
+  var yil = Number(Utilities.formatDate(d, SAAT_DILIMI, 'yyyy'));
+  var bas = ay >= 8 ? yil : yil - 1;
+  var no = (ay >= 2 && ay <= 7) ? '2. Dönem' : '1. Dönem';
+  return bas + '-' + (bas + 1) + ' ' + no;
+}
+
+function zaman_(d) {
   return {
     tarih: Utilities.formatDate(d, SAAT_DILIMI, 'dd.MM.yyyy'),
     gun: GUNLER[Number(Utilities.formatDate(d, SAAT_DILIMI, 'u'))],
@@ -96,79 +109,75 @@ function zamanBilgisi_(d) {
   };
 }
 
-function satirdanKayit_(r) {
+function kayit_(r) {
   return {
-    id: String(r[0]), sube: r[1], ogrenci: r[2], ders: r[3], ogretmen: r[4],
-    yorum: String(r[5]).replace(/^'/, ''), tarih: r[6] instanceof Date ? Utilities.formatDate(r[6], SAAT_DILIMI, 'dd.MM.yyyy') : String(r[6]),
-    gun: r[7], saat: r[8] instanceof Date ? Utilities.formatDate(r[8], SAAT_DILIMI, 'HH:mm') : String(r[8]),
-    olusturma: String(r[9]), duzenleme: String(r[10] || '')
+    id: String(r[C.id]), donem: String(r[C.donem]), sube: String(r[C.sube]), ogrenci: String(r[C.ogrenci]),
+    ders: String(r[C.ders]), ogretmen: String(r[C.ogretmen]), yorum: String(r[C.not]).replace(/^'/, ''),
+    tarih: String(r[C.tarih]), gun: String(r[C.gun]), saat: String(r[C.saat]),
+    olusturma: String(r[C.iso]), duzenleme: String(r[C.duz] || '')
   };
 }
 
-function tumSatirlar_() {
-  var sh = sayfa_();
-  var son = sh.getLastRow();
+function satirlar_() {
+  var sh = sayfa_(), son = sh.getLastRow();
   if (son < 2) return [];
-  return sh.getRange(2, 1, son - 1, BASLIK.length).getValues();
+  return sh.getRange(2, 1, son - 1, BASLIK.length).getDisplayValues();
 }
 
-function satirBul_(id) {
-  var satirlar = tumSatirlar_();
-  for (var i = 0; i < satirlar.length; i++) {
-    if (String(satirlar[i][0]) === String(id)) return { no: i + 2, veri: satirlar[i] };
-  }
+function bul_(id) {
+  var s = satirlar_();
+  for (var i = 0; i < s.length; i++) if (s[i][C.id] === String(id)) return { no: i + 2, veri: s[i] };
   return null;
 }
 
+function anahtarDogru_(b, anahtar) { return anahtar && b.veri[C.anahtar] === String(anahtar); }
+
 function ekle_(v) {
-  var yorum = temizle_(v.yorum, 5000);
-  if (!yorum) return { ok: false, hata: 'Yorum boş olamaz.' };
+  var metin = temizle_(v.yorum, 6000);
+  if (!metin) return { ok: false, hata: 'Not boş olamaz.' };
   if (!v.sube || !v.ogrenci || !v.ders || !v.ogretmen) return { ok: false, hata: 'Eksik seçim var.' };
-  var z = zamanBilgisi_(new Date());
-  var id = Utilities.getUuid();
+  var d = new Date(), z = zaman_(d);
   var anahtar = Utilities.getUuid();
-  var satir = [id, temizle_(v.sube), temizle_(v.ogrenci), temizle_(v.ders), temizle_(v.ogretmen),
-               yorum, z.tarih, z.gun, z.saat, z.iso, '', anahtar];
+  var satir = [Utilities.getUuid(), donem_(d), temizle_(v.sube), temizle_(v.ogrenci), temizle_(v.ders), temizle_(v.ogretmen),
+               metin, z.tarih, z.gun, z.saat, z.iso, '', anahtar];
   var sh = sayfa_();
   sh.getRange(sh.getLastRow() + 1, 1, 1, satir.length).setNumberFormat('@').setValues([satir]);
-  return { ok: true, anahtar: anahtar, kayit: satirdanKayit_(satir) };
-}
-
-function yetkili_(bulunan, v) {
-  return yoneticiMi_(v.sifre) || (v.anahtar && String(bulunan.veri[11]) === String(v.anahtar));
+  return { ok: true, anahtar: anahtar, kayit: kayit_(satir) };
 }
 
 function duzenle_(v) {
-  var b = satirBul_(v.id);
-  if (!b) return { ok: false, hata: 'Yorum bulunamadı (silinmiş olabilir).' };
-  if (!yetkili_(b, v)) return { ok: false, hata: 'Bu yorumu yalnızca yazıldığı cihazdan veya yönetici düzenleyebilir.' };
-  var yorum = temizle_(v.yorum, 5000);
-  if (!yorum) return { ok: false, hata: 'Yorum boş olamaz.' };
-  var z = zamanBilgisi_(new Date());
-  var duz = z.tarih + ' ' + z.gun + ' ' + z.saat;
+  var b = bul_(v.id);
+  if (!b) return { ok: false, hata: 'Not bulunamadı (silinmiş olabilir).' };
+  if (!anahtarDogru_(b, v.anahtar) && !yoneticiMi_(v.sifre)) return { ok: false, hata: 'Bu notu yalnızca yazıldığı cihazdan veya yönetici düzenleyebilir.' };
+  var metin = temizle_(v.yorum, 6000);
+  if (!metin) return { ok: false, hata: 'Not boş olamaz.' };
+  var z = zaman_(new Date()), duz = z.tarih + ' ' + z.gun + ' ' + z.saat;
   var sh = sayfa_();
-  sh.getRange(b.no, 6).setValue(yorum);
-  sh.getRange(b.no, 11).setNumberFormat('@').setValue(duz);
-  b.veri[5] = yorum; b.veri[10] = duz;
-  return { ok: true, kayit: satirdanKayit_(b.veri) };
+  sh.getRange(b.no, C.not + 1).setNumberFormat('@').setValue(metin);
+  sh.getRange(b.no, C.duz + 1).setNumberFormat('@').setValue(duz);
+  b.veri[C.not] = metin; b.veri[C.duz] = duz;
+  return { ok: true, kayit: kayit_(b.veri) };
 }
 
 function sil_(v) {
-  var b = satirBul_(v.id);
-  if (!b) return { ok: true }; // zaten yok
-  if (!yetkili_(b, v)) return { ok: false, hata: 'Bu yorumu yalnızca yazıldığı cihazdan veya yönetici silebilir.' };
+  var b = bul_(v.id);
+  if (!b) return { ok: true };
+  if (!anahtarDogru_(b, v.anahtar) && !yoneticiMi_(v.sifre)) return { ok: false, hata: 'Bu notu yalnızca yazıldığı cihazdan veya yönetici silebilir.' };
   sayfa_().deleteRow(b.no);
   return { ok: true };
 }
 
+/** Öğretmen yalnızca kendi cihazından yazdığı notları (id + anahtar) görebilir. */
 function liste_(v) {
-  var sonuc = tumSatirlar_().filter(function (r) {
-    return r[1] === v.sube && r[2] === v.ogrenci && (!v.ogretmen || r[4] === v.ogretmen);
-  }).map(satirdanKayit_);
+  var istek = {};
+  (v.kimlikler || []).forEach(function (k) { if (k && k.id) istek[String(k.id)] = String(k.anahtar || ''); });
+  var sonuc = satirlar_().filter(function (r) {
+    return istek.hasOwnProperty(r[C.id]) && istek[r[C.id]] === r[C.anahtar];
+  }).map(kayit_);
   return { ok: true, kayitlar: sonuc };
 }
 
 function hepsi_(v) {
   if (!yoneticiMi_(v.sifre)) return { ok: false, hata: 'Yönetici şifresi hatalı.' };
-  return { ok: true, kayitlar: tumSatirlar_().map(satirdanKayit_) };
+  return { ok: true, kayitlar: satirlar_().map(kayit_) };
 }
