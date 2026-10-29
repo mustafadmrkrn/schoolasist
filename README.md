@@ -40,6 +40,7 @@ tarayıcıda kalır).
   o da yoksa satır sırasından yapılır; öğretim yılı takvimi (varsayılan 2026-2027 MEB: 14 Eylül 2026 –
   25 Haziran 2027, ara tatiller ve yarıyıl) ekrandan değiştirilebilir. Planlar kullanıcıya özel olarak
   tarayıcıda saklanır. Deneme için `ornekler/yillik-plan-ornegi.docx` ve `.xlsx` (uydurma).
+- **Öğrenci değerlendirme (deneme):** anaokulu dönem notları sitesi (`docs/yorum`, sunucusu `yorum/Kod.gs`) menüden gömülü açılır. Ayrı bir sistem olarak kalır: kendi adresi, kendi E-Tablosu ve yönetici şifresi vardır; bu uygulama yalnızca hangi rolün menüde göreceğini belirler.
 - **Deneme analizi:** TYT/AYT, LGS gibi deneme sonuç çizelgeleri (TÜR-SS, TÜR-D, TÜR-Y… sütunları) aynı
   ekrandan yüklenir ve otomatik tanınır. Oturum ve ders bazında ortalama doğru/yanlış/boş/net, başarı
   yüzdesi, yanlış ve boş uyarıları, net sıralaması, varsa TYT/SAY/SÖZ/EA puanları ve sıraları.
@@ -78,6 +79,7 @@ src/mentor-cekirdek.html  Mentörlük programı saf yardımcıları (veri doğru
 src/mentor-panel.html  Mentörlük programı paneli
 src/yillik-cekirdek.html  Yıllık plan saf yardımcıları (tablo okuma, takvim, hafta eşleştirme; testli)
 src/yillik-panel.html  Yıllık plan paneli
+src/degerlendirme-panel.html  Öğrenci değerlendirme (ayrı proje docs/yorum gömülü)
 tests/                 Algoritma ve giriş testleri (Node ile çalışır)
 scripts/preview.js     Parçaları birleştirip tarayıcıda açılabilir önizleme üretir
 scripts/kurulum.js     Apps Script için iki dosyalık paket üretir (kurulum/Kod.gs, kurulum/index.html)

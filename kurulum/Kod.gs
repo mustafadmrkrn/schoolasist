@@ -4,7 +4,7 @@
  */
 
 /* ===================== Code.gs ===================== */
-var SURUM = '29.10.2026';
+var SURUM = '29.10.2026.2';
 
 /**
  * Web uygulaması giriş noktası.
@@ -653,7 +653,8 @@ var ROL_ARACLAR = [
   { id: 'nobet', ad: 'Nöbet çizelgesi' },
   { id: 'sinav', ad: 'Sınav analizi' },
   { id: 'mentor', ad: 'Mentörlük' },
-  { id: 'yillik', ad: 'Yıllık plan' }
+  { id: 'yillik', ad: 'Yıllık plan' },
+  { id: 'degerlendirme', ad: 'Öğrenci değerlendirme' }
 ];
 var ROL_KOD_HARF = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 

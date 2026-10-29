@@ -1,0 +1,34 @@
+<div class="top">
+  <div>
+    <p class="panel-ad">Öğrenci değerlendirme</p>
+    <p class="alt">Anaokulu dönem notları. Bu ayrı bir sistemdir: kendi sunucusu, kendi kayıt tablosu ve kendi yönetici şifresi vardır; buradan yalnızca açılır.</p>
+  </div>
+  <div class="top-actions">
+    <span class="etiket">Deneme</span>
+    <a class="btn" id="dg-yeni-sekme" target="_blank" rel="noopener">Yeni sekmede aç</a>
+  </div>
+</div>
+
+<div class="dg-kap">
+  <iframe id="dg-cerceve" class="dg-cerceve" title="Öğrenci değerlendirme" allow="microphone; clipboard-write" referrerpolicy="no-referrer"></iframe>
+</div>
+<p class="mini">Konuşarak yazma ya da PDF indirme burada çalışmazsa "Yeni sekmede aç" düğmesini kullanın.</p>
+
+<style>
+  a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items: center; }
+  .dg-kap { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #FFF8EE; }
+  .dg-cerceve { display: block; width: 100%; height: calc(100vh - 12rem); min-height: 32rem; border: 0; }
+</style>
+
+<script>
+(function () {
+  /* Ayrı proje: docs/yorum (GitHub Pages) + kendi Apps Script sunucusu. Burada yalnızca gömülür. */
+  var DEGERLENDIRME_URL = 'https://mustafadmrkrn.github.io/schoolasist/yorum/';
+  $('dg-yeni-sekme').href = DEGERLENDIRME_URL;
+  document.addEventListener('mdea:panel', function (e) {
+    var c = $('dg-cerceve');
+    if (e.detail.id === 'degerlendirme' && !c.getAttribute('src')) c.setAttribute('src', DEGERLENDIRME_URL);
+  });
+  document.addEventListener('mdea:cikis', function () { $('dg-cerceve').removeAttribute('src'); });
+})();
+</script>

@@ -3,7 +3,7 @@ var assert = require('assert');
 var t = require('./gas-taklit')(['Auth.gs', 'Roller.gs', 'Code.gs']);
 var c = t.ctx;
 var J = function (x) { return JSON.stringify(x); };
-var TUM = J(['nobet', 'sinav', 'mentor', 'yillik']);
+var TUM = J(['nobet', 'sinav', 'mentor', 'yillik', 'degerlendirme']);
 
 function kayit(ad, k, e, rolBilgi) {
   var r = c.authKayitOl(ad, k, e, k + '-sifre-1', rolBilgi);
