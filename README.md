@@ -1,7 +1,13 @@
 # MD Education Asist
 
 Öğretmenlerin gündelik işlerini kolaylaştıran, tek sayfalık Google Apps Script web uygulaması.
-Kullanıcı adı ve şifreyle girilir; soldaki menüden istenen araç seçilir.
+Kullanıcı adı, şifre ve e-posta doğrulamasıyla girilir; soldaki menüden istenen araç seçilir.
+
+**Uygulamayı aç:** https://script.google.com/macros/s/AKfycbybTiZrUY-5rE21rwLKE5bfzOTRrpqKiRizeU7QI5dC8KicSPiKUvbqFyZxJHYC8aV7Aw/exec
+
+GitHub sayfası (`https://mustafadmrkrn.github.io/schoolasist/`) bu adrese yönlendirir. Kurulumsuz deneme için
+önizleme: `https://mustafadmrkrn.github.io/schoolasist/onizleme.html` (e-posta göndermez, veriler yalnızca o
+tarayıcıda kalır).
 
 - **Nöbet çizelgesi:** öğretmenlerin okulda olduğu günlere göre, aynı gün çakışmadan ve eşit
   dağılımlı haftalık nöbet planı.
@@ -60,7 +66,8 @@ tests/                 Algoritma ve giriş testleri (Node ile çalışır)
 scripts/preview.js     Parçaları birleştirip tarayıcıda açılabilir önizleme üretir
 scripts/kurulum.js     Apps Script için iki dosyalık paket üretir (kurulum/Kod.gs, kurulum/index.html)
 kurulum/               Apps Script'e yapıştırılacak iki dosya
-docs/index.html        Yayınlanan önizleme (GitHub Pages için, preview.js çıktısı)
+docs/index.html        GitHub Pages ana sayfası: uygulamanın gerçek adresine yönlendirir
+docs/onizleme.html     Kurulumsuz önizleme (preview.js çıktısı, demo giriş)
 ornekler/              Deneme için örnek Excel dosyası
 ```
 
@@ -76,13 +83,13 @@ node tests/deneme.test.js    # deneme analizi testleri
 node tests/mentor.test.js    # mentörlük programı testleri
 node tests/yillik.test.js    # yıllık plan testleri
 node tests/auth.test.js      # giriş testleri (Apps Script servisleri taklit edilir)
-node scripts/preview.js docs/index.html   # önizlemeyi yeniden derle
+node scripts/preview.js docs/onizleme.html   # önizlemeyi yeniden derle
 node scripts/kurulum.js                    # Apps Script kurulum paketini yeniden üret
 ```
 
 ## İki çalışma biçimi
 
-| | Önizleme (`docs/index.html`) | Apps Script web uygulaması |
+| | Önizleme (`docs/onizleme.html`) | Apps Script web uygulaması |
 |---|---|---|
 | Hesaplama | Tarayıcıda | Sunucuda (`.gs` dosyaları) |
 | Hesaplar | **Demo:** yalnızca o tarayıcıda, başka cihazda görünmez | Gerçek: Script Properties'te, her cihazdan |
@@ -114,7 +121,7 @@ Kurulum için yalnızca `kurulum/` klasöründeki iki dosya gerekir: **Kod.gs** 
 
 Doğrulama e-postaları uygulamayı dağıtan Google hesabının Gmail'inden, "MD Education Asist" adıyla gider.
 Kota günde yaklaşık 100 e-posta (kişisel Gmail) ya da 1500 (Google Workspace). İlk e-postalar gereksiz ya da
-Promosyonlar klasörüne düşebilir. GitHub Pages önizlemesi (`docs/index.html`) e-posta göndermez; kodu ekranda
+Promosyonlar klasörüne düşebilir. GitHub Pages önizlemesi (`docs/onizleme.html`) e-posta göndermez; kodu ekranda
 gösterir.
 
 Kodu GitHub'dan eşitlemek için [clasp](https://github.com/google/clasp) de kullanılabilir (`rootDir: src`).
