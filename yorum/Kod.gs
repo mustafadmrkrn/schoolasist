@@ -43,10 +43,10 @@ function cevap_(nesne) {
 function isle_(v) {
   try {
     switch (v.islem) {
-      case 'ekle': return kilitli_(function () { return ekle_(v); });
+      case 'toplu_ekle': return kilitli_(function () { return topluEkle_(v); });
+      case 'durum': return durum_(v);
       case 'duzenle': return kilitli_(function () { return duzenle_(v); });
       case 'sil': return kilitli_(function () { return sil_(v); });
-      case 'liste': return liste_(v);
       case 'hepsi': return hepsi_(v);
       default: return { ok: false, hata: 'Bilinmeyen işlem.' };
     }
@@ -130,25 +130,48 @@ function bul_(id) {
   return null;
 }
 
-function anahtarDogru_(b, anahtar) { return anahtar && b.veri[C.anahtar] === String(anahtar); }
-
-function ekle_(v) {
-  var metin = temizle_(v.yorum, 6000);
-  if (!metin) return { ok: false, hata: 'Not boş olamaz.' };
-  if (!v.sube || !v.ogrenci || !v.ders || !v.ogretmen) return { ok: false, hata: 'Eksik seçim var.' };
-  var d = new Date(), z = zaman_(d);
-  var anahtar = Utilities.getUuid();
-  var satir = [Utilities.getUuid(), donem_(d), temizle_(v.sube), temizle_(v.ogrenci), temizle_(v.ders), temizle_(v.ogretmen),
-               metin, z.tarih, z.gun, z.saat, z.iso, '', anahtar];
-  var sh = sayfa_();
-  sh.getRange(sh.getLastRow() + 1, 1, 1, satir.length).setNumberFormat('@').setValues([satir]);
-  return { ok: true, anahtar: anahtar, kayit: kayit_(satir) };
+/**
+ * Öğretmen sınıf listesindeki tamamlanmış notları tek seferde gönderir.
+ * Aynı dönemde aynı öğrenci + ders için not zaten varsa yenisi eklenmez (atlanan).
+ */
+function topluEkle_(v) {
+  if (!v.sube || !v.ders || !v.ogretmen) return { ok: false, hata: 'Eksik seçim var.' };
+  var sube = temizle_(v.sube), ders = temizle_(v.ders), ogretmen = temizle_(v.ogretmen);
+  var d = new Date(), z = zaman_(d), donem = donem_(d);
+  var mevcut = {};
+  satirlar_().forEach(function (r) {
+    if (r[C.sube] === sube && r[C.ders] === ders && r[C.donem] === donem) mevcut[r[C.ogrenci]] = 1;
+  });
+  var yeni = [], eklenen = [], atlanan = [];
+  (v.notlar || []).slice(0, 80).forEach(function (n) {
+    var ogr = temizle_(n && n.ogrenci), metin = temizle_(n && n.yorum, 6000);
+    if (!ogr || !metin) return;
+    if (mevcut[ogr]) { atlanan.push(ogr); return; }
+    mevcut[ogr] = 1;
+    yeni.push([Utilities.getUuid(), donem, sube, ogr, ders, ogretmen, metin, z.tarih, z.gun, z.saat, z.iso, '', '']);
+    eklenen.push(ogr);
+  });
+  if (yeni.length) {
+    var sh = sayfa_();
+    sh.getRange(sh.getLastRow() + 1, 1, yeni.length, BASLIK.length).setNumberFormat('@').setValues(yeni);
+  }
+  return { ok: true, eklenen: eklenen, atlanan: atlanan };
 }
 
+/** Bu dönem için o şube + derste notu gönderilmiş öğrencilerin yalnızca adları (not metni dönmez). */
+function durum_(v) {
+  var donem = donem_(new Date()), sube = String(v.sube || ''), ders = String(v.ders || '');
+  var adlar = satirlar_().filter(function (r) {
+    return r[C.sube] === sube && r[C.ders] === ders && r[C.donem] === donem;
+  }).map(function (r) { return r[C.ogrenci]; });
+  return { ok: true, gonderilen: adlar };
+}
+
+/** Gönderilmiş notu yalnızca yönetici düzenler. */
 function duzenle_(v) {
+  if (!yoneticiMi_(v.sifre)) return { ok: false, hata: 'Gönderilen notu yalnızca yönetici değiştirebilir.' };
   var b = bul_(v.id);
   if (!b) return { ok: false, hata: 'Not bulunamadı (silinmiş olabilir).' };
-  if (!anahtarDogru_(b, v.anahtar) && !yoneticiMi_(v.sifre)) return { ok: false, hata: 'Bu notu yalnızca yazıldığı cihazdan veya yönetici düzenleyebilir.' };
   var metin = temizle_(v.yorum, 6000);
   if (!metin) return { ok: false, hata: 'Not boş olamaz.' };
   var z = zaman_(new Date()), duz = z.tarih + ' ' + z.gun + ' ' + z.saat;
@@ -159,22 +182,13 @@ function duzenle_(v) {
   return { ok: true, kayit: kayit_(b.veri) };
 }
 
+/** Gönderilmiş notu yalnızca yönetici siler. */
 function sil_(v) {
+  if (!yoneticiMi_(v.sifre)) return { ok: false, hata: 'Gönderilen notu yalnızca yönetici silebilir.' };
   var b = bul_(v.id);
   if (!b) return { ok: true };
-  if (!anahtarDogru_(b, v.anahtar) && !yoneticiMi_(v.sifre)) return { ok: false, hata: 'Bu notu yalnızca yazıldığı cihazdan veya yönetici silebilir.' };
   sayfa_().deleteRow(b.no);
   return { ok: true };
-}
-
-/** Öğretmen yalnızca kendi cihazından yazdığı notları (id + anahtar) görebilir. */
-function liste_(v) {
-  var istek = {};
-  (v.kimlikler || []).forEach(function (k) { if (k && k.id) istek[String(k.id)] = String(k.anahtar || ''); });
-  var sonuc = satirlar_().filter(function (r) {
-    return istek.hasOwnProperty(r[C.id]) && istek[r[C.id]] === r[C.anahtar];
-  }).map(kayit_);
-  return { ok: true, kayitlar: sonuc };
 }
 
 function hepsi_(v) {
