@@ -296,6 +296,9 @@
   .durum-etiket.bos { background: var(--surface-2); color: var(--muted); }
   .satir.kilitli { background: #FAFDFB; }
   .salt-okunur { white-space: pre-wrap; word-break: break-word; background: var(--surface-2); border-radius: 12px; padding: 12px 14px; margin: 0; }
+  .ts-etiket { display: grid; gap: 4px; font-size: 13px; font-weight: 800; color: var(--muted); margin-bottom: 12px; }
+  .ts-etiket select, .ts-etiket input { margin: 0; border: 1px solid var(--line); border-radius: 12px; padding: 12px; font-size: 16px; color: var(--ink); background: var(--surface); width: 100%; }
+  .ts-sayi { background: var(--danger-soft); color: var(--danger); border-radius: 12px; padding: 10px 12px; font-weight: 700; margin-bottom: 12px; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -470,6 +473,12 @@ function denemeIsle(v, yonetici) {
       if (!yonetici) return { ok: false, hata: 'Gönderilen notu yalnızca yönetici silebilir.' };
       for (i = 0; i < db.length; i++) if (db[i].id === v.id) { db.splice(i, 1); sakla('yorum_deneme', db); return { ok: true }; }
       return { ok: true };
+    case 'toplu_sil':
+      if (!yonetici) return { ok: false, hata: 'Yönetici şifresi hatalı.' };
+      var once = db.length;
+      db = db.filter(function (r) { return !((!v.sube || r.sube === v.sube) && (!v.donem || r.donem === v.donem)); });
+      sakla('yorum_deneme', db);
+      return { ok: true, silinen: once - db.length };
     case 'hepsi':
       if (!yonetici) return { ok: false, hata: 'Yönetici şifresi hatalı.' };
       return { ok: true, kayitlar: db.map(kayit) };
@@ -861,6 +870,7 @@ function yoneticiCiz() {
       '<button class="btn-hafif" id="yYenile">↻ Yenile</button>' +
       '<button class="btn-hafif btn-pdf" id="yPdfKarne">⬇ PDF: Öğrenci raporları</button>' +
       '<button class="btn-hafif btn-pdf" id="yPdfListe">⬇ PDF: Liste</button>' +
+      '<button class="btn-hafif" id="yTopluSil" style="color:var(--danger)">🗑 Notları sil</button>' +
       '<button class="btn-hafif" id="yCikis">Çıkış</button></div></div>' +
     '<div class="istat"><div><b>' + Y.kayitlar.length + '</b><small>toplam not</small></div>' +
       '<div><b>' + Object.keys(ogretmenSay).length + '/' + DERSLER.length + '</b><small>yazan öğretmen</small></div>' +
@@ -996,6 +1006,41 @@ function ogrenciDetay(sube, ogr) {
       }).join('') + '</div>';
   });
   return h + '</div>';
+}
+
+function topluSilPenceresi() {
+  var dn = donemler();
+  pencereAc('<h3>Notları sil</h3><p>Seçtiğiniz sınıfın bütün notları kalıcı olarak silinir. Bu işlem geri alınamaz.</p>' +
+    '<form id="tsForm">' +
+    '<label class="ts-etiket">Sınıf<select id="tsSube"><option value="">Tüm sınıflar</option>' + SUBELER.map(function (x) { return '<option value="' + esc(x.ad) + '">' + esc(x.renk) + ' Sınıf · ' + esc(x.yas) + '</option>'; }).join('') + '</select></label>' +
+    (dn.length > 1 ? '<label class="ts-etiket">Dönem<select id="tsDonem"><option value="">Tüm dönemler</option>' + dn.map(function (d) { return '<option>' + esc(d) + '</option>'; }).join('') + '</select></label>' : '') +
+    '<div class="ts-sayi" id="tsSayi"></div>' +
+    '<label class="ts-etiket">Onay için yönetici şifresi<input id="tsSifre" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" required></label>' +
+    '<div class="hata-yazi" id="tsHata"></div>' +
+    '<div class="ikili"><button type="button" class="btn btn-ikinci" id="pIptal">Vazgeç</button><button class="btn btn-tehlike" type="submit" id="tsSil">Sil</button></div></form>');
+  function guncelle() {
+    var sube = $('#tsSube').value, donem = $('#tsDonem') ? $('#tsDonem').value : '';
+    var n = Y.kayitlar.filter(function (k) { return (!sube || k.sube === sube) && (!donem || k.donem === donem); }).length;
+    $('#tsSayi').innerHTML = '<b>' + n + '</b> not silinecek';
+    $('#tsSil').disabled = !n;
+  }
+  $('#tsSube').onchange = guncelle; if ($('#tsDonem')) $('#tsDonem').onchange = guncelle;
+  guncelle();
+  $('#pIptal').onclick = pencereKapat;
+  $('#tsForm').onsubmit = function (e) {
+    e.preventDefault();
+    var sifre = $('#tsSifre').value, sube = $('#tsSube').value, donem = $('#tsDonem') ? $('#tsDonem').value : '';
+    if (!sifre) return;
+    var btn = $('#tsSil'); mesgul(btn, true);
+    api('toplu_sil', { sifre: sifre, sube: sube, donem: donem }).then(function (c) {
+      mesgul(btn, false);
+      if (!c.ok) { $('#tsHata').textContent = c.hata || 'Silinemedi.'; $('#tsSifre').value = ''; return; }
+      pencereKapat();
+      Y.ogrSecili = null;
+      yoneticiYenile(true).then(function () { bildir(c.silinen + ' not silindi'); });
+    });
+  };
+  setTimeout(function () { $('#tsSube').focus(); }, 50);
 }
 
 function yoneticiDuzenle(id) {
@@ -1152,6 +1197,7 @@ document.addEventListener('click', function (e) {
     case 'yPdfListe': pdfListe(); break;
     case 'mikBtn': if (ses.acik) sesDurdur(); else sesBaslat(); break;
     case 'yOgrGeri': Y.ogrSecili = null; sekmeCiz(); break;
+    case 'yTopluSil': topluSilPenceresi(); break;
     case 'yCikis': Y.sifre = null; try { sessionStorage.removeItem('yorum_yonetici'); } catch (er) {} yoneticiKapat(); break;
   }
 });

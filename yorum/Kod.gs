@@ -48,6 +48,7 @@ function isle_(v) {
       case 'duzenle': return kilitli_(function () { return duzenle_(v); });
       case 'sil': return kilitli_(function () { return sil_(v); });
       case 'hepsi': return hepsi_(v);
+      case 'toplu_sil': return kilitli_(function () { return topluSil_(v); });
       default: return { ok: false, hata: 'Bilinmeyen işlem.' };
     }
   } catch (hata) {
@@ -194,4 +195,24 @@ function sil_(v) {
 function hepsi_(v) {
   if (!yoneticiMi_(v.sifre)) return { ok: false, hata: 'Yönetici şifresi hatalı.' };
   return { ok: true, kayitlar: satirlar_().map(kayit_) };
+}
+
+/** Yönetici: bir şubenin (boşsa tüm şubelerin) notlarını, istenirse yalnızca bir dönemde, siler. Şifre her seferinde istenir. */
+function topluSil_(v) {
+  if (!yoneticiMi_(v.sifre)) return { ok: false, hata: 'Yönetici şifresi hatalı.' };
+  var sube = String(v.sube || ''), donem = String(v.donem || '');
+  var sh = sayfa_(), son = sh.getLastRow();
+  if (son < 2) return { ok: true, silinen: 0 };
+  var aralik = sh.getRange(2, 1, son - 1, BASLIK.length);
+  var veri = aralik.getDisplayValues();
+  var kalan = veri.filter(function (r) {
+    var eslesir = (!sube || r[C.sube] === sube) && (!donem || r[C.donem] === donem);
+    return !eslesir;
+  });
+  var silinen = veri.length - kalan.length;
+  if (!silinen) return { ok: true, silinen: 0 };
+  aralik.clearContent();
+  if (kalan.length) sh.getRange(2, 1, kalan.length, BASLIK.length).setNumberFormat('@').setValues(kalan);
+  if (son - 1 > kalan.length) sh.deleteRows(kalan.length + 2, son - 1 - kalan.length);
+  return { ok: true, silinen: silinen };
 }
