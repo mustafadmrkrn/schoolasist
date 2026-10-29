@@ -130,8 +130,6 @@ function epostaTesti() {
  * (işlev listesinden eTabloIzni → Çalıştır): Google, E-Tablo oluşturma iznini ister.
  */
 function eTabloIzni() {
-  var ss = SpreadsheetApp.create('MD Education Asist - izin denemesi');
-  var id = ss.getId();
-  DriveApp.getFileById(id).setTrashed(true);
-  console.log('E-Tablo izni tamam.');
+  // Çalıştırınca Google izin penceresi açılır; burada E-Tablo oluşturulmaz.
+  console.log('E-Tablo izni tamam: ' + (typeof SpreadsheetApp.create === 'function'));
 }
