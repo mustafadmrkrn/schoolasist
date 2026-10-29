@@ -16,7 +16,7 @@ var admin = kayit('Mustafa Demirkıran', 'mustafadmrkrn', 'm@ornek.com');
 assert.strictEqual(admin.ok, true, J(admin));
 assert.strictEqual(admin.rol, 'admin');
 assert.strictEqual(J(admin.araclar), TUM);
-assert.strictEqual(J(admin.paneller), J(['admin']));
+assert.strictEqual(J(admin.paneller), J(['veri', 'admin']));
 var at = admin.token;
 
 // 2) Okul yöneticisi başvurusu: onaylanana kadar öğretmen, okulsuz öğretmen tüm araçları görür
@@ -25,7 +25,7 @@ var y = kayit('Ayşe Müdür', 'ayse.mudur', 'ayse@ornek.com', { rol: 'yonetici'
 assert.strictEqual(y.rol, 'ogretmen');
 assert.strictEqual(y.basvuru.okulAdi, 'Atatürk Anadolu Lisesi');
 assert.strictEqual(J(y.araclar), TUM);
-assert.strictEqual(J(y.paneller), '[]');
+assert.strictEqual(J(y.paneller), J(['veri']));
 assert.throws(function () { c.adminPaneli(y.token); }, /admin yetkisi/);
 
 // 3) Admin paneli başvuruyu görür ve onaylar → okul açılır, kullanıcı yönetici olur
@@ -38,7 +38,7 @@ assert.strictEqual(c.adminBasvuruOnayla(at, 'ayse.mudur').ok, true);
 var yo = c.authOturum(y.token);
 assert.strictEqual(yo.rol, 'yonetici');
 assert.strictEqual(yo.okul.ad, 'Atatürk Anadolu Lisesi');
-assert.strictEqual(J(yo.paneller), J(['okul']));
+assert.strictEqual(J(yo.paneller), J(['veri', 'okul']));
 var okulId = yo.okul.id;
 var op = c.okulPaneli(y.token);
 var kod = op.okul.kod;
@@ -100,7 +100,7 @@ assert.strictEqual(c.adminKullaniciGuncelle(at, 'ali.ogretmen', { rol: 'yonetici
 assert.strictEqual(c.authOturum(og.token).rol, 'yonetici');
 assert.strictEqual(c.adminKullaniciGuncelle(at, 'zeynep.ogr', { rol: 'admin' }).ok, true);
 assert.strictEqual(c.authOturum(ogr.token).rol, 'admin');
-assert.strictEqual(J(c.authOturum(ogr.token).paneller), J(['okul', 'admin']), 'okulu olan admin okul panelini de görür');
+assert.strictEqual(J(c.authOturum(ogr.token).paneller), J(['veri', 'okul', 'admin']), 'okulu olan admin okul panelini de görür');
 var zt = ogr.token;
 assert.strictEqual(c.adminKullaniciGuncelle(zt, 'zeynep.ogr', { rol: 'ogrenci' }).ok, false, 'kendi admin yetkisini kaldıramaz');
 assert.strictEqual(c.adminKullaniciGuncelle(at, 'zeynep.ogr', { rol: 'ogrenci' }).ok, true);

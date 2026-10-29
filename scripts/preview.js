@@ -24,8 +24,9 @@ html = html.replace('/*__DENEME__*/', function () { return oku('Deneme.gs'); });
 var kurulum = process.argv.indexOf('--kurulum') > -1;
 html = html.replace('/*__DEMO__*/', function () {
   if (kurulum) return '';
-  var shim = oku('demo-sunucu.js');
-  var kod = ['Code.gs', 'Auth.gs', 'Roller.gs'].map(oku).join('\n');
+  var shim = oku('demo-sunucu.js') + '\n' + oku('tablo-taklit.js') +
+    '\nvar SpreadsheetApp = tabloTaklitKur(function (id) { return demoOku("ss:" + id); }, function (id, m) { demoYaz("ss:" + id, m); });\n';
+  var kod = ['Code.gs', 'Auth.gs', 'Roller.gs', 'Veri.gs'].map(oku).join('\n');
   var adlar = [];
   oku('Code.gs').replace(/^function (\w+)\(/gm, function (_, ad) { adlar.push(ad); });
   return '(function () {\n' + shim + '\n' + kod + '\n' +

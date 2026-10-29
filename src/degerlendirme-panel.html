@@ -1,34 +1,570 @@
 <div class="top">
   <div>
     <p class="panel-ad">Öğrenci değerlendirme</p>
-    <p class="alt">Anaokulu dönem notları. Bu ayrı bir sistemdir: kendi sunucusu, kendi kayıt tablosu ve kendi yönetici şifresi vardır; buradan yalnızca açılır.</p>
+    <p class="alt" id="dg-alt">Sınıfınızı ve dersinizi seçin, her öğrenci için dönem notunu yazın. Tamamladıklarınızı tek seferde gönderin.</p>
   </div>
   <div class="top-actions">
-    <span class="etiket">Deneme</span>
-    <a class="btn" id="dg-yeni-sekme" target="_blank" rel="noopener">Yeni sekmede aç</a>
+    <span class="badge" id="dg-donem"></span>
+    <div class="segment dg-mod" role="tablist" aria-label="Görünüm" id="dg-mod" hidden>
+      <button type="button" class="seg" role="tab" data-mod="yaz" aria-selected="true">Not yaz</button>
+      <button type="button" class="seg" role="tab" data-mod="hepsi" aria-selected="false">Tüm notlar</button>
+    </div>
   </div>
 </div>
 
-<div class="dg-kap">
-  <iframe id="dg-cerceve" class="dg-cerceve" title="Öğrenci değerlendirme" allow="microphone; clipboard-write" referrerpolicy="no-referrer"></iframe>
+<div id="dg-yaz">
+  <nav class="dg-iz" aria-label="Adımlar" id="dg-iz"></nav>
+  <div id="dg-adim"></div>
 </div>
-<p class="mini">Konuşarak yazma ya da PDF indirme burada çalışmazsa "Yeni sekmede aç" düğmesini kullanın.</p>
+
+<div id="dg-hepsi" hidden></div>
 
 <style>
-  a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items: center; }
-  .dg-kap { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #FFF8EE; }
-  .dg-cerceve { display: block; width: 100%; height: calc(100vh - 12rem); min-height: 32rem; border: 0; }
+  .dg-mod { grid-template-columns: auto auto; }
+  .dg-mod .seg { padding-inline: 0.9rem; }
+  .dg-iz { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; font-size: 0.9rem; margin-bottom: 0.9rem; }
+  .dg-iz .ayrac { color: var(--muted); }
+  .dg-iz strong { font-weight: 600; }
+  .dg-kartlar { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); }
+  .dg-kart {
+    display: grid; gap: 0.25rem; text-align: left; padding: 0.9rem 1rem; border-radius: 10px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--surface); font: inherit; color: inherit;
+  }
+  .dg-kart:hover { border-color: var(--accent); }
+  .dg-kart strong { font-family: var(--font-display); font-size: 1.2rem; }
+  .dg-kart span { font-size: 0.85rem; color: var(--muted); }
+  .dg-kart.benim { border-color: var(--accent); background: var(--accent-soft); }
+  .dg-liste { display: grid; gap: 0.4rem; }
+  .dg-ogr {
+    display: grid; grid-template-columns: 3rem minmax(0, 1fr) auto; gap: 0.6rem; align-items: center; text-align: left;
+    padding: 0.6rem 0.75rem; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; font: inherit; color: inherit;
+  }
+  .dg-ogr:hover { border-color: var(--accent); }
+  .dg-ogr .no { font-family: var(--font-mono); color: var(--muted); font-size: 0.85rem; }
+  .dg-ogr .dg-ozet { grid-column: 2 / -1; font-size: 0.82rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dg-durum { font-size: 0.75rem; font-weight: 600; padding: 0.1rem 0.45rem; border-radius: 4px; white-space: nowrap; background: var(--surface-2); color: var(--muted); }
+  .dg-durum.taslak { background: var(--warn-soft); color: var(--warn); }
+  .dg-durum.tamam { background: var(--accent-soft); color: var(--accent); }
+  .dg-durum.gonderildi { background: #DDF3E6; color: #17663F; }
+  .dg-sayac { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .dg-alt-bar {
+    position: sticky; bottom: 0; display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; justify-content: space-between;
+    padding: 0.7rem 0.9rem; margin-top: 0.8rem; border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
+    box-shadow: 0 -4px 14px rgba(16, 38, 74, 0.06);
+  }
+  .dg-not { display: grid; gap: 0.7rem; }
+  .dg-not textarea { min-height: 14rem; font-size: 1rem; line-height: 1.5; background: var(--surface); }
+  .dg-not-bas { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; align-items: baseline; justify-content: space-between; }
+  .dg-not-bas h3 { margin: 0; font-family: var(--font-display); font-size: 1.3rem; }
+  .dg-eylem { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+  .dg-eylem .bosluk { flex: 1; }
+  .btn.dinliyor { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+  .dg-filtre { display: grid; gap: 0.5rem; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
+  .dg-filtre label { display: grid; gap: 0.2rem; font-size: 0.8rem; font-weight: 600; color: var(--muted); }
+  .dg-notlar { display: grid; gap: 0.6rem; }
+  .dg-notk { border: 1px solid var(--line); border-radius: 8px; padding: 0.75rem 0.85rem; display: grid; gap: 0.4rem; }
+  .dg-notk-bas { display: flex; flex-wrap: wrap; gap: 0.3rem 0.6rem; align-items: baseline; }
+  .dg-notk-bas strong { font-family: var(--font-display); }
+  .dg-notk p { margin: 0; white-space: pre-wrap; }
+  .dg-notk .meta { font-size: 0.78rem; color: var(--muted); }
+  .dg-matris { min-width: 0; }
+  .dg-matris td, .dg-matris th { padding: 0.35rem 0.5rem; }
+  .dg-matris td { text-align: center; }
+  .dg-matris .var { color: #17663F; font-weight: 700; }
+  .dg-matris .yok { color: var(--line); }
 </style>
 
 <script>
 (function () {
-  /* Ayrı proje: docs/yorum (GitHub Pages) + kendi Apps Script sunucusu. Burada yalnızca gömülür. */
-  var DEGERLENDIRME_URL = 'https://mustafadmrkrn.github.io/schoolasist/yorum/';
-  $('dg-yeni-sekme').href = DEGERLENDIRME_URL;
-  document.addEventListener('mdea:panel', function (e) {
-    var c = $('dg-cerceve');
-    if (e.detail.id === 'degerlendirme' && !c.getAttribute('src')) c.setAttribute('src', DEGERLENDIRME_URL);
+  var TASLAK_ON = 'mdea_dg_';
+  var D = { mod: 'yaz', adim: 'sinif', sinif: null, ders: null, ogrenci: null, ara: '', gonderilen: [], durumYuk: false, tumSiniflar: false,
+            hepsi: null, f: { donem: '', sinif: '', ders: '', ogretmen: '', ara: '' }, gorunum: 'liste', donem: '' };
+  var V = function () { return MDEA.okulVeri && MDEA.okulVeri.get(); };
+  var tr = function (a, b) { return String(a).localeCompare(String(b), 'tr'); };
+  var acik = false;
+
+  function hata(e) {
+    if (e && e.message && /Oturum/.test(e.message)) { MDEA.oturumBitti(); return; }
+    var k = $('dg-adim');
+    k.textContent = '';
+    k.appendChild(el('p', { class: 'bos', text: (e && e.message) || String(e) }));
+  }
+
+  /* ---------- Taslaklar: yalnızca bu tarayıcıda, kullanıcı + kapsam başına ---------- */
+  function taslakAnahtar() { var v = V(); return TASLAK_ON + (MDEA.kullanici || '') + '_' + (v ? v.kapsam.anahtar : ''); }
+  function tumTaslaklar() { try { return JSON.parse(localStorage.getItem(taslakAnahtar()) || '{}'); } catch (e) { return {}; } }
+  function grup() { return D.sinif + '|' + D.ders; }
+  function taslaklar() { return tumTaslaklar()[grup()] || {}; }
+  function taslakYaz(ogr, kayit) {
+    var t = tumTaslaklar(), g = t[grup()] || (t[grup()] = {});
+    if (kayit) g[ogr] = kayit; else delete g[ogr];
+    if (!Object.keys(g).length) delete t[grup()];
+    try { localStorage.setItem(taslakAnahtar(), JSON.stringify(t)); } catch (e) {}
+  }
+  function durumu(o) {
+    if (D.gonderilen.indexOf(o.id) > -1) return 'gonderildi';
+    var t = taslaklar()[o.id];
+    if (!t || !t.metin || !t.metin.trim()) return 'bos';
+    return t.tamam ? 'tamam' : 'taslak';
+  }
+  var DURUM_AD = { bos: 'Yazılmadı', taslak: 'Taslak', tamam: 'Tamamlandı', gonderildi: 'Gönderildi' };
+
+  /* ---------- Öğretmenin kendi sınıf/dersleri (ders atamalarından) ---------- */
+  function benimAtamalarim() {
+    var v = V();
+    if (!v || !v.ben.ogretmenId) return [];
+    return v.atamalar.filter(function (a) { return a.ogretmen === v.ben.ogretmenId; });
+  }
+  function sinifOgrencileri() { return V().ogrenciler.filter(function (o) { return o.sinif === D.sinif; }); }
+
+  /* ---------- Not yazma akışı ---------- */
+  function izCiz() {
+    var v = V(), iz = $('dg-iz');
+    iz.textContent = '';
+    if (!v) return;
+    var parcalar = [['sinif', D.sinif ? 'Sınıf: ' + MDEA.okulVeri.ad('siniflar', D.sinif) : 'Sınıf seçin']];
+    if (D.sinif) parcalar.push(['ders', D.ders ? 'Ders: ' + MDEA.okulVeri.ad('dersler', D.ders) : 'Ders seçin']);
+    if (D.ders) parcalar.push(['liste', 'Öğrenciler']);
+    if (D.ogrenci) parcalar.push(['not', MDEA.okulVeri.ad('ogrenciler', D.ogrenci)]);
+    parcalar.forEach(function (p, i) {
+      if (i) iz.appendChild(el('span', { class: 'ayrac', 'aria-hidden': 'true', text: '›' }));
+      if (p[0] === D.adim) iz.appendChild(el('strong', { text: p[1], 'aria-current': 'step' }));
+      else iz.appendChild(el('button', { type: 'button', class: 'link-btn', text: p[1], onclick: function () { adimaGit(p[0]); } }));
+    });
+  }
+
+  function adimaGit(a) {
+    if (a === 'sinif') { D.sinif = null; D.ders = null; D.ogrenci = null; }
+    if (a === 'ders') { D.ders = null; D.ogrenci = null; }
+    if (a === 'liste') D.ogrenci = null;
+    D.adim = a;
+    if (a === 'liste') durumYukle();
+    ciz();
+    var k = $('dg-adim');
+    if (k && k.scrollIntoView && acik) window.scrollTo({ top: 0 });
+  }
+
+  function ciz() {
+    if (!acik) return;
+    var v = V();
+    var k = $('dg-adim');
+    if (!v) { k.textContent = ''; k.appendChild(el('p', { class: 'bos', text: 'Yükleniyor…' })); return; }
+    $('dg-mod').hidden = !v.duzenle;
+    $('dg-yaz').hidden = D.mod !== 'yaz';
+    $('dg-hepsi').hidden = D.mod !== 'hepsi';
+    Array.prototype.forEach.call($('dg-mod').querySelectorAll('.seg'), function (b) { b.setAttribute('aria-selected', b.getAttribute('data-mod') === D.mod ? 'true' : 'false'); });
+    if (D.mod === 'hepsi') { hepsiCiz(); return; }
+    // Silinmiş sınıf/ders/öğrenci seçili kaldıysa başa dön
+    if (D.sinif && !v.siniflar.some(function (s) { return s.id === D.sinif; })) { D.sinif = null; D.ders = null; D.ogrenci = null; D.adim = 'sinif'; }
+    if (D.ders && !v.dersler.some(function (s) { return s.id === D.ders; })) { D.ders = null; D.ogrenci = null; D.adim = D.sinif ? 'ders' : 'sinif'; }
+    izCiz();
+    k.textContent = '';
+    ({ sinif: sinifAdimi, ders: dersAdimi, liste: listeAdimi, not: notAdimi })[D.adim](k, v);
+  }
+
+  function bosVeri(k, v, metin) {
+    k.appendChild(el('div', { class: 'bos' }, [
+      el('p', { text: metin, style: 'margin:0 0 .6rem' }),
+      v.duzenle && MDEA.panelSec ? el('button', { type: 'button', class: 'btn', text: 'Okul verilerine git', onclick: function () { MDEA.panelSec('veri'); } }) : null
+    ]));
+  }
+
+  function sinifAdimi(k, v) {
+    if (!v.siniflar.length) { bosVeri(k, v, v.duzenle ? 'Henüz sınıf eklenmemiş. Önce Okul verileri panelinden sınıf ve öğrenci ekleyin.' : 'Okul yöneticiniz henüz sınıf eklememiş.'); return; }
+    var benim = {};
+    benimAtamalarim().forEach(function (a) { benim[a.sinif] = 1; });
+    var sayi = {};
+    v.ogrenciler.forEach(function (o) { sayi[o.sinif] = (sayi[o.sinif] || 0) + 1; });
+    var liste = v.siniflar;
+    var benimVar = Object.keys(benim).length > 0;
+    if (benimVar && !D.tumSiniflar) liste = liste.filter(function (s) { return benim[s.id]; });
+    var kartlar = el('div', { class: 'dg-kartlar' });
+    liste.forEach(function (s) {
+      kartlar.appendChild(el('button', {
+        type: 'button', class: 'dg-kart' + (benim[s.id] ? ' benim' : ''),
+        onclick: function () { D.sinif = s.id; D.adim = 'ders'; ciz(); }
+      }, [el('strong', { text: s.ad }), el('span', { text: (sayi[s.id] || 0) + ' öğrenci' })]));
+    });
+    k.appendChild(el('div', { class: 'blok' }, [
+      el('div', { class: 'blok-baslik' }, [el('h2', { text: benimVar && !D.tumSiniflar ? 'Derse girdiğiniz sınıflar' : 'Sınıflar' }),
+        benimVar ? el('button', { type: 'button', class: 'link-btn', text: D.tumSiniflar ? 'Yalnızca benim sınıflarım' : 'Tüm sınıfları göster', onclick: function () { D.tumSiniflar = !D.tumSiniflar; ciz(); } }) : null]),
+      kartlar
+    ]));
+  }
+
+  function dersAdimi(k, v) {
+    if (!v.dersler.length) { bosVeri(k, v, v.duzenle ? 'Henüz ders eklenmemiş. Okul verileri panelinin Dersler sekmesinden ekleyin.' : 'Okul yöneticiniz henüz ders eklememiş.'); return; }
+    var benim = {};
+    benimAtamalarim().forEach(function (a) { if (a.sinif === D.sinif) benim[a.ders] = 1; });
+    var benimVar = Object.keys(benim).length > 0;
+    var liste = benimVar && !D.tumSiniflar ? v.dersler.filter(function (d) { return benim[d.id]; }) : v.dersler;
+    var kartlar = el('div', { class: 'dg-kartlar' });
+    liste.forEach(function (d) {
+      var ogretmenler = v.atamalar.filter(function (a) { return a.sinif === D.sinif && a.ders === d.id; })
+        .map(function (a) { return MDEA.okulVeri.ad('ogretmenler', a.ogretmen); }).filter(Boolean);
+      kartlar.appendChild(el('button', {
+        type: 'button', class: 'dg-kart' + (benim[d.id] ? ' benim' : ''),
+        onclick: function () { D.ders = d.id; D.adim = 'liste'; durumYukle(); ciz(); }
+      }, [el('strong', { text: d.ad }), el('span', { text: ogretmenler.length ? ogretmenler.join(', ') : 'Öğretmen atanmamış' })]));
+    });
+    k.appendChild(el('div', { class: 'blok' }, [
+      el('div', { class: 'blok-baslik' }, [el('h2', { text: benimVar && !D.tumSiniflar ? 'Bu sınıftaki dersleriniz' : 'Dersler' }),
+        benimVar ? el('button', { type: 'button', class: 'link-btn', text: D.tumSiniflar ? 'Yalnızca benim derslerim' : 'Tüm dersleri göster', onclick: function () { D.tumSiniflar = !D.tumSiniflar; ciz(); } }) : null]),
+      kartlar
+    ]));
+  }
+
+  function durumYukle() {
+    D.durumYuk = false;
+    D.gonderilen = [];
+    var s = D.sinif, d = D.ders;
+    MDEA.cagir('dgDurum', [MDEA.token, MDEA.okulVeri.kapsam(), s, d]).then(function (r) {
+      if (s !== D.sinif || d !== D.ders) return;
+      D.gonderilen = r.gonderilen || [];
+      D.durumYuk = true;
+      if (r.donem) { D.donem = r.donem; $('dg-donem').textContent = r.donem; }
+      // Gönderilmiş öğrencinin taslağı kalmasın
+      var t = taslaklar();
+      D.gonderilen.forEach(function (id) { if (t[id]) taslakYaz(id, null); });
+      if (D.adim === 'liste' || D.adim === 'not') ciz();
+    }).catch(hata);
+  }
+
+  function listeAdimi(k, v) {
+    var ogr = sinifOgrencileri();
+    if (!ogr.length) { bosVeri(k, v, 'Bu sınıfta öğrenci yok.'); return; }
+    var say = { bos: 0, taslak: 0, tamam: 0, gonderildi: 0 };
+    ogr.forEach(function (o) { say[durumu(o)]++; });
+    var ara = el('input', { class: 'inp', type: 'search', placeholder: 'Öğrenci ara', value: D.ara, 'aria-label': 'Öğrenci ara' });
+    var liste = el('div', { class: 'dg-liste' });
+    function listeCiz() {
+      liste.textContent = '';
+      var q = D.ara.trim().toLocaleLowerCase('tr-TR');
+      var t = taslaklar();
+      ogr.filter(function (o) { return !q || o.ad.toLocaleLowerCase('tr-TR').indexOf(q) > -1 || String(o.no).indexOf(q) > -1; }).forEach(function (o) {
+        var d = durumu(o);
+        var ozet = d === 'gonderildi' ? 'Not gönderildi.' : (t[o.id] && t[o.id].metin ? t[o.id].metin : '');
+        liste.appendChild(el('button', {
+          type: 'button', class: 'dg-ogr', 'aria-label': o.ad + ', ' + DURUM_AD[d],
+          onclick: function () { D.ogrenci = o.id; D.adim = 'not'; ciz(); }
+        }, [el('span', { class: 'no', text: o.no || '—' }), el('span', { text: o.ad }), el('span', { class: 'dg-durum ' + d, text: DURUM_AD[d] }),
+          ozet ? el('span', { class: 'dg-ozet', text: ozet }) : null]));
+      });
+    }
+    ara.addEventListener('input', function () { D.ara = ara.value; listeCiz(); });
+    listeCiz();
+    k.appendChild(el('div', { class: 'blok' }, [
+      el('div', { class: 'dg-sayac' }, ['bos', 'taslak', 'tamam', 'gonderildi'].map(function (x) {
+        return el('span', { class: 'dg-durum ' + x, text: DURUM_AD[x] + ': ' + say[x] });
+      }).concat(D.durumYuk ? [] : [el('span', { class: 'mini', text: 'Gönderim durumu alınıyor…' })])),
+      ara, liste
+    ]));
+    var gonder = el('button', { type: 'button', class: 'btn btn-primary', text: 'Tamamlananları gönder (' + say.tamam + ')', disabled: say.tamam && D.durumYuk ? null : 'disabled' });
+    gonder.addEventListener('click', function () { tumunuGonder(gonder); });
+    k.appendChild(el('div', { class: 'dg-alt-bar' }, [
+      el('span', { class: 'mini', text: 'Notlar "Tamamla" ile işaretlenince gönderilmeye hazır olur. Gönderilen notu yalnızca okul yöneticisi değiştirebilir.' }),
+      gonder
+    ]));
+  }
+
+  function tumunuGonder(btn) {
+    var t = taslaklar();
+    var ogr = sinifOgrencileri().filter(function (o) { return durumu(o) === 'tamam'; });
+    if (!ogr.length) return;
+    if (!window.confirm(ogr.length + ' öğrencinin notu gönderilsin mi? Gönderdikten sonra yalnızca okul yöneticisi değiştirebilir.')) return;
+    btn.disabled = true;
+    btn.textContent = 'Gönderiliyor…';
+    MDEA.cagir('dgGonder', [MDEA.token, MDEA.okulVeri.kapsam(), { sinif: D.sinif, ders: D.ders, notlar: ogr.map(function (o) { return { ogrenci: o.id, metin: t[o.id].metin }; }) }]).then(function (r) {
+      if (!r || !r.ok) { window.alert((r && r.hata) || 'Gönderilemedi.'); ciz(); return; }
+      (r.eklenen || []).concat(r.atlanan || []).forEach(function (id) { taslakYaz(id, null); });
+      if (r.atlanan && r.atlanan.length) window.alert(r.atlanan.length + ' öğrencinin bu dönem için bu derste zaten notu vardı; onlar gönderilmedi.');
+      durumYukle();
+      ciz();
+    }).catch(function (e) { btn.disabled = false; hata(e); });
+  }
+
+  var ses = null;
+  function sesDurdur() { if (ses) { ses.acik = false; try { ses.rec.stop(); } catch (e) {} ses = null; } }
+
+  function notAdimi(k, v) {
+    sesDurdur();
+    var ogr = sinifOgrencileri();
+    var i = ogr.map(function (o) { return o.id; }).indexOf(D.ogrenci);
+    if (i < 0) { adimaGit('liste'); return; }
+    var o = ogr[i];
+    var d = durumu(o);
+    var bas = el('div', { class: 'dg-not-bas' }, [
+      el('h3', { text: o.ad }),
+      el('span', { class: 'mini', text: (o.no ? 'No ' + o.no + ' · ' : '') + MDEA.okulVeri.ad('siniflar', D.sinif) + ' · ' + MDEA.okulVeri.ad('dersler', D.ders) }),
+      el('span', { class: 'dg-durum ' + d, text: DURUM_AD[d] })
+    ]);
+    function gezinti() {
+      return el('div', { class: 'dg-eylem' }, [
+        el('button', { type: 'button', class: 'btn', text: '‹ Önceki', disabled: i > 0 ? null : 'disabled', onclick: function () { D.ogrenci = ogr[i - 1].id; ciz(); } }),
+        el('button', { type: 'button', class: 'btn', text: 'Sonraki ›', disabled: i < ogr.length - 1 ? null : 'disabled', onclick: function () { D.ogrenci = ogr[i + 1].id; ciz(); } }),
+        el('span', { class: 'bosluk' }),
+        el('button', { type: 'button', class: 'btn', text: 'Listeye dön', onclick: function () { adimaGit('liste'); } })
+      ]);
+    }
+    if (d === 'gonderildi') {
+      k.appendChild(el('section', { class: 'panel dg-not' }, [bas,
+        el('p', { class: 'bilgi-kutu', text: 'Bu öğrencinin bu dönemki notu gönderildi. Değişiklik gerekiyorsa okul yöneticisi "Tüm notlar" bölümünden düzenleyebilir.' }),
+        gezinti()]));
+      return;
+    }
+    var mevcut = taslaklar()[o.id] || { metin: '', tamam: false };
+    var ta = el('textarea', { class: 'inp', maxlength: '6000', 'aria-label': o.ad + ' için dönem notu', placeholder: 'Öğrencinin bu dönemki gelişimi, güçlü yönleri, desteklenmesi gereken alanlar…' });
+    ta.value = mevcut.metin || '';
+    var sayac = el('span', { class: 'mini' });
+    function sayacYaz() { var n = ta.value.trim() ? ta.value.trim().split(/\s+/).length : 0; sayac.textContent = n + ' kelime · ' + ta.value.length + ' / 6000 karakter'; }
+    sayacYaz();
+    ta.addEventListener('input', function () {
+      sayacYaz();
+      taslakYaz(o.id, ta.value.trim() ? { metin: ta.value, tamam: false } : null);
+      tamamBtn.disabled = !ta.value.trim();
+    });
+    var tamamBtn = el('button', { type: 'button', class: 'btn btn-primary', text: i < ogr.length - 1 ? 'Tamamla ve sonrakine geç' : 'Tamamla', disabled: ta.value.trim() ? null : 'disabled' });
+    tamamBtn.addEventListener('click', function () {
+      if (!ta.value.trim()) return;
+      sesDurdur();
+      taslakYaz(o.id, { metin: ta.value.trim(), tamam: true });
+      var sonraki = ogr.slice(i + 1).concat(ogr.slice(0, i)).filter(function (x) { var dd = durumu(x); return dd === 'bos' || dd === 'taslak'; })[0];
+      if (sonraki) { D.ogrenci = sonraki.id; ciz(); } else adimaGit('liste');
+    });
+    var silBtn = el('button', { type: 'button', class: 'btn', text: 'Taslağı sil', disabled: mevcut.metin ? null : 'disabled', onclick: function () {
+      if (!window.confirm('Bu öğrenci için yazdığınız taslak silinsin mi?')) return;
+      taslakYaz(o.id, null); ciz();
+    } });
+    var Tanima = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var mik = Tanima ? el('button', { type: 'button', class: 'btn', text: 'Konuşarak yaz' }) : null;
+    if (mik) mik.addEventListener('click', function () {
+      if (ses) { sesDurdur(); mik.classList.remove('dinliyor'); mik.textContent = 'Konuşarak yaz'; return; }
+      var rec = new Tanima();
+      rec.lang = 'tr-TR'; rec.continuous = true; rec.interimResults = true;
+      ses = { rec: rec, acik: true, sabit: ta.value };
+      mik.classList.add('dinliyor'); mik.textContent = 'Dinliyor… durdur';
+      rec.onresult = function (e) {
+        var gecici = '';
+        for (var j = e.resultIndex; j < e.results.length; j++) {
+          var m = e.results[j][0].transcript
+            .replace(/\s*\bvirgül\b/gi, ',').replace(/\s*\bnokta\b/gi, '.').replace(/\s*\byeni satır\b\s*/gi, '\n');
+          if (e.results[j].isFinal) {
+            var once = ses.sabit;
+            var bosluk = once && !/[\s\n]$/.test(once) && !/^[.,\n]/.test(m) ? ' ' : '';
+            if (!once || /[.!?\n]\s*$/.test(once)) m = m.replace(/^\s*(\S)/, function (_, c) { return c.toLocaleUpperCase('tr-TR'); });
+            ses.sabit = once + bosluk + m.trim();
+          } else gecici += m;
+        }
+        ta.value = ses.sabit + (gecici ? ' ' + gecici : '');
+        ta.dispatchEvent(new Event('input'));
+      };
+      rec.onerror = function (e) { if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { window.alert('Mikrofon izni verilmedi. Tarayıcı ayarlarından izin verin ya da yazarak devam edin.'); sesDurdur(); mik.classList.remove('dinliyor'); mik.textContent = 'Konuşarak yaz'; } };
+      rec.onend = function () { if (ses && ses.acik) { try { rec.start(); } catch (e) {} } };
+      try { rec.start(); } catch (e) { sesDurdur(); }
+    });
+    k.appendChild(el('section', { class: 'panel dg-not' }, [bas, ta,
+      el('div', { class: 'dg-eylem' }, [tamamBtn, mik, silBtn, el('span', { class: 'bosluk' }), sayac]),
+      mik ? el('p', { class: 'mini', text: 'Konuşarak yazarken "virgül", "nokta" ve "yeni satır" diyebilirsiniz. Taslaklar bu tarayıcıda saklanır.' }) : el('p', { class: 'mini', text: 'Taslaklar bu tarayıcıda saklanır.' }),
+      gezinti()]));
+    setTimeout(function () { ta.focus(); }, 0);
+  }
+
+  /* ---------- Yönetici: tüm notlar ---------- */
+  function hepsiYukle() {
+    D.hepsi = null;
+    hepsiCiz();
+    MDEA.cagir('dgHepsi', [MDEA.token, MDEA.okulVeri.kapsam()]).then(function (r) {
+      D.hepsi = r.notlar || [];
+      D.donem = r.donem || D.donem;
+      if (!D.f.donem) D.f.donem = D.donem;
+      $('dg-donem').textContent = D.donem;
+      hepsiCiz();
+    }).catch(function (e) {
+      var k = $('dg-hepsi'); k.textContent = ''; k.appendChild(el('p', { class: 'bos', text: (e && e.message) || String(e) }));
+    });
+  }
+
+  function filtreli() {
+    var f = D.f, q = f.ara.trim().toLocaleLowerCase('tr-TR');
+    return (D.hepsi || []).filter(function (n) {
+      return (!f.donem || n.donem === f.donem) && (!f.sinif || n.sinif === f.sinif) && (!f.ders || n.ders === f.ders) &&
+        (!f.ogretmen || n.ogretmen === f.ogretmen) &&
+        (!q || (n.ogrenciAd + ' ' + n.metin).toLocaleLowerCase('tr-TR').indexOf(q) > -1);
+    }).sort(function (a, b) { return tr(a.sinifAd, b.sinifAd) || tr(a.ogrenciAd, b.ogrenciAd) || tr(a.dersAd, b.dersAd); });
+  }
+
+  function secimKutusu(etiket, deger, secenekler, bos, fn) {
+    var s = el('select', { class: 'inp' });
+    s.appendChild(el('option', { value: '', text: bos }));
+    secenekler.forEach(function (x) { var o = el('option', { value: x[0], text: x[1] }); if (x[0] === deger) o.selected = true; s.appendChild(o); });
+    s.addEventListener('change', function () { fn(s.value); });
+    return el('label', {}, [etiket, s]);
+  }
+
+  function hepsiCiz() {
+    var k = $('dg-hepsi');
+    k.textContent = '';
+    if (!D.hepsi) { k.appendChild(el('p', { class: 'bos', text: 'Notlar yükleniyor…' })); return; }
+    var v = V();
+    var benzersiz = function (alan, ad) {
+      var m = {};
+      D.hepsi.forEach(function (n) { m[n[alan]] = n[ad]; });
+      return Object.keys(m).map(function (id) { return [id, m[id]]; }).sort(function (a, b) { return tr(a[1], b[1]); });
+    };
+    var donemler = benzersiz('donem', 'donem').reverse();
+    if (D.donem && !donemler.some(function (d) { return d[0] === D.donem; })) donemler.unshift([D.donem, D.donem]);
+    var yenile = function () { hepsiCiz(); };
+    var filtre = el('div', { class: 'dg-filtre' }, [
+      secimKutusu('Dönem', D.f.donem, donemler, 'Tüm dönemler', function (x) { D.f.donem = x; yenile(); }),
+      secimKutusu('Sınıf', D.f.sinif, v.siniflar.map(function (s) { return [s.id, s.ad]; }), 'Tüm sınıflar', function (x) { D.f.sinif = x; yenile(); }),
+      secimKutusu('Ders', D.f.ders, benzersiz('ders', 'dersAd'), 'Tüm dersler', function (x) { D.f.ders = x; yenile(); }),
+      secimKutusu('Öğretmen', D.f.ogretmen, benzersiz('ogretmen', 'ogretmenAd'), 'Tüm öğretmenler', function (x) { D.f.ogretmen = x; yenile(); })
+    ]);
+    var ara = el('input', { class: 'inp', type: 'search', placeholder: 'Öğrenci adı ya da not içinde ara', value: D.f.ara, 'aria-label': 'Notlarda ara' });
+    var liste = filtreli();
+    var gorunum = el('div', { class: 'segment dg-mod', role: 'tablist', 'aria-label': 'Görünüm' }, [['liste', 'Notlar'], ['durum', 'Durum tablosu']].map(function (x) {
+      return el('button', { type: 'button', class: 'seg', role: 'tab', 'aria-selected': D.gorunum === x[0] ? 'true' : 'false', text: x[1], onclick: function () { D.gorunum = x[0]; hepsiCiz(); } });
+    }));
+    var yazdir = el('button', { type: 'button', class: 'btn', text: 'Yazdır / PDF', onclick: function () { yazdirAc(liste); } });
+    var yenileBtn = el('button', { type: 'button', class: 'btn', text: 'Yenile', onclick: hepsiYukle });
+    var ust = el('div', { class: 'top-actions' }, [gorunum, yazdir, yenileBtn]);
+    var ogrSay = {};
+    liste.forEach(function (n) { ogrSay[n.ogrenci] = 1; });
+    var ozet = el('dl', { class: 'ozet', style: 'margin:0' }, [
+      ['Not', liste.length], ['Öğrenci', Object.keys(ogrSay).length], ['Öğretmen', benzersiz('ogretmen', 'ogretmenAd').filter(function (x) { return liste.some(function (n) { return n.ogretmen === x[0]; }); }).length]
+    ].map(function (x) { return el('div', {}, [el('dt', { text: x[0] }), el('dd', { text: String(x[1]) })]); }));
+
+    var govde = el('div', { class: 'dg-notlar' });
+    function govdeCiz() {
+      govde.textContent = '';
+      liste = filtreli();
+      if (D.gorunum === 'durum') { govde.appendChild(durumTablosu(v, liste)); return; }
+      if (!liste.length) { govde.appendChild(el('p', { class: 'bos', text: D.hepsi.length ? 'Bu filtreyle not yok.' : 'Henüz gönderilmiş not yok.' })); return; }
+      liste.slice(0, 300).forEach(function (n) { govde.appendChild(notKarti(n)); });
+      if (liste.length > 300) govde.appendChild(el('p', { class: 'mini', text: 'İlk 300 not gösteriliyor; filtreyi daraltın.' }));
+    }
+    ara.addEventListener('input', function () { D.f.ara = ara.value; govdeCiz(); });
+    govdeCiz();
+    k.appendChild(el('section', { class: 'panel' }, [
+      el('div', { class: 'blok-baslik' }, [el('h2', { text: 'Gönderilen notlar' }), ust]),
+      filtre, ara, ozet, govde
+    ]));
+  }
+
+  function notKarti(n) {
+    var metin = el('p', { text: n.metin });
+    var kart = el('article', { class: 'dg-notk' });
+    var eylem = el('div', { class: 'dg-eylem' }, [
+      el('button', { type: 'button', class: 'link-btn', text: 'Düzenle', onclick: function () {
+        var ta = el('textarea', { class: 'inp', maxlength: '6000', 'aria-label': n.ogrenciAd + ' notu' });
+        ta.value = n.metin;
+        kart.replaceChild(ta, metin);
+        eylem.textContent = '';
+        eylem.appendChild(el('button', { type: 'button', class: 'btn btn-primary', text: 'Kaydet', onclick: function () {
+          MDEA.cagir('dgDuzenle', [MDEA.token, MDEA.okulVeri.kapsam(), n.id, ta.value]).then(function (r) {
+            if (!r || !r.ok) { window.alert((r && r.hata) || 'Kaydedilemedi.'); return; }
+            for (var a in r.not) n[a] = r.not[a];
+            kart.parentNode.replaceChild(notKarti(n), kart);
+          }).catch(function (e) { window.alert(e.message || e); });
+        } }));
+        eylem.appendChild(el('button', { type: 'button', class: 'btn', text: 'Vazgeç', onclick: function () { kart.parentNode.replaceChild(notKarti(n), kart); } }));
+        ta.focus();
+      } }),
+      el('button', { type: 'button', class: 'link-btn', text: 'Sil', style: 'color:var(--warn)', onclick: function () {
+        if (!window.confirm(n.ogrenciAd + ' · ' + n.dersAd + ' notu silinsin mi? Bu geri alınamaz.')) return;
+        MDEA.cagir('dgSil', [MDEA.token, MDEA.okulVeri.kapsam(), [n.id]]).then(function () {
+          D.hepsi = D.hepsi.filter(function (x) { return x.id !== n.id; });
+          hepsiCiz();
+        }).catch(function (e) { window.alert(e.message || e); });
+      } })
+    ]);
+    [el('div', { class: 'dg-notk-bas' }, [el('strong', { text: n.ogrenciAd }), el('span', { class: 'etiket', text: n.sinifAd }), el('span', { class: 'etiket', text: n.dersAd })]),
+      metin,
+      el('div', { class: 'meta', text: n.ogretmenAd + ' · ' + n.tarih + ' ' + n.gun + ' ' + n.saat + (n.duzenleme ? ' · düzenlendi ' + n.duzenleme : '') + ' · ' + n.donem }),
+      eylem].forEach(function (x) { kart.appendChild(x); });
+    return kart;
+  }
+
+  function durumTablosu(v, liste) {
+    var sinif = D.f.sinif || (v.siniflar[0] && v.siniflar[0].id);
+    if (!sinif) return el('p', { class: 'bos', text: 'Sınıf yok.' });
+    var ogr = v.ogrenciler.filter(function (o) { return o.sinif === sinif; });
+    var dersIdleri = {};
+    v.atamalar.forEach(function (a) { if (a.sinif === sinif) dersIdleri[a.ders] = 1; });
+    liste.forEach(function (n) { if (n.sinif === sinif) dersIdleri[n.ders] = 1; });
+    var dersler = v.dersler.filter(function (d) { return dersIdleri[d.id]; });
+    var var_ = {};
+    liste.forEach(function (n) { var_[n.ogrenci + '|' + n.ders] = 1; });
+    var kap = el('div', { class: 'blok' }, [el('p', { class: 'mini', text: MDEA.okulVeri.ad('siniflar', sinif) + ' sınıfı' + (D.f.sinif ? '' : ' (Sınıf filtresinden başka sınıf seçebilirsiniz)') + '. Sütunlar bu sınıfa atanmış dersler.' })]);
+    if (!ogr.length || !dersler.length) { kap.appendChild(el('p', { class: 'bos', text: !ogr.length ? 'Bu sınıfta öğrenci yok.' : 'Bu sınıfa ders atanmamış.' })); return kap; }
+    var t = el('table', { class: 'dg-matris' });
+    t.appendChild(el('thead', {}, [el('tr', {}, [el('th', { text: 'Öğrenci' })].concat(dersler.map(function (d) { return el('th', { text: d.ad }); })))]));
+    var g = el('tbody');
+    ogr.forEach(function (o) {
+      g.appendChild(el('tr', {}, [el('th', { text: o.ad })].concat(dersler.map(function (d) {
+        var x = var_[o.id + '|' + d.id];
+        return el('td', { class: x ? 'var' : 'yok', text: x ? '✓' : '–', 'aria-label': x ? 'yazıldı' : 'yazılmadı' });
+      }))));
+    });
+    t.appendChild(g);
+    kap.appendChild(el('div', { class: 'tablo-kap' }, [t]));
+    return kap;
+  }
+
+  /** Her öğrenci için bir sayfa: dönem notları ders ders. Tarayıcının yazdır penceresinden PDF olarak kaydedilir. */
+  function yazdirAc(liste) {
+    if (!liste.length) { window.alert('Yazdırılacak not yok.'); return; }
+    var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+    var ogr = {};
+    liste.forEach(function (n) { (ogr[n.ogrenci] = ogr[n.ogrenci] || { ad: n.ogrenciAd, sinif: n.sinifAd, donem: n.donem, notlar: [] }).notlar.push(n); });
+    var v = V();
+    var okul = v && v.kapsam.tur === 'okul' ? v.kapsam.ad : '';
+    var sayfalar = Object.keys(ogr).map(function (id) { return ogr[id]; }).sort(function (a, b) { return tr(a.sinif, b.sinif) || tr(a.ad, b.ad); }).map(function (o) {
+      return '<section><header><p class="okul">' + esc(okul) + '</p><h1>' + esc(o.ad) + '</h1><p>' + esc(o.sinif) + ' · ' + esc(o.donem) + '</p></header>' +
+        o.notlar.sort(function (a, b) { return tr(a.dersAd, b.dersAd); }).map(function (n) {
+          return '<article><h2>' + esc(n.dersAd) + '</h2><p>' + esc(n.metin).replace(/\n/g, '<br>') + '</p><p class="ogr">' + esc(n.ogretmenAd) + '</p></article>';
+        }).join('') + '</section>';
+    }).join('');
+    var html = '<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Dönem notları</title><style>' +
+      'body{font-family:"Segoe UI",system-ui,sans-serif;color:#10264A;margin:0}section{padding:2cm 1.8cm;page-break-after:always}' +
+      'header{border-bottom:2px solid #1D5FD8;margin-bottom:1rem;padding-bottom:.5rem}h1{margin:.2rem 0;font-size:1.6rem}header p{margin:0;color:#566B8C}.okul{font-weight:600}' +
+      'article{margin:0 0 1rem;break-inside:avoid}h2{font-size:1rem;margin:0 0 .3rem;color:#1D5FD8}article p{margin:0;line-height:1.5}.ogr{color:#566B8C;font-size:.85rem;margin-top:.2rem!important}' +
+      '@page{size:A4;margin:0}</style></head><body>' + sayfalar + '<script>window.onload=function(){setTimeout(function(){window.print()},300)}<\/script></body></html>';
+    var w = window.open('', '_blank');
+    if (!w) { window.alert('Yazdırma penceresi açılamadı. Tarayıcının açılır pencere engelini kaldırın.'); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+  }
+
+  /* ---------- Olaylar ---------- */
+  $('dg-mod').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-mod]');
+    if (!b) return;
+    D.mod = b.getAttribute('data-mod');
+    if (D.mod === 'hepsi') hepsiYukle();
+    ciz();
   });
-  document.addEventListener('mdea:cikis', function () { $('dg-cerceve').removeAttribute('src'); });
+  document.addEventListener('mdea:veri', function () { if (acik) ciz(); });
+  document.addEventListener('mdea:panel', function (e) {
+    var once = acik;
+    acik = e.detail.id === 'degerlendirme';
+    if (!acik) { sesDurdur(); return; }
+    if (!once) ciz();
+    MDEA.okulVeri.yukle(false).then(function () { if (D.mod === 'hepsi' && !D.hepsi) hepsiYukle(); }).catch(hata);
+  });
+  function sifirla() {
+    sesDurdur();
+    D = { mod: 'yaz', adim: 'sinif', sinif: null, ders: null, ogrenci: null, ara: '', gonderilen: [], durumYuk: false, tumSiniflar: false,
+          hepsi: null, f: { donem: '', sinif: '', ders: '', ogretmen: '', ara: '' }, gorunum: 'liste', donem: '' };
+    $('dg-donem').textContent = '';
+  }
+  document.addEventListener('mdea:giris', sifirla);
+  document.addEventListener('mdea:cikis', sifirla);
+  // Okul verileri panelinde kapsam değişirse seçimler sıfırlanır
+  var sonKapsam = null;
+  document.addEventListener('mdea:veri', function (e) {
+    var k = e.detail && e.detail.kapsam && e.detail.kapsam.anahtar;
+    if (sonKapsam && k !== sonKapsam) { var mod = D.mod; sifirla(); D.mod = mod === 'hepsi' && e.detail.duzenle ? 'hepsi' : 'yaz'; if (D.mod === 'hepsi' && acik) hepsiYukle(); }
+    sonKapsam = k;
+  });
 })();
 </script>

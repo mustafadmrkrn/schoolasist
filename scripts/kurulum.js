@@ -10,7 +10,7 @@ var src = path.join(kok, 'src');
 var hedef = path.join(kok, 'kurulum');
 fs.mkdirSync(hedef, { recursive: true });
 
-var gs = ['Code.gs', 'Auth.gs', 'Roller.gs', 'Nobet.gs', 'Sinav.gs', 'Deneme.gs'].map(function (ad) {
+var gs = ['Code.gs', 'Auth.gs', 'Roller.gs', 'Veri.gs', 'Nobet.gs', 'Sinav.gs', 'Deneme.gs'].map(function (ad) {
   return '/* ===================== ' + ad + ' ===================== */\n' + fs.readFileSync(path.join(src, ad), 'utf8');
 }).join('\n\n');
 var bas = '/**\n * MD Education Asist — Apps Script sunucu kodu (tek dosya).\n' +

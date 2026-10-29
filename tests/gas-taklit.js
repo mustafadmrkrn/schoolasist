@@ -36,9 +36,14 @@ module.exports = function (dosyalar) {
     MailApp: { getRemainingDailyQuota: function () { return 100; }, sendEmail: function (o) { postalar.push(o); } }
   };
   vm.createContext(ctx);
+  var tablolar = {};
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'tablo-taklit.js'), 'utf8'), ctx);
+  ctx.SpreadsheetApp = ctx.tabloTaklitKur(
+    function (id) { return Object.prototype.hasOwnProperty.call(tablolar, id) ? tablolar[id] : null; },
+    function (id, m) { tablolar[id] = m; });
   dosyalar.forEach(function (ad) { vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', ad), 'utf8'), ctx); });
   return {
-    ctx: ctx, depo: depo, postalar: postalar,
+    ctx: ctx, depo: depo, postalar: postalar, tablolar: tablolar, onbellek: onbellek,
     sonKod: function (adres) {
       for (var i = postalar.length - 1; i >= 0; i--) if (!adres || postalar[i].to === adres) return /Kod: (\d{6})/.exec(postalar[i].body)[1];
       return null;

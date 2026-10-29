@@ -71,6 +71,7 @@ function rolKullaniciBilgisi(k, u) {
   else if (rol === 'ogretmen') araclar = okul ? rolAracListesi(okul.araclar && okul.araclar.ogretmen) : rolAracIdleri();
   else araclar = okul ? rolAracListesi(okul.araclar && okul.araclar.ogrenci) : [];
   var paneller = [];
+  if (rol === 'admin' || rol === 'yonetici' || (rol === 'ogretmen' && !okul)) paneller.push('veri');
   if (rol === 'yonetici' || (rol === 'admin' && okul)) paneller.push('okul');
   if (rol === 'admin') paneller.push('admin');
   return {

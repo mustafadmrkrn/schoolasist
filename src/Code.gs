@@ -1,4 +1,4 @@
-var SURUM = '29.10.2026.2';
+var SURUM = '29.10.2026.3';
 
 /**
  * Web uygulaması giriş noktası.
@@ -97,6 +97,15 @@ function adminBasvuruReddet(token, kullanici) { return rolAdminBasvuruReddet(tok
 function adminKullaniciGuncelle(token, kullanici, degisiklik) { return rolAdminKullaniciGuncelle(token, kullanici, degisiklik); }
 function adminOkulOlustur(token, ad) { return rolAdminOkulOlustur(token, ad); }
 
+/* ---------- Okul verileri ve öğrenci değerlendirme (Veri.gs) ---------- */
+function veriOku(token, okulId) { return veriOkuIslem(token, okulId); }
+function veriKaydet(token, okulId, tur, islem) { return veriKaydetIslem(token, okulId, tur, islem); }
+function dgDurum(token, okulId, sinif, ders) { return veriDgDurum(token, okulId, sinif, ders); }
+function dgGonder(token, okulId, paket) { return veriDgGonder(token, okulId, paket); }
+function dgHepsi(token, okulId) { return veriDgHepsi(token, okulId); }
+function dgDuzenle(token, okulId, id, metin) { return veriDgDuzenle(token, okulId, id, metin); }
+function dgSil(token, okulId, idler) { return veriDgSil(token, okulId, idler); }
+
 /* ---------- Kurulum yardımcısı ---------- */
 
 /**
@@ -114,4 +123,15 @@ function epostaTesti() {
     name: AUTH_UYGULAMA
   });
   console.log('Deneme e-postası gönderildi: ' + adres + ' · Bugün kalan kota: ' + MailApp.getRemainingDailyQuota());
+}
+
+/**
+ * Okul verileri E-Tabloda tutulur. Güncellemeden sonra düzenleyicide bir kez çalıştırın
+ * (işlev listesinden eTabloIzni → Çalıştır): Google, E-Tablo oluşturma iznini ister.
+ */
+function eTabloIzni() {
+  var ss = SpreadsheetApp.create('MD Education Asist - izin denemesi');
+  var id = ss.getId();
+  DriveApp.getFileById(id).setTrashed(true);
+  console.log('E-Tablo izni tamam.');
 }
