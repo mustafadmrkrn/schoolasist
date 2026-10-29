@@ -344,7 +344,7 @@
 
 /* ================= VERİ ================= */
 var SUBELER = [
-  { ad: '4 YAŞ A (MOR)', renk: 'Mor', yas: '4 Yaş · A Şubesi', sinif: 'mor' },
+  { ad: '4 YAŞ A (MOR)', renk: 'Mor', yas: '4 Yaş · A Şubesi', sinif: 'mor', haricDersler: ['Türkçe Alan Becerileri'] },
   { ad: '5 YAŞ B (MAVİ)', renk: 'Mavi', yas: '5 Yaş · B Şubesi', sinif: 'mavi' },
   { ad: '5 YAŞ C (SARI)', renk: 'Sarı', yas: '5 Yaş · C Şubesi', sinif: 'sari' }
 ];
@@ -363,6 +363,10 @@ var DERSLER = [
   { ad: 'BSK', ogretmen: 'Atike Yılmaz', ikon: '🤸' }
 ];
 var DEMO_TUZ = '47f8da4cc9203110bb54a51ede8f9f0a', DEMO_OZET = 'ab7692f662ea7261b4638e22eaf5266c838135c61c2edae4020c372851ca88a8';
+function subeDersleri(sube) {
+  var b = SUBELER.filter(function (s) { return s.ad === sube; })[0] || {}, haric = b.haricDersler || [];
+  return DERSLER.filter(function (d) { return haric.indexOf(d.ad) === -1; });
+}
 var GUNLER = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
 
 /* ================= YARDIMCILAR ================= */
@@ -493,7 +497,7 @@ function taslakKaydet(ogr, kayit) {
   if (kayit) g[ogr] = kayit; else delete g[ogr];
   t[grupAnahtar()] = g; sakla('yorum_taslaklar', t);
 }
-function gonderilenMetin(ogr) { return (oku('yorum_gonderilen', {})[grupAnahtar()] || {})[ogr]; }
+try { localStorage.removeItem('yorum_gonderilen'); } catch (e) {} // eski sürümün sakladığı gönderilmiş not kopyaları
 function durumu(o) {
   if (S.gonderilen.indexOf(o) > -1) return 'gonderildi';
   var t = taslaklar()[o];
@@ -547,7 +551,7 @@ function ciz() {
     }).join('') + '</div>';
   }
   else if (S.adim === 2) {
-    a.innerHTML = baslik(2) + '<div class="liste iki">' + DERSLER.map(function (d) {
+    a.innerHTML = baslik(2) + '<div class="liste iki">' + subeDersleri(S.sube).map(function (d) {
       return '<button class="satir" data-ders="' + esc(d.ad) + '"><span class="ders-ikon" aria-hidden="true">' + d.ikon + '</span>' +
         '<span class="metin"><b>' + esc(d.ad) + '</b><small>' + esc(d.ogretmen) + '</small></span>' + okIkon() + '</button>';
     }).join('') + '</div>';
@@ -618,10 +622,8 @@ function notEkrani() {
       '<span class="avatar" style="color:' + (sariMi ? 'var(--sari-ink)' : r.ana) + '">' + esc(basHarf(S.ogrenci)) + '</span>' +
       '<span><b>' + esc(guzelAd(S.ogrenci)) + '</b><small>' + esc(b.renk) + ' Sınıf · ' + esc(S.ders) + ' · ' + esc(donemHesapla(new Date())) + '</small></span></div>';
   if (du === 'gonderildi') {
-    var m = gonderilenMetin(S.ogrenci);
     h += '<div class="kart"><p class="alan-baslik"><span>🔒 Bu öğrencinin notu gönderildi</span></p>' +
-      (m ? '<p class="salt-okunur">' + esc(m) + '</p>' : '') +
-      '<p class="sayac" style="margin:8px 0 0">Gönderilen not değiştirilemez. Değişiklik gerekiyorsa yöneticiye başvurun.</p></div>';
+      '<p class="sayac" style="margin:4px 0 0">Gönderilen notlar gizlidir; yalnızca yönetici görebilir ve değiştirebilir.</p></div>';
     $('#adim').innerHTML = h; return;
   }
   var t = taslaklar()[S.ogrenci] || {};
@@ -775,10 +777,7 @@ function tumunuGonder() {
       api('toplu_ekle', { sube: S.sube, ders: S.ders, ogretmen: S.ogretmen, notlar: notlar }).then(function (c) {
         if (btn) mesgul(btn, false);
         if (!c.ok) { bildir(c.hata || 'Gönderilemedi.', true); return; }
-        var g = oku('yorum_gonderilen', {}), grup = g[grupAnahtar()] || {};
-        (c.eklenen || []).forEach(function (o) { grup[o] = tt[o] && tt[o].metin; taslakKaydet(o, null); });
-        (c.atlanan || []).forEach(function (o) { taslakKaydet(o, null); });
-        g[grupAnahtar()] = grup; sakla('yorum_gonderilen', g);
+        (c.eklenen || []).concat(c.atlanan || []).forEach(function (o) { taslakKaydet(o, null); });
         S.gonderilen = S.gonderilen.concat(c.eklenen || [], c.atlanan || []);
         ciz();
         bildir((c.eklenen || []).length + ' not gönderildi ✓' + ((c.atlanan || []).length ? ' (' + c.atlanan.length + ' öğrencinin notu zaten gönderilmişti)' : ''));
@@ -936,14 +935,14 @@ function ogretmenTablosu() {
 
 function durumVerisi(sube) {
   return OGRENCILER[sube].map(function (o) {
-    return { ogrenci: o, sayilar: DERSLER.map(function (d) {
+    return { ogrenci: o, sayilar: subeDersleri(sube).map(function (d) {
       return Y.kayitlar.filter(function (k) { return k.sube === sube && k.ogrenci === o && k.ders === d.ad && (!Y.f.donem || k.donem === Y.f.donem); }).length;
     }) };
   });
 }
 
 function durumTablosu(sube) {
-  return '<table class="tablo durum"><thead><tr><th>Öğrenci</th>' + DERSLER.map(function (d) { return '<th class="dik" title="' + esc(d.ad) + '">' + d.ikon + '<br>' + esc(d.ad) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+  return '<table class="tablo durum"><thead><tr><th>Öğrenci</th>' + subeDersleri(sube).map(function (d) { return '<th class="dik" title="' + esc(d.ad) + '">' + d.ikon + '<br>' + esc(d.ad) + '</th>'; }).join('') + '</tr></thead><tbody>' +
     durumVerisi(sube).map(function (r) {
       return '<tr><td style="white-space:nowrap"><button class="mini-btn" style="border:0;background:none;padding:0;font-size:15px;text-decoration:underline" data-pdf-ogrenci="' + esc(r.ogrenci) + '">' + esc(guzelAd(r.ogrenci)) + '</button></td>' + r.sayilar.map(function (n) {
         return '<td class="hucre ' + (n ? 'var' : 'yok') + '">' + (n || '–') + '</td>'; }).join('') + '</tr>';
@@ -972,10 +971,10 @@ function ogrenciSatirlari() {
   return OGRENCILER[Y.ogrSube].filter(function (o) { return !q || normal(o).indexOf(q) > -1; }).map(function (o) {
     var n = ogrenciNotlari(Y.ogrSube, o), dersler = {};
     n.forEach(function (k) { dersler[k.ders] = 1; });
-    var sayi = Object.keys(dersler).length, tam = sayi === DERSLER.length;
+    var dsay = subeDersleri(Y.ogrSube).length, sayi = Object.keys(dersler).length, tam = sayi === dsay;
     return '<button class="satir" data-yogr="' + esc(o) + '"><span class="avatar" style="background:' + r.acik + ';color:' + (b.sinif === 'sari' ? 'var(--sari-ink)' : r.ana) + '">' + esc(basHarf(o)) + '</span>' +
-      '<span class="metin"><b>' + esc(guzelAd(o)) + '</b><small>' + (sayi ? sayi + ' / ' + DERSLER.length + ' dersten not var' : 'Henüz not yok') + '</small></span>' +
-      '<span class="etiket" style="' + (tam ? 'background:#DFF3E8;color:var(--ok)' : sayi ? '' : 'background:var(--surface-2);color:var(--muted)') + '">' + sayi + '/' + DERSLER.length + '</span></button>';
+      '<span class="metin"><b>' + esc(guzelAd(o)) + '</b><small>' + (sayi ? sayi + ' / ' + dsay + ' dersten not var' : 'Henüz not yok') + '</small></span>' +
+      '<span class="etiket" style="' + (tam ? 'background:#DFF3E8;color:var(--ok)' : sayi ? '' : 'background:var(--surface-2);color:var(--muted)') + '">' + sayi + '/' + dsay + '</span></button>';
   }).join('') || '<div class="bos">Bu isimde öğrenci yok.</div>';
 }
 function ogrenciDetay(sube, ogr) {
@@ -987,7 +986,7 @@ function ogrenciDetay(sube, ogr) {
       '<span style="flex:1"><b>' + esc(guzelAd(ogr)) + '</b><small>' + esc(sube) + ' · ' + esc(Y.f.donem || 'Tüm dönemler') + '</small></span>' +
       '<button class="btn-hafif" style="color:var(--ink);flex:none" data-pdf-ogrenci="' + esc(ogr) + '" data-pdf-sube="' + esc(sube) + '">⬇ PDF</button></div>' + donemSecici() +
     '<div class="gecmis" style="margin-top:0">';
-  DERSLER.forEach(function (d) {
+  subeDersleri(sube).forEach(function (d) {
     var dn = notlar.filter(function (k) { return k.ders === d.ad; }).sort(function (x, y) { return String(x.olusturma).localeCompare(String(y.olusturma)); });
     h += '<div class="kart ders-kart"><div class="ders-ust"><span class="ders-ikon" aria-hidden="true">' + d.ikon + '</span><span class="metin"><b>' + esc(d.ad) + '</b><small>' + esc(d.ogretmen) + '</small></span>' +
       (dn.length ? '' : '<span class="etiket" style="background:var(--danger-soft);color:var(--danger)">Not yok</span>') + '</div>' +
@@ -1078,7 +1077,7 @@ function pdfKarne(sube, tekOgrenci) {
         layout: 'noBorders', margin: [0, 0, 0, 16], pageBreak: ilk ? undefined : 'before'
       });
       ilk = false;
-      DERSLER.forEach(function (d) {
+      subeDersleri(sa).forEach(function (d) {
         var dn = notlar.filter(function (k) { return k.ders === d.ad; }).sort(function (x, y) { return String(x.olusturma).localeCompare(String(y.olusturma)); });
         var govde = [
           { columns: [{ text: d.ad, bold: true, fontSize: 12 }, { text: d.ogretmen, alignment: 'right', color: '#6E6680', fontSize: 9.5, margin: [0, 2, 0, 0] }] }
