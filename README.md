@@ -9,6 +9,18 @@ GitHub sayfası (`https://mustafadmrkrn.github.io/schoolasist/`) bu adrese yönl
 önizleme: `https://mustafadmrkrn.github.io/schoolasist/onizleme.html` (e-posta göndermez, veriler yalnızca o
 tarayıcıda kalır).
 
+- **Roller ve okullar:** kayıtta hesap türü seçilir: **Öğretmen**, **Öğrenci** ya da **Okul yöneticisi**.
+  - **Admin** (kod içinde `ROL_ADMINLER`, şu an `mustafadmrkrn`): her şeyi görür; yönetici başvurularını onaylar
+    ya da reddeder, okul açar, her kullanıcının rolünü ve okulunu değiştirir, başka admin atayabilir.
+  - **Okul yöneticisi:** kayıtta okulun adını yazar; başvuru admin onayına gider, o zamana kadar öğretmen olarak
+    girer. Onaylanınca okul açılır (ya da admin onu mevcut bir okula atar). "Okul yönetimi" panelinden okulun
+    6 karakterlik kodunu paylaşır ya da yeniler, **öğretmenlerin ve öğrencilerin menüde hangi araçları
+    göreceğini** seçer, üyeleri görür ve okuldan çıkarır. Yöneticiler tüm araçları görür.
+  - **Öğretmen:** okul koduyla kayıt olursa okulunun açtığı araçları görür; kodsuz kayıt olursa tüm öğretmen
+    araçları açıktır, sonradan soldaki "Okul kodu gir" ile okula katılabilir.
+  - **Öğrenci:** okul kodu zorunlu; okulun öğrencilere açtığı araçları görür (başlangıçta hiçbiri).
+  - Araç izinleri menüyü ve sunucu çağrılarını belirler; hesaplamalar tarayıcıda yapıldığı için kullanıcının
+    kendi dosyasını işlemesine karşı bir güvenlik sınırı değildir.
 - **Nöbet çizelgesi:** öğretmenlerin okulda olduğu günlere göre, aynı gün çakışmadan ve eşit
   dağılımlı haftalık nöbet planı.
 - **Sınav analizi:** Excel (.xlsx, .xls) veya CSV dosyasından sınıf özeti, puan dağılımı, soru güçlüğü,
@@ -51,6 +63,10 @@ tarayıcıda kalır).
 appsscript.json        Apps Script manifest (web uygulaması, Europe/Istanbul, erişim: herkes)
 src/Code.gs            Giriş noktası (doGet), include(), sunucu tarafı çağrılar
 src/Auth.gs            Kayıt, giriş, oturum, çıkış, hatalı deneme kilidi
+src/Roller.gs          Roller, okullar, okul kodu, araç izinleri, yönetici ve admin işlemleri
+src/okul-panel.html    Okul yönetimi paneli (yönetici)
+src/admin-panel.html   Admin paneli
+src/demo-sunucu.js     Önizlemede sunucu kodunu tarayıcıda çalıştıran Apps Script servis karşılıkları
 src/Nobet.gs           Nöbet algoritması (saf fonksiyon)
 src/Sinav.gs           Sınav analizi (saf fonksiyon)
 src/Deneme.gs          Deneme (TYT/AYT, LGS) sütun algılama ve net analizi (saf fonksiyon)
@@ -83,6 +99,7 @@ node tests/deneme.test.js    # deneme analizi testleri
 node tests/mentor.test.js    # mentörlük programı testleri
 node tests/yillik.test.js    # yıllık plan testleri
 node tests/auth.test.js      # giriş testleri (Apps Script servisleri taklit edilir)
+node tests/roller.test.js    # rol, okul ve araç izni testleri
 node scripts/preview.js docs/onizleme.html   # önizlemeyi yeniden derle
 node scripts/kurulum.js                    # Apps Script kurulum paketini yeniden üret
 ```
@@ -137,7 +154,8 @@ Kodu GitHub'dan eşitlemek için [clasp](https://github.com/google/clasp) de kul
   oturumları geçersizdir.
 - "Şifremi unuttum": kullanıcı adı ya da e-postayla kod istenir, kodla yeni şifre belirlenir; tüm eski
   oturumlar kapanır. Yanıt, hesabın var olup olmadığını belli etmez.
-- Önizlemede (demo) e-posta gönderilmez; kod ekranda gösterilir.
+- Önizlemede (demo) e-posta gönderilmez; kod ekranda gösterilir. Önizleme, gerçek sunucu kodunu (Auth.gs,
+  Roller.gs) tarayıcıda çalıştırır; demoda ilk kayıt olan kişi admin olur.
 - Şifreler düz metin saklanmaz: kullanıcıya özel tuz ve tekrarlı HMAC-SHA256 ile özetlenir.
   Apps Script'te PBKDF2/bcrypt yoktur, bu yüzden tekrar sayısı sınırlıdır (`AUTH_TUR`).
 - Oturum belirteci sunucuda yalnızca özet olarak tutulur; süre 7 gündür.

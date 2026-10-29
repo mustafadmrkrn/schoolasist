@@ -185,7 +185,7 @@
   .dolgu.uyari-dolgu { background: var(--warn); }
 
   /* Sol menülü kabuk */
-  .kabuk { display: grid; grid-template-columns: 15.5rem minmax(0, 1fr); min-height: 100%; }
+  .kabuk { display: grid; grid-template-columns: 15.5rem minmax(0, 1fr); min-height: 100%; min-height: 100vh; }
   .yan {
     background: var(--yan); color: var(--yan-ink); padding-block: 1.25rem;
     padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 1rem;
@@ -215,6 +215,17 @@
     font-weight: 600; font-size: 0.85rem; cursor: pointer;
   }
   .cikis:hover { background: rgba(255, 255, 255, 0.14); }
+  .rol-satir { grid-column: 1 / -1; margin: 0.55rem 0 0; display: flex; flex-wrap: wrap; gap: 0.3rem 0.5rem; align-items: center; font-size: 0.78rem; }
+  .rol-rozet { padding: 0.1rem 0.5rem; border-radius: 999px; background: #fff; color: var(--yan); font-weight: 700; font-size: 0.72rem; }
+  .rol-rozet:empty { display: none; }
+  .rol-okul { color: var(--yan-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+  .rol-not { grid-column: 1 / -1; margin: 0.45rem 0 0; font-size: 0.78rem; color: var(--yan-ink); background: rgba(255, 255, 255, 0.12); border-radius: 6px; padding: 0.4rem 0.55rem; }
+  .okula-katil { grid-column: 1 / -1; margin-top: 0.5rem; font-size: 0.85rem; }
+  .okula-katil summary { cursor: pointer; font-weight: 600; }
+  .okula-katil-form { display: grid; gap: 0.4rem; margin-top: 0.4rem; }
+  .okula-katil-form .inp { background: #fff; color: var(--ink); }
+  .yan-baslik-ara { margin-top: 0.9rem; }
+  .okul-kodu-inp { font-family: var(--font-mono); letter-spacing: 0.18em; text-transform: uppercase; }
   .yan-nav { display: grid; gap: 0.25rem; }
   .yan-baslik { margin: 0 0 0.25rem; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--yan-muted); }
   .nav-btn {
@@ -245,7 +256,7 @@
   }
 
   /* Giriş ekranı */
-  .giris-kap { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 100%; }
+  .giris-kap { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 100%; min-height: 100vh; }
   @media (min-width: 56rem) { .giris-kap { grid-template-columns: minmax(0, 1fr) minmax(0, 34rem); } }
   .giris-tanitim {
     background: var(--yan); color: var(--yan-ink); display: grid; align-content: center; gap: 1.5rem;
@@ -282,6 +293,11 @@
   .uyari-kutu { margin: 0; padding: 0.65rem 0.85rem; border-radius: 6px; background: var(--warn-soft); color: var(--ink); border-left: 3px solid var(--warn); font-size: 0.9rem; }
   .uyari-kutu strong { color: var(--warn); }
   .surum { margin: 0; font-size: 0.75rem; color: var(--muted); text-align: center; }
+  .segment-3 { grid-template-columns: repeat(3, 1fr); }
+  .segment-3 .seg { padding-inline: 0.3rem; font-size: 0.88rem; line-height: 1.2; }
+  .seg[aria-checked="true"] { background: #fff; color: var(--accent); box-shadow: 0 1px 2px rgba(16, 38, 74, 0.14); }
+  .alan-etiket { font-size: 0.85rem; font-weight: 600; }
+  .alan-not { font-weight: 400; color: var(--muted); }
   .demo-not { margin: 0; padding: 0.6rem 0.8rem; border: 1px dashed var(--line); border-radius: 6px; font-size: 0.8rem; color: var(--muted); }
 
   /* Sınav analizi */
@@ -1298,8 +1314,9 @@ function yksOgrenciAnalizi(ogrenciler, dersler, oturumlar, secim) {
 
 function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', ','); }
 </script>
+<script></script>
 <script>
-  var MDEA_SURUM = '27.10.2026';
+  var MDEA_SURUM = '29.10.2026';
   var MDEA = { token: null, kullanici: null, baslat: function () {}, oturumBitti: function () {} };
 
   function $(id) { return document.getElementById(id); }
@@ -1355,6 +1372,24 @@ function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', '
         <div class="alan" id="alan-eposta" hidden>
           <label for="g-eposta">E-posta</label>
           <input id="g-eposta" class="inp" type="email" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="100">
+        </div>
+        <div class="alan" id="alan-rol" hidden>
+          <span class="alan-etiket" id="rol-etiket">Hesap türü</span>
+          <div class="segment segment-3" role="radiogroup" aria-labelledby="rol-etiket" id="g-rol">
+            <button type="button" class="seg" role="radio" data-rol="ogretmen" aria-checked="true">Öğretmen</button>
+            <button type="button" class="seg" role="radio" data-rol="ogrenci" aria-checked="false">Öğrenci</button>
+            <button type="button" class="seg" role="radio" data-rol="yonetici" aria-checked="false">Okul yöneticisi</button>
+          </div>
+        </div>
+        <div class="alan" id="alan-okulkodu" hidden>
+          <label for="g-okulkodu">Okul kodu <span class="alan-not" id="okulkodu-not">(isteğe bağlı)</span></label>
+          <input id="g-okulkodu" class="inp okul-kodu-inp" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="9" placeholder="ör. K7MQ2X">
+          <p class="ipucu" id="okulkodu-ipucu">Okul yöneticinizden alacağınız 6 karakterlik kod. Yazarsanız okulunuzun açtığı araçları görürsünüz; boş bırakırsanız tüm öğretmen araçları açık olur.</p>
+        </div>
+        <div class="alan" id="alan-okuladi" hidden>
+          <label for="g-okuladi">Okulun adı</label>
+          <input id="g-okuladi" class="inp" type="text" autocomplete="organization" maxlength="80" placeholder="ör. Atatürk Anadolu Lisesi">
+          <p class="ipucu">Yöneticilik başvurunuz onaya gider. Onaylanana kadar öğretmen olarak girersiniz; onaylanınca okulunuz açılır ve size okul kodu verilir.</p>
         </div>
         <div class="alan">
           <label for="g-kullanici">Kullanıcı adı</label>
@@ -1487,198 +1522,27 @@ function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', '
       kosucu[ad].apply(kosucu, args);
     });
   }
-  var sunucu = {
-    demo: false,
-    kayit: function (ad, k, e, s) { return sunucuCagri('kayitOl', [ad, k, e, s]); },
-    giris: function (k, s) { return sunucuCagri('girisYap', [k, s]); },
-    kodGonder: function (bilet, e) { return sunucuCagri('epostaKoduGonder', [bilet, e || '']); },
-    dogrula: function (bilet, kod) { return sunucuCagri('epostaDogrula', [bilet, kod]); },
-    sifreKoduIste: function (kimlik) { return sunucuCagri('sifreKoduIste', [kimlik]); },
-    sifreSifirla: function (kimlik, kod, s) { return sunucuCagri('sifreSifirla', [kimlik, kod, s]); },
-    oturum: function (t) { return sunucuCagri('oturumKontrol', [t]); },
-    cikis: function (t) { return sunucuCagri('cikisYap', [t]); }
+  /* Önizlemede (demo) aynı sunucu kodu tarayıcıda çalışır: demo-sunucu katmanı. */
+  var demoCagri = typeof window.DEMO_SUNUCU !== 'undefined' ? window.DEMO_SUNUCU.cagir : null;
+  var gasVar = typeof google !== 'undefined' && google.script && google.script.run;
+  function cagir(ad, args) {
+    if (gasVar) return sunucuCagri(ad, args);
+    if (demoCagri) return demoCagri(ad, args);
+    return Promise.reject(new Error('Sunucuya ulaşılamıyor. Uygulamayı Google Apps Script bağlantısından açın.'));
+  }
+  var arka = {
+    demo: !gasVar && !!demoCagri,
+    kayit: function (ad, k, e, s, rol) { return cagir('kayitOl', [ad, k, e, s, rol]); },
+    giris: function (k, s) { return cagir('girisYap', [k, s]); },
+    kodGonder: function (bilet, e) { return cagir('epostaKoduGonder', [bilet, e || '']); },
+    dogrula: function (bilet, kod) { return cagir('epostaDogrula', [bilet, kod]); },
+    sifreKoduIste: function (kimlik) { return cagir('sifreKoduIste', [kimlik]); },
+    sifreSifirla: function (kimlik, kod, s) { return cagir('sifreSifirla', [kimlik, kod, s]); },
+    oturum: function (t) { return cagir('oturumKontrol', [t]); },
+    cikis: function (t) { return cagir('cikisYap', [t]); }
   };
-
-  /* ---------- Yerel demo arka ucu (yalnızca bu tarayıcıda) ---------- */
-  var KULLANICILAR = 'mdea_demo_kullanicilar';
-  var OTURUMLAR = 'mdea_demo_oturumlar';
-  function json(anahtar) {
-    try { return JSON.parse(depo.oku(anahtar) || '{}') || {}; } catch (e) { return {}; }
-  }
-  function onaltili(bayt) {
-    return Array.prototype.map.call(bayt, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
-  }
-  function rastgele(n) {
-    var a = new Uint8Array(n);
-    window.crypto.getRandomValues(a);
-    return onaltili(a);
-  }
-  function ozet(sifre, tuz) {
-    if (!window.crypto || !window.crypto.subtle) {
-      return Promise.reject(new Error('Bu tarayıcı güvenli giriş desteklemiyor.'));
-    }
-    var enc = new TextEncoder();
-    return window.crypto.subtle.importKey('raw', enc.encode(sifre), 'PBKDF2', false, ['deriveBits'])
-      .then(function (anahtar) {
-        return window.crypto.subtle.deriveBits({ name: 'PBKDF2', salt: enc.encode(tuz), iterations: 120000, hash: 'SHA-256' }, anahtar, 256);
-      })
-      .then(function (tampon) { return onaltili(new Uint8Array(tampon)); });
-  }
-  function yerelOturumAc(k, ad) {
-    var token = rastgele(32);
-    var oturumlar = json(OTURUMLAR);
-    oturumlar[token] = { k: k, bitis: Date.now() + 7 * 24 * 3600 * 1000 };
-    depo.yaz(OTURUMLAR, JSON.stringify(oturumlar));
-    return { ok: true, token: token, kullanici: k, ad: ad };
-  }
-  /* Demo: e-posta gönderilmez; kod yanıtta "demoKod" olarak döner ve ekranda gösterilir. */
-  var BILETLER = {};
-  var SIFRE_GENEL = 'Bilgiler bir hesapla eşleşiyorsa kayıtlı e-posta adresine kod gönderildi. Gelen kutusunu ve gereksiz klasörünü kontrol edin.';
-  function kullanicilariYaz(x) { depo.yaz(KULLANICILAR, JSON.stringify(x)); }
-  function demoKodVer(u, amac) {
-    var simdi = Date.now();
-    if (u.gonderim && u.gonderimAmac === amac && simdi - u.gonderim < 60000) return { hata: 'Yeni kod için ' + Math.ceil((60000 - (simdi - u.gonderim)) / 1000) + ' saniye bekleyin.' };
-    var kod = String(parseInt(rastgele(4), 16) % 1000000).padStart(6, '0');
-    u.kod = { amac: amac, kod: kod, bitis: simdi + 15 * 60000, deneme: 0 };
-    u.gonderim = simdi;
-    u.gonderimAmac = amac;
-    return { kod: kod };
-  }
-  function demoKodDenetle(u, amac, kod) {
-    var c = u.kod;
-    if (!c || c.amac !== amac || c.bitis < Date.now()) return 'Kodun süresi dolmuş. Yeni kod isteyin.';
-    if (c.deneme >= 5) return 'Çok fazla yanlış deneme. Yeni kod isteyin.';
-    if (kodTemiz(kod) !== c.kod) { c.deneme++; return c.deneme >= 5 ? 'Çok fazla yanlış deneme. Yeni kod isteyin.' : 'Kod hatalı.'; }
-    delete u.kod;
-    return '';
-  }
-  function demoSahip(liste, e) {
-    var bulunan = null;
-    Object.keys(liste).forEach(function (k) { if (liste[k].eposta === e && liste[k].dogrulandi === true) bulunan = k; });
-    return bulunan;
-  }
-  function demoDogrulama(k, u, ek) {
-    var bilet = rastgele(16);
-    BILETLER[bilet] = k;
-    var r = { ok: false, dogrulama: true, bilet: bilet, eposta: u.eposta ? maskele(u.eposta) : '', epostaGerekli: !u.eposta };
-    Object.keys(ek || {}).forEach(function (a) { r[a] = ek[a]; });
-    return r;
-  }
-  var yerel = {
-    demo: true,
-    kayit: function (ad, k, e, s) {
-      ad = String(ad || '').trim();
-      k = String(k || '').trim().toLowerCase();
-      e = String(e || '').trim().toLowerCase();
-      var h = kontrol(ad, k, String(s || ''), true, e);
-      if (h) return Promise.resolve({ ok: false, hata: h });
-      var liste = json(KULLANICILAR);
-      if (liste[k]) return Promise.resolve({ ok: false, hata: 'Bu kullanıcı adı alınmış.' });
-      if (demoSahip(liste, e)) return Promise.resolve({ ok: false, hata: 'Bu e-posta adresiyle kayıtlı bir hesap var. Giriş yapın ya da şifrenizi yenileyin.' });
-      var tuz = rastgele(16);
-      return ozet(s, tuz).then(function (hash) {
-        var u = { ad: ad, tuz: tuz, hash: hash, eposta: e, dogrulandi: false };
-        var g = demoKodVer(u, 'dogrulama');
-        liste[k] = u;
-        kullanicilariYaz(liste);
-        return demoDogrulama(k, u, { gonderildi: true, demoKod: g.kod });
-      });
-    },
-    giris: function (k, s) {
-      k = String(k || '').trim().toLowerCase();
-      var genel = { ok: false, hata: 'Kullanıcı adı veya şifre hatalı.' };
-      var liste = json(KULLANICILAR);
-      var u = liste[k];
-      return ozet(String(s || ''), u ? u.tuz : 'kayit-yok-tuzu').then(function (hash) {
-        if (!u || hash !== u.hash) return genel;
-        if (u.dogrulandi === true && u.eposta) return yerelOturumAc(k, u.ad);
-        var ek = { gonderildi: false };
-        if (u.eposta && !(u.kod && u.kod.amac === 'dogrulama' && u.kod.bitis > Date.now())) {
-          var g = demoKodVer(u, 'dogrulama');
-          if (g.kod) { ek.gonderildi = true; ek.demoKod = g.kod; } else ek.uyari = g.hata;
-          kullanicilariYaz(liste);
-        } else if (u.kod) ek.demoKod = u.kod.kod;
-        return demoDogrulama(k, u, ek);
-      });
-    },
-    kodGonder: function (bilet, e) {
-      var k = BILETLER[bilet];
-      var liste = json(KULLANICILAR);
-      var u = k && liste[k];
-      if (!u) return Promise.resolve({ ok: false, hata: 'Doğrulama süresi doldu. Yeniden giriş yapın.', yenidenGiris: true });
-      if (e) {
-        e = String(e).trim().toLowerCase();
-        if (!epostaGecerli(e)) return Promise.resolve({ ok: false, hata: 'Geçerli bir e-posta adresi yazın.' });
-        var sahip = demoSahip(liste, e);
-        if (sahip && sahip !== k) return Promise.resolve({ ok: false, hata: 'Bu e-posta adresi başka bir hesapta doğrulanmış.' });
-        if (u.eposta !== e) { u.eposta = e; delete u.kod; u.gonderim = 0; }
-      }
-      if (!u.eposta) return Promise.resolve({ ok: false, hata: 'Önce e-posta adresinizi yazın.' });
-      var g = demoKodVer(u, 'dogrulama');
-      kullanicilariYaz(liste);
-      if (!g.kod) return Promise.resolve({ ok: false, hata: g.hata });
-      return Promise.resolve({ ok: true, eposta: maskele(u.eposta), demoKod: g.kod });
-    },
-    dogrula: function (bilet, kod) {
-      var k = BILETLER[bilet];
-      var liste = json(KULLANICILAR);
-      var u = k && liste[k];
-      if (!u) return Promise.resolve({ ok: false, hata: 'Doğrulama süresi doldu. Yeniden giriş yapın.', yenidenGiris: true });
-      if (!u.eposta) return Promise.resolve({ ok: false, hata: 'Önce e-posta adresinizi yazın.' });
-      var h = demoKodDenetle(u, 'dogrulama', kod);
-      if (!h) { u.dogrulandi = true; delete BILETLER[bilet]; }
-      kullanicilariYaz(liste);
-      return Promise.resolve(h ? { ok: false, hata: h } : yerelOturumAc(k, u.ad));
-    },
-    sifreKoduIste: function (kimlik) {
-      var x = String(kimlik || '').trim().toLowerCase();
-      var liste = json(KULLANICILAR);
-      var k = x.indexOf('@') > -1 ? demoSahip(liste, x) : (liste[x] ? x : null);
-      var r = { ok: true, mesaj: SIFRE_GENEL };
-      if (k && liste[k].eposta) {
-        var g = demoKodVer(liste[k], 'sifre');
-        kullanicilariYaz(liste);
-        if (g.kod) r.demoKod = g.kod;
-      }
-      return Promise.resolve(r);
-    },
-    sifreSifirla: function (kimlik, kod, yeni) {
-      var x = String(kimlik || '').trim().toLowerCase();
-      var liste = json(KULLANICILAR);
-      var k = x.indexOf('@') > -1 ? demoSahip(liste, x) : (liste[x] ? x : null);
-      yeni = String(yeni || '');
-      if (yeni.length < 8 || yeni.length > 100) return Promise.resolve({ ok: false, hata: 'Şifre en az 8 karakter olmalı.' });
-      if (!k || !liste[k].eposta) return Promise.resolve({ ok: false, hata: 'Kod hatalı ya da süresi dolmuş.' });
-      if (yeni.toLowerCase() === k) return Promise.resolve({ ok: false, hata: 'Şifre kullanıcı adıyla aynı olamaz.' });
-      var u = liste[k];
-      var h = demoKodDenetle(u, 'sifre', kod);
-      if (h) { kullanicilariYaz(liste); return Promise.resolve({ ok: false, hata: h === 'Kod hatalı.' ? 'Kod hatalı ya da süresi dolmuş.' : h }); }
-      u.tuz = rastgele(16);
-      return ozet(yeni, u.tuz).then(function (hash) {
-        u.hash = hash;
-        if (!demoSahip(liste, u.eposta)) u.dogrulandi = true;
-        kullanicilariYaz(liste);
-        var oturumlar = json(OTURUMLAR);
-        Object.keys(oturumlar).forEach(function (t) { if (oturumlar[t].k === k) delete oturumlar[t]; });
-        depo.yaz(OTURUMLAR, JSON.stringify(oturumlar));
-        return yerelOturumAc(k, u.ad);
-      });
-    },
-    oturum: function (t) {
-      var o = json(OTURUMLAR)[t];
-      var u = o ? json(KULLANICILAR)[o.k] : null;
-      if (!o || !u || o.bitis < Date.now() || u.dogrulandi !== true) return Promise.resolve({ ok: false });
-      return Promise.resolve({ ok: true, kullanici: o.k, ad: u.ad });
-    },
-    cikis: function (t) {
-      var oturumlar = json(OTURUMLAR);
-      delete oturumlar[t];
-      depo.yaz(OTURUMLAR, JSON.stringify(oturumlar));
-      return Promise.resolve({ ok: true });
-    }
-  };
-
-  var arka = (typeof google !== 'undefined' && google.script && google.script.run) ? sunucu : yerel;
+  /* Paneller (okul, admin) sunucu işlevlerini bununla çağırır. */
+  MDEA.cagir = cagir;
 
   /* ---------- Ekran yönetimi ---------- */
   function goster(ekran) {
@@ -1700,12 +1564,56 @@ function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', '
   }
   function kutu(id, metin) { var k = $(id); k.textContent = metin || ''; k.hidden = !metin; }
 
+  /* ---------- Hesap türü (kayıt) ---------- */
+  var kayitRol = 'ogretmen';
+  function rolGoster() {
+    var kayit = mod === 'kayit';
+    document.querySelectorAll('#g-rol .seg').forEach(function (b) {
+      var secili = b.getAttribute('data-rol') === kayitRol;
+      b.setAttribute('aria-checked', String(secili));
+      b.setAttribute('aria-selected', String(secili));
+      b.tabIndex = secili ? 0 : -1;
+    });
+    $('alan-okulkodu').hidden = !kayit || kayitRol === 'yonetici';
+    $('alan-okuladi').hidden = !kayit || kayitRol !== 'yonetici';
+    var ogrenci = kayitRol === 'ogrenci';
+    $('okulkodu-not').textContent = ogrenci ? '(zorunlu)' : '(isteğe bağlı)';
+    $('okulkodu-ipucu').textContent = ogrenci
+      ? 'Okulunuzun 6 karakterlik kodunu öğretmeninizden ya da okul yönetiminden alın.'
+      : 'Okul yöneticinizden alacağınız 6 karakterlik kod. Yazarsanız okulunuzun açtığı araçları görürsünüz; boş bırakırsanız tüm öğretmen araçları açık olur.';
+  }
+  document.querySelectorAll('#g-rol .seg').forEach(function (b) {
+    b.addEventListener('click', function () { kayitRol = b.getAttribute('data-rol'); rolGoster(); hataGoster(''); });
+    b.addEventListener('keydown', function (e) {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      var sira = ['ogretmen', 'ogrenci', 'yonetici'];
+      var i = (sira.indexOf(kayitRol) + (e.key === 'ArrowRight' ? 1 : 2)) % 3;
+      kayitRol = sira[i]; rolGoster();
+      document.querySelector('#g-rol [data-rol="' + kayitRol + '"]').focus();
+      e.preventDefault();
+    });
+  });
+  function okulKoduTemiz(v) { return String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+  function rolKontrol() {
+    var kod = okulKoduTemiz($('g-okulkodu').value);
+    if (kayitRol === 'yonetici') {
+      var ad = $('g-okuladi').value.trim();
+      if (ad.length < 3) return { hata: 'Okulun adını yazın (en az 3 karakter).' };
+      return { rol: 'yonetici', okulAdi: ad };
+    }
+    if (kayitRol === 'ogrenci' && !kod) return { hata: 'Öğrenci kaydı için okul kodu gerekli.' };
+    if (kod && kod.length !== 6) return { hata: 'Okul kodu 6 karakter olmalı.' };
+    return { rol: kayitRol, okulKodu: kod };
+  }
+
   var mod = 'giris';
   function modDegistir(yeni) {
     mod = yeni;
     kartGoster('giris');
     var kayit = yeni === 'kayit';
     $('alan-eposta').hidden = !kayit;
+    $('alan-rol').hidden = !kayit;
+    rolGoster();
     $('g-unuttum').hidden = kayit;
     $('mod-giris').setAttribute('aria-selected', String(!kayit));
     $('mod-kayit').setAttribute('aria-selected', String(kayit));
@@ -1729,7 +1637,11 @@ function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', '
     $('kullanici-k').textContent = '@' + r.kullanici;
     $('kullanici-bas').textContent = basHarfler(r.ad);
     goster('uygulama');
-    document.dispatchEvent(new CustomEvent('mdea:giris', { detail: { kullanici: r.kullanici, ad: r.ad } }));
+    MDEA.bilgi = {
+      kullanici: r.kullanici, ad: r.ad, rol: r.rol || 'ogretmen', rolAdi: r.rolAdi || 'Öğretmen',
+      okul: r.okul || null, araclar: r.araclar || ['nobet', 'sinav', 'mentor', 'yillik'], paneller: r.paneller || [], basvuru: r.basvuru || null
+    };
+    document.dispatchEvent(new CustomEvent('mdea:giris', { detail: MDEA.bilgi }));
   }
 
   function mesgul(m) {
@@ -1752,10 +1664,12 @@ function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', '
     var h = kontrol(ad, k, s, kayit, e);
     if (h) { hataGoster(h); return; }
     if (kayit && s !== $('g-sifre2').value) { hataGoster('Şifreler aynı değil.'); return; }
+    var rolBilgi = kayit ? rolKontrol() : null;
+    if (rolBilgi && rolBilgi.hata) { hataGoster(rolBilgi.hata); return; }
 
     hataGoster('');
     mesgul(true);
-    (kayit ? arka.kayit(ad, k, e, s) : arka.giris(k, s))
+    (kayit ? arka.kayit(ad, k, e, s, rolBilgi) : arka.giris(k, s))
       .then(function (r) {
         if (r && r.dogrulama) {
           $('g-sifre').value = '';
@@ -1773,6 +1687,10 @@ function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', '
   function oturumuBaslat(r) {
     depo.yaz(TOKEN_ANAHTARI, r.token);
     MDEA.token = r.token;
+    // Kayıt formunu temizle: ortak bilgisayarda sonraki kişi önceki okul kodunu ya da bilgileri görmesin
+    ['g-ad', 'g-eposta', 'g-okulkodu', 'g-okuladi'].forEach(function (id) { $(id).value = ''; });
+    kayitRol = 'ogretmen';
+    rolGoster();
     $('g-sifre').value = '';
     $('g-sifre2').value = '';
     $('d-kod').value = '';
@@ -2022,6 +1940,17 @@ function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', '
         <span class="av" id="kullanici-bas" aria-hidden="true">?</span>
         <p class="hesap-ad" id="kullanici-ad"></p>
         <p class="yan-alt" id="kullanici-k"></p>
+        <p class="rol-satir"><span class="rol-rozet" id="kullanici-rol"></span><span class="rol-okul" id="kullanici-okul"></span></p>
+        <p class="rol-not" id="kullanici-basvuru" hidden></p>
+        <details class="okula-katil" id="okula-katil" hidden>
+          <summary>Okul kodu gir</summary>
+          <form id="okula-katil-form" class="okula-katil-form" novalidate>
+            <label class="yan-alt" for="okula-katil-kod">Okulunuzun 6 karakterlik kodu</label>
+            <input id="okula-katil-kod" class="inp okul-kodu-inp" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="9">
+            <button type="submit" class="cikis">Okula katıl</button>
+            <p class="rol-not" id="okula-katil-hata" role="alert" hidden></p>
+          </form>
+        </details>
         <button type="button" class="cikis" id="cikis">Çıkış yap</button>
       </div>
 
@@ -2042,6 +1971,15 @@ function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', '
         <button type="button" class="nav-btn" id="nav-yillik">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h11.5a2 2 0 0 1 2 2V20H7a2 2 0 0 1-2-2z"/><path d="M5 18a2 2 0 0 1 2-2h11.5"/><path d="M9 8.5h6M9 11.5h4"/></svg>
           Yıllık plan
+        </button>
+        <p class="yan-baslik yan-baslik-ara" id="yonetim-baslik" hidden>Yönetim</p>
+        <button type="button" class="nav-btn" id="nav-okul" hidden>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 9.5 12 4l8.5 5.5"/><path d="M5.5 9v10.5h13V9"/><path d="M10 19.5v-5h4v5"/></svg>
+          Okul yönetimi
+        </button>
+        <button type="button" class="nav-btn" id="nav-admin" hidden>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 5 6.5v5c0 4.2 3 7.6 7 9 4-1.4 7-4.8 7-9v-5z"/><path d="m9 12 2 2 4-4"/></svg>
+          Admin
         </button>
       </nav>
     </div>
@@ -5669,29 +5607,537 @@ function ypHaftaMetni(ders, hafta) {
 </script>
 
     </section>
+
+    <section class="arac" id="panel-okul" aria-label="Okul yönetimi" hidden>
+      <div class="top">
+  <div>
+    <p class="panel-ad" id="ok-baslik">Okul yönetimi</p>
+    <p class="alt">Öğretmenlerin ve öğrencilerin menüde hangi araçları göreceğini seçin, okul kodunu paylaşın, üyeleri yönetin.</p>
+  </div>
+  <div class="top-actions">
+    <button type="button" class="btn" id="ok-yenile">Yenile</button>
+  </div>
+</div>
+
+<div class="layout ok-layout">
+  <section class="panel" aria-label="Okul kodu ve araçlar">
+    <div class="blok">
+      <div class="blok-baslik"><h2>Okul kodu</h2></div>
+      <div class="ok-kod-satir">
+        <output class="ok-kod" id="ok-kod" aria-live="polite">––––––</output>
+        <button type="button" class="btn" id="ok-kopyala">Kopyala</button>
+        <button type="button" class="btn" id="ok-kod-yenile">Yeni kod üret</button>
+      </div>
+      <p class="mini">Öğretmen ve öğrenciler kayıt olurken bu kodu yazar ya da girişten sonra soldaki "Okul kodu gir" bölümünden okula katılır. Yeni kod üretirseniz eski kod artık çalışmaz; okula katılmış olanlar etkilenmez.</p>
+    </div>
+
+    <div class="blok">
+      <div class="blok-baslik"><h2>Araçlar</h2><span class="durum" id="ok-durum" role="status"></span></div>
+      <div class="tablo-kap"><table class="ok-arac-tablo" id="ok-araclar"></table></div>
+      <p class="mini">Yöneticiler tüm araçları her zaman görür. Değişiklik, kullanıcı bir sonraki girişinde ya da sayfayı yenilediğinde menüsüne yansır.</p>
+      <div class="alt-aksiyon"><button type="button" class="btn btn-primary" id="ok-kaydet" disabled>Kaydet</button></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Üyeler">
+    <div class="blok">
+      <div class="blok-baslik"><h2>Üyeler</h2><span class="say" id="ok-uye-say"></span></div>
+      <div class="gunler" role="group" aria-label="Rol filtresi" id="ok-filtre"></div>
+      <div id="ok-uyeler" class="ok-uyeler"></div>
+    </div>
+  </section>
+</div>
+
+<style>
+  @media (min-width: 62rem) { .ok-layout { grid-template-columns: minmax(0, 26rem) minmax(0, 1fr); } }
+  .ok-kod-satir { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+  .ok-kod { font-family: var(--font-mono); font-size: 1.6rem; letter-spacing: 0.25em; padding: 0.35rem 0.75rem; border-radius: 8px; background: var(--surface-2); color: var(--yan); }
+  .ok-arac-tablo { min-width: 0; width: 100%; }
+  .ok-arac-tablo th, .ok-arac-tablo td { text-align: left; }
+  .ok-arac-tablo tbody th { white-space: normal; }
+  .ok-arac-tablo td, .ok-arac-tablo thead th + th { text-align: center; width: 6.2rem; }
+  .ok-arac-tablo input { width: 1.15rem; height: 1.15rem; accent-color: var(--accent); cursor: pointer; }
+  .ok-uyeler { display: grid; gap: 0.5rem; }
+  .ok-uye { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.2rem 0.75rem; align-items: center; padding: 0.6rem 0.75rem; border: 1px solid var(--line); border-radius: 8px; }
+  .ok-uye strong { font-weight: 600; }
+  .ok-uye .mini { margin: 0; }
+  .ok-uye-rol { justify-self: start; }
+  .ok-cikar { color: var(--warn); }
+</style>
+
+<script>
+(function () {
+  var durum = { okulId: null, veri: null, secim: null, filtre: 'hepsi', yukleniyor: false };
+  var ROL = { admin: 'Admin', yonetici: 'Yönetici', ogretmen: 'Öğretmen', ogrenci: 'Öğrenci' };
+
+  function bildir(m) {
+    $('ok-durum').textContent = m;
+    clearTimeout(bildir.z);
+    bildir.z = setTimeout(function () { $('ok-durum').textContent = ''; }, 2500);
+  }
+  function hataYaz(e) {
+    if (e && e.message && /Oturum/.test(e.message)) { MDEA.oturumBitti(); return; }
+    var kap = $('ok-uyeler');
+    kap.textContent = '';
+    kap.appendChild(el('p', { class: 'bos', text: 'Okul bilgileri alınamadı: ' + (e && e.message ? e.message : e) }));
+  }
+
+  function yukle() {
+    if (!MDEA.token || durum.yukleniyor) return;
+    durum.yukleniyor = true;
+    MDEA.cagir('okulPaneli', [MDEA.token, durum.okulId]).then(function (r) {
+      durum.veri = r;
+      durum.secim = JSON.parse(JSON.stringify(r.okul.araclar));
+      ciz();
+    }).catch(hataYaz).then(function () { durum.yukleniyor = false; });
+  }
+  /* Admin panelinden başka bir okulu yönetmek için */
+  MDEA.okulPaneliAc = function (okulId) {
+    durum.okulId = okulId || null;
+    durum.veri = null;
+    MDEA.panelSec('okul');
+    yukle();
+  };
+
+  function degisti() {
+    var v = durum.veri;
+    return v && JSON.stringify(durum.secim) !== JSON.stringify(v.okul.araclar);
+  }
+
+  function ciz() {
+    var v = durum.veri;
+    if (!v) return;
+    $('ok-baslik').textContent = v.okul.ad;
+    $('ok-kod').textContent = v.okul.kod;
+
+    var t = $('ok-araclar');
+    t.textContent = '';
+    t.appendChild(el('thead', {}, [el('tr', {}, [
+      el('th', { scope: 'col', text: 'Araç' }), el('th', { scope: 'col', text: 'Öğretmenler' }), el('th', { scope: 'col', text: 'Öğrenciler' })
+    ])]));
+    var govde = el('tbody');
+    v.araclar.forEach(function (a) {
+      var satir = el('tr', {}, [el('th', { scope: 'row', text: a.ad })]);
+      ['ogretmen', 'ogrenci'].forEach(function (rol) {
+        var k = el('input', { type: 'checkbox', 'aria-label': a.ad + ' · ' + (rol === 'ogretmen' ? 'öğretmenler' : 'öğrenciler') });
+        k.checked = durum.secim[rol].indexOf(a.id) > -1;
+        k.addEventListener('change', function () {
+          var l = durum.secim[rol].filter(function (x) { return x !== a.id; });
+          if (this.checked) l.push(a.id);
+          durum.secim[rol] = v.araclar.map(function (x) { return x.id; }).filter(function (x) { return l.indexOf(x) > -1; });
+          $('ok-kaydet').disabled = !degisti();
+        });
+        satir.appendChild(el('td', {}, [k]));
+      });
+      govde.appendChild(satir);
+    });
+    t.appendChild(govde);
+    $('ok-kaydet').disabled = !degisti();
+    uyeleriCiz();
+  }
+
+  function uyeleriCiz() {
+    var v = durum.veri;
+    var sayilar = { hepsi: v.uyeler.length };
+    v.uyeler.forEach(function (u) { sayilar[u.rol] = (sayilar[u.rol] || 0) + 1; });
+    $('ok-uye-say').textContent = v.uyeler.length + ' kişi';
+    var f = $('ok-filtre');
+    f.textContent = '';
+    [['hepsi', 'Hepsi'], ['yonetici', 'Yöneticiler'], ['ogretmen', 'Öğretmenler'], ['ogrenci', 'Öğrenciler']].forEach(function (x) {
+      if (x[0] !== 'hepsi' && !sayilar[x[0]]) return;
+      f.appendChild(el('button', {
+        type: 'button', class: 'chip', 'aria-pressed': durum.filtre === x[0] ? 'true' : 'false',
+        text: x[1] + ' (' + (sayilar[x[0]] || 0) + ')',
+        onclick: function () { durum.filtre = x[0]; uyeleriCiz(); }
+      }));
+    });
+    var kap = $('ok-uyeler');
+    kap.textContent = '';
+    var liste = v.uyeler.filter(function (u) { return durum.filtre === 'hepsi' || u.rol === durum.filtre; });
+    if (!v.uyeler.length) {
+      kap.appendChild(el('p', { class: 'bos', text: 'Henüz üye yok. Okul kodunu öğretmen ve öğrencilerinizle paylaşın.' }));
+      return;
+    }
+    var ben = MDEA.bilgi && MDEA.bilgi.kullanici;
+    var admin = MDEA.bilgi && MDEA.bilgi.rol === 'admin';
+    liste.forEach(function (u) {
+      var cikarilabilir = u.kullanici !== ben && (admin || (u.rol !== 'yonetici' && u.rol !== 'admin'));
+      kap.appendChild(el('div', { class: 'ok-uye' }, [
+        el('div', {}, [
+          el('strong', { text: u.ad }),
+          el('p', { class: 'mini', text: '@' + u.kullanici + ' · ' + u.eposta + (u.dogrulandi ? '' : ' · e-posta doğrulanmadı') })
+        ]),
+        cikarilabilir ? el('button', {
+          type: 'button', class: 'link-btn ok-cikar', text: 'Okuldan çıkar', 'aria-label': u.ad + ' okuldan çıkar',
+          onclick: function () { cikar(u); }
+        }) : el('span', {}),
+        el('span', { class: 'etiket ok-uye-rol', text: ROL[u.rol] || u.rol })
+      ]));
+    });
+  }
+
+  function cikar(u) {
+    if (!confirm(u.ad + ' okuldan çıkarılsın mı? Hesabı silinmez; okulun araç ayarları artık ona uygulanmaz.')) return;
+    MDEA.cagir('okuldanCikar', [MDEA.token, durum.veri.okul.id, u.kullanici]).then(function (r) {
+      if (!r || !r.ok) { alert((r && r.hata) || 'Çıkarılamadı.'); return; }
+      bildir(u.ad + ' okuldan çıkarıldı.');
+      yukle();
+    }).catch(hataYaz);
+  }
+
+  $('ok-kaydet').addEventListener('click', function () {
+    var b = this;
+    b.disabled = true;
+    MDEA.cagir('okulAraclariKaydet', [MDEA.token, durum.veri.okul.id, durum.secim]).then(function (r) {
+      if (!r || !r.ok) { bildir((r && r.hata) || 'Kaydedilemedi.'); b.disabled = false; return; }
+      durum.veri.okul.araclar = r.araclar;
+      durum.secim = JSON.parse(JSON.stringify(r.araclar));
+      bildir('Kaydedildi');
+      ciz();
+    }).catch(function (e) { b.disabled = false; hataYaz(e); });
+  });
+
+  $('ok-kod-yenile').addEventListener('click', function () {
+    if (!durum.veri || !confirm('Yeni okul kodu üretilsin mi? Eski kod artık çalışmayacak.')) return;
+    MDEA.cagir('okulKoduYenile', [MDEA.token, durum.veri.okul.id]).then(function (r) {
+      if (!r || !r.ok) return;
+      durum.veri.okul.kod = r.kod;
+      $('ok-kod').textContent = r.kod;
+      bildir('Yeni kod üretildi');
+    }).catch(hataYaz);
+  });
+
+  $('ok-kopyala').addEventListener('click', function () {
+    if (!durum.veri) return;
+    var metin = durum.veri.okul.kod;
+    try { navigator.clipboard.writeText(metin).then(function () { bildir('Kod kopyalandı'); }, function () { bildir('Kod: ' + metin); }); }
+    catch (e) { bildir('Kod: ' + metin); }
+  });
+
+  $('ok-yenile').addEventListener('click', yukle);
+
+  document.addEventListener('mdea:panel', function (e) {
+    if (e.detail.id === 'okul' && !durum.veri) yukle();
+  });
+  document.addEventListener('mdea:giris', function () { durum = { okulId: null, veri: null, secim: null, filtre: 'hepsi', yukleniyor: false }; });
+  document.addEventListener('mdea:cikis', function () {
+    durum = { okulId: null, veri: null, secim: null, filtre: 'hepsi', yukleniyor: false };
+    $('ok-uyeler').textContent = '';
+    $('ok-araclar').textContent = '';
+    $('ok-kod').textContent = '––––––';
+  });
+})();
+</script>
+
+    </section>
+
+    <section class="arac" id="panel-admin" aria-label="Admin" hidden>
+      <div class="top">
+  <div>
+    <p class="panel-ad">Admin</p>
+    <p class="alt">Yönetici başvurularını onaylayın, okulları ve kullanıcıların rollerini yönetin.</p>
+  </div>
+  <div class="top-actions">
+    <span class="durum" id="ad-durum" role="status"></span>
+    <button type="button" class="btn" id="ad-yenile">Yenile</button>
+  </div>
+</div>
+
+<section class="panel" aria-label="Özet">
+  <dl class="ozet" id="ad-ozet"></dl>
+</section>
+
+<section class="panel" aria-labelledby="ad-bas-baslik">
+  <div class="blok">
+    <div class="blok-baslik"><h2 id="ad-bas-baslik">Bekleyen yönetici başvuruları</h2><span class="say" id="ad-bas-say"></span></div>
+    <div id="ad-basvurular" class="ad-liste"></div>
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="ad-okul-baslik">
+  <div class="blok">
+    <div class="blok-baslik"><h2 id="ad-okul-baslik">Okullar</h2><span class="say" id="ad-okul-say"></span></div>
+    <div class="tablo-kap"><table id="ad-okullar"></table></div>
+    <form class="ad-yeni-okul" id="ad-yeni-okul" novalidate>
+      <label class="mini" for="ad-yeni-okul-ad">Yeni okul</label>
+      <input id="ad-yeni-okul-ad" class="inp" type="text" maxlength="80" placeholder="Okulun adı">
+      <button type="submit" class="btn">Okul aç</button>
+    </form>
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="ad-k-baslik">
+  <div class="blok">
+    <div class="blok-baslik"><h2 id="ad-k-baslik">Kullanıcılar</h2><span class="say" id="ad-k-say"></span></div>
+    <input id="ad-ara" class="inp ad-ara" type="search" placeholder="Ad, kullanıcı adı ya da e-posta ara" aria-label="Kullanıcı ara">
+    <div class="tablo-kap"><table class="ad-kullanicilar" id="ad-kullanicilar"></table></div>
+    <p class="mini">Rol ya da okul değiştirdiğiniz satırda "Kaydet" düğmesi açılır. Kod içinde admin olarak tanımlı hesabın rolü değiştirilemez.</p>
+  </div>
+</section>
+
+<style>
+  .ad-liste { display: grid; gap: 0.6rem; }
+  .ad-basvuru { display: grid; gap: 0.5rem; padding: 0.75rem 0.9rem; border: 1px solid var(--line); border-left: 3px solid var(--warn); border-radius: 8px; }
+  .ad-basvuru p { margin: 0; }
+  .ad-basvuru-alt { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+  .ad-basvuru-alt .inp { width: auto; min-width: 0; max-width: 16rem; }
+  .ad-yeni-okul { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+  .ad-yeni-okul .inp { flex: 1 1 14rem; }
+  .ad-ara { max-width: 24rem; }
+  .ad-kullanicilar td, .ad-kullanicilar th { vertical-align: middle; }
+  .ad-kullanicilar .inp { padding: 0.3rem 0.45rem; font-size: 0.85rem; min-width: 8rem; }
+  .ad-kullanicilar small { display: block; color: var(--muted); font-weight: 400; }
+  .ad-kod { font-family: var(--font-mono); letter-spacing: 0.12em; }
+  .ad-kullanicilar th[scope="row"] { white-space: normal; min-width: 10rem; }
+  .ad-red { color: var(--warn); }
+</style>
+
+<script>
+(function () {
+  var veri = null;
+  var duzen = {};   // kullanıcı → { rol, okul } bekleyen değişiklik
+  var ROL_SIRA = ['ogrenci', 'ogretmen', 'yonetici', 'admin'];
+
+  function bildir(m) {
+    $('ad-durum').textContent = m;
+    clearTimeout(bildir.z);
+    bildir.z = setTimeout(function () { $('ad-durum').textContent = ''; }, 3000);
+  }
+  function hata(e) {
+    if (e && e.message && /Oturum/.test(e.message)) { MDEA.oturumBitti(); return; }
+    bildir('Hata: ' + (e && e.message ? e.message : e));
+  }
+  function tarih(ms) { return ms ? new Date(ms).toLocaleDateString('tr-TR') : '–'; }
+
+  function yukle() {
+    if (!MDEA.token) return;
+    MDEA.cagir('adminPaneli', [MDEA.token]).then(function (r) {
+      veri = r;
+      duzen = {};
+      ciz();
+    }).catch(hata);
+  }
+
+  function okulAdi(id) {
+    var o = veri.okullar.filter(function (x) { return x.id === id; })[0];
+    return o ? o.ad : '';
+  }
+
+  function ciz() {
+    var k = veri.kullanicilar;
+    var say = { admin: 0, yonetici: 0, ogretmen: 0, ogrenci: 0 };
+    k.forEach(function (x) { say[x.rol]++; });
+    var oz = $('ad-ozet');
+    oz.textContent = '';
+    [['Kullanıcı', k.length], ['Okul', veri.okullar.length], ['Yönetici', say.yonetici], ['Öğretmen', say.ogretmen], ['Öğrenci', say.ogrenci]].forEach(function (x) {
+      oz.appendChild(el('div', {}, [el('dt', { text: x[0] }), el('dd', { text: String(x[1]) })]));
+    });
+    basvurulariCiz();
+    okullariCiz();
+    kullanicilariCiz();
+  }
+
+  function basvurulariCiz() {
+    var kap = $('ad-basvurular');
+    kap.textContent = '';
+    var b = veri.kullanicilar.filter(function (x) { return x.basvuru; });
+    $('ad-bas-say').textContent = b.length ? b.length + ' bekliyor' : '';
+    if (!b.length) { kap.appendChild(el('p', { class: 'mini', text: 'Bekleyen başvuru yok.' })); return; }
+    b.forEach(function (x) {
+      var sec = el('select', { class: 'inp', 'aria-label': x.ad + ' için okul' });
+      sec.appendChild(el('option', { value: '', text: 'Yeni okul aç: ' + x.basvuru.okulAdi }));
+      veri.okullar.forEach(function (o) { sec.appendChild(el('option', { value: o.id, text: 'Mevcut okula ata: ' + o.ad })); });
+      kap.appendChild(el('div', { class: 'ad-basvuru' }, [
+        el('p', {}, [el('strong', { text: x.ad }), ' · @' + x.kullanici + ' · ' + x.eposta + (x.dogrulandi ? '' : ' (e-posta doğrulanmadı)')]),
+        el('p', { class: 'mini', text: 'Okul: ' + x.basvuru.okulAdi + ' · başvuru ' + tarih(x.basvuru.tarih) }),
+        el('div', { class: 'ad-basvuru-alt' }, [
+          sec,
+          el('button', { type: 'button', class: 'btn btn-primary', text: 'Onayla', onclick: function () {
+            MDEA.cagir('adminBasvuruOnayla', [MDEA.token, x.kullanici, sec.value || null]).then(function (r) {
+              if (!r || !r.ok) { bildir((r && r.hata) || 'Onaylanamadı.'); return; }
+              bildir(x.ad + ' okul yöneticisi oldu.');
+              yukle();
+            }).catch(hata);
+          } }),
+          el('button', { type: 'button', class: 'btn ad-red', text: 'Reddet', onclick: function () {
+            if (!confirm(x.ad + ' adlı kişinin yöneticilik başvurusu reddedilsin mi? Hesabı öğretmen olarak kalır.')) return;
+            MDEA.cagir('adminBasvuruReddet', [MDEA.token, x.kullanici]).then(function () { bildir('Başvuru reddedildi.'); yukle(); }).catch(hata);
+          } })
+        ])
+      ]));
+    });
+  }
+
+  function okullariCiz() {
+    var t = $('ad-okullar');
+    t.textContent = '';
+    $('ad-okul-say').textContent = veri.okullar.length ? veri.okullar.length + ' okul' : '';
+    if (!veri.okullar.length) {
+      t.appendChild(el('caption', { text: 'Henüz okul yok. Yönetici başvurusu onaylandığında ya da aşağıdan okul açtığınızda burada görünür.' }));
+      return;
+    }
+    t.appendChild(el('thead', {}, [el('tr', {}, ['Okul', 'Kod', 'Üye', 'Yöneticiler', ''].map(function (b) { return el('th', { scope: 'col', text: b }); }))]));
+    var g = el('tbody');
+    veri.okullar.forEach(function (o) {
+      g.appendChild(el('tr', {}, [
+        el('th', { scope: 'row' }, [o.ad, el('small', { class: 'mini', text: ' · ' + tarih(o.olusturma) })]),
+        el('td', { class: 'ad-kod', text: o.kod }),
+        el('td', { class: 'sayisal', text: String(o.uyeSayisi) }),
+        el('td', { text: o.yoneticiler.length ? o.yoneticiler.join(', ') : '–' }),
+        el('td', {}, [el('button', { type: 'button', class: 'btn', text: 'Yönet', onclick: function () { MDEA.okulPaneliAc(o.id); } })])
+      ]));
+    });
+    t.appendChild(g);
+  }
+
+  function kullanicilariCiz() {
+    var t = $('ad-kullanicilar');
+    t.textContent = '';
+    var q = $('ad-ara').value.trim().toLocaleLowerCase('tr');
+    var liste = veri.kullanicilar.filter(function (x) {
+      return !q || (x.ad + ' ' + x.kullanici + ' ' + x.eposta).toLocaleLowerCase('tr').indexOf(q) > -1;
+    });
+    $('ad-k-say').textContent = liste.length + ' / ' + veri.kullanicilar.length;
+    t.appendChild(el('thead', {}, [el('tr', {}, ['Kullanıcı', 'E-posta', 'Rol', 'Okul', ''].map(function (b) { return el('th', { scope: 'col', text: b }); }))]));
+    var g = el('tbody');
+    liste.forEach(function (x) {
+      var d = duzen[x.kullanici] || { rol: x.rol, okul: x.okul };
+      var rol = el('select', { class: 'inp', 'aria-label': x.ad + ' rolü', disabled: x.sabitAdmin ? 'disabled' : false });
+      ROL_SIRA.forEach(function (r) { rol.appendChild(el('option', { value: r, text: veri.roller[r] })); });
+      rol.value = d.rol;
+      var okul = el('select', { class: 'inp', 'aria-label': x.ad + ' okulu' });
+      okul.appendChild(el('option', { value: '', text: 'Okulsuz' }));
+      veri.okullar.forEach(function (o) { okul.appendChild(el('option', { value: o.id, text: o.ad })); });
+      okul.value = d.okul || '';
+      var kaydet = el('button', { type: 'button', class: 'btn btn-primary', text: 'Kaydet' });
+      function guncel() {
+        var degisik = rol.value !== x.rol || okul.value !== (x.okul || '');
+        if (degisik) duzen[x.kullanici] = { rol: rol.value, okul: okul.value }; else delete duzen[x.kullanici];
+        kaydet.disabled = !degisik;
+      }
+      rol.addEventListener('change', guncel);
+      okul.addEventListener('change', guncel);
+      kaydet.addEventListener('click', function () {
+        kaydet.disabled = true;
+        MDEA.cagir('adminKullaniciGuncelle', [MDEA.token, x.kullanici, { rol: rol.value, okul: okul.value }]).then(function (r) {
+          if (!r || !r.ok) { bildir((r && r.hata) || 'Kaydedilemedi.'); kaydet.disabled = false; return; }
+          bildir(x.ad + ' güncellendi.');
+          yukle();
+        }).catch(function (e) { kaydet.disabled = false; hata(e); });
+      });
+      guncel();
+      g.appendChild(el('tr', {}, [
+        el('th', { scope: 'row' }, [x.ad, el('small', { text: '@' + x.kullanici + ' · ' + tarih(x.olusturma) + (x.basvuru ? ' · başvuru bekliyor' : '') })]),
+        el('td', {}, [x.eposta, el('small', { text: x.dogrulandi ? 'doğrulandı' : 'doğrulanmadı' })]),
+        el('td', {}, [rol]),
+        el('td', {}, [okul]),
+        el('td', {}, [kaydet])
+      ]));
+    });
+    t.appendChild(g);
+  }
+
+  $('ad-ara').addEventListener('input', function () { if (veri) kullanicilariCiz(); });
+  $('ad-yenile').addEventListener('click', yukle);
+  $('ad-yeni-okul').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var ad = $('ad-yeni-okul-ad').value.trim();
+    if (ad.length < 3) { bildir('Okulun adını yazın (en az 3 karakter).'); return; }
+    MDEA.cagir('adminOkulOlustur', [MDEA.token, ad]).then(function (r) {
+      if (!r || !r.ok) { bildir((r && r.hata) || 'Okul açılamadı.'); return; }
+      $('ad-yeni-okul-ad').value = '';
+      bildir(ad + ' açıldı · kod ' + r.kod);
+      yukle();
+    }).catch(hata);
+  });
+
+  document.addEventListener('mdea:panel', function (e) { if (e.detail.id === 'admin') yukle(); });
+  document.addEventListener('mdea:cikis', function () {
+    veri = null; duzen = {};
+    ['ad-ozet', 'ad-basvurular', 'ad-okullar', 'ad-kullanicilar'].forEach(function (id) { $(id).textContent = ''; });
+  });
+})();
+</script>
+
+    </section>
+
+    <section class="arac" id="panel-bos" aria-label="Araçlar" hidden>
+      <div class="top"><div><p class="panel-ad">Hoş geldiniz</p><p class="alt" id="bos-metin"></p></div></div>
+    </section>
   </main>
 </div>
 
 <script>
   (function () {
-    var idler = ['nobet', 'sinav', 'mentor', 'yillik'];
+    var ARACLAR = ['nobet', 'sinav', 'mentor', 'yillik'];
+    var PANELLER = ['okul', 'admin'];
+    var TUMU = ARACLAR.concat(PANELLER);
+    var gorunur = ARACLAR.slice();
+
     function sec(id) {
-      idler.forEach(function (k) {
+      if (gorunur.indexOf(id) < 0) id = gorunur[0] || 'bos';
+      TUMU.concat(['bos']).forEach(function (k) {
         var acik = k === id;
-        if (acik) $('nav-' + k).setAttribute('aria-current', 'page');
-        else $('nav-' + k).removeAttribute('aria-current');
+        var n = $('nav-' + k);
+        if (n) { if (acik) n.setAttribute('aria-current', 'page'); else n.removeAttribute('aria-current'); }
         $('panel-' + k).hidden = !acik;
       });
+      document.dispatchEvent(new CustomEvent('mdea:panel', { detail: { id: id } }));
     }
-    idler.forEach(function (k) {
+    MDEA.panelSec = sec;
+    TUMU.forEach(function (k) {
       $('nav-' + k).addEventListener('click', function () { sec(k); });
     });
     function hasheGit() {
       var h = (location.hash || '').replace('#', '');
-      if (idler.indexOf(h) > -1) sec(h);
+      if (gorunur.indexOf(h) > -1) sec(h);
     }
     window.addEventListener('hashchange', hasheGit);
-    hasheGit();
+
+    /* Rol bilgisine göre menü: yalnızca izin verilen araçlar ve paneller görünür */
+    function rolUygula(b) {
+      b = b || MDEA.bilgi || {};
+      var araclar = (b.araclar || []).filter(function (x) { return ARACLAR.indexOf(x) > -1; });
+      var paneller = (b.paneller || []).filter(function (x) { return PANELLER.indexOf(x) > -1; });
+      gorunur = araclar.concat(paneller);
+      ARACLAR.forEach(function (k) { $('nav-' + k).hidden = araclar.indexOf(k) < 0; });
+      PANELLER.forEach(function (k) { $('nav-' + k).hidden = paneller.indexOf(k) < 0; });
+      $('yonetim-baslik').hidden = !paneller.length;
+      document.querySelector('.yan-nav > .yan-baslik').hidden = !araclar.length;
+      $('kullanici-rol').textContent = b.rolAdi || '';
+      $('kullanici-okul').textContent = b.okul ? b.okul.ad : '';
+      var bas = $('kullanici-basvuru');
+      bas.hidden = !b.basvuru;
+      bas.textContent = b.basvuru ? 'Yöneticilik başvurunuz (' + b.basvuru.okulAdi + ') onay bekliyor.' : '';
+      var katil = (b.rol === 'ogretmen' || b.rol === 'ogrenci') && !b.okul && !b.basvuru;
+      $('okula-katil').hidden = !katil;
+      if (!katil) $('okula-katil').open = false;
+      $('bos-metin').textContent = b.rol === 'ogrenci'
+        ? (b.okul ? 'Okulunuz henüz öğrencilere araç açmadı. Açıldığında burada görünecek.' : 'Araçları görmek için soldaki "Okul kodu gir" bölümünden okulunuza katılın.')
+        : 'Okulunuz size henüz araç açmadı. Okul yöneticinizle görüşün.';
+      var h = (location.hash || '').replace('#', '');
+      var acik = TUMU.filter(function (k) { return !$('panel-' + k).hidden; })[0];
+      sec(gorunur.indexOf(h) > -1 ? h : (gorunur.indexOf(acik) > -1 ? acik : gorunur[0]));
+    }
+    MDEA.rolUygula = rolUygula;
+    document.addEventListener('mdea:giris', function (e) { rolUygula(e.detail); });
+
+    $('okula-katil-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var kod = $('okula-katil-kod').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      var h = $('okula-katil-hata');
+      if (kod.length !== 6) { h.textContent = 'Kod 6 karakter olmalı.'; h.hidden = false; return; }
+      h.hidden = true;
+      MDEA.cagir('okulaKatil', [MDEA.token, kod]).then(function (r) {
+        if (!r || !r.ok) { h.textContent = (r && r.hata) || 'Katılınamadı.'; h.hidden = false; return; }
+        Object.keys(r.bilgi).forEach(function (a) { MDEA.bilgi[a] = r.bilgi[a]; });
+        $('okula-katil-kod').value = '';
+        rolUygula(MDEA.bilgi);
+      }).catch(function (err) {
+        if (err && /Oturum/.test(err.message)) { MDEA.oturumBitti(); return; }
+        h.textContent = (err && err.message) || 'Bağlantı hatası.'; h.hidden = false;
+      });
+    });
     MDEA.baslat();
   })();
 </script>

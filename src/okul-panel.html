@@ -1,0 +1,219 @@
+<div class="top">
+  <div>
+    <p class="panel-ad" id="ok-baslik">Okul yönetimi</p>
+    <p class="alt">Öğretmenlerin ve öğrencilerin menüde hangi araçları göreceğini seçin, okul kodunu paylaşın, üyeleri yönetin.</p>
+  </div>
+  <div class="top-actions">
+    <button type="button" class="btn" id="ok-yenile">Yenile</button>
+  </div>
+</div>
+
+<div class="layout ok-layout">
+  <section class="panel" aria-label="Okul kodu ve araçlar">
+    <div class="blok">
+      <div class="blok-baslik"><h2>Okul kodu</h2></div>
+      <div class="ok-kod-satir">
+        <output class="ok-kod" id="ok-kod" aria-live="polite">––––––</output>
+        <button type="button" class="btn" id="ok-kopyala">Kopyala</button>
+        <button type="button" class="btn" id="ok-kod-yenile">Yeni kod üret</button>
+      </div>
+      <p class="mini">Öğretmen ve öğrenciler kayıt olurken bu kodu yazar ya da girişten sonra soldaki "Okul kodu gir" bölümünden okula katılır. Yeni kod üretirseniz eski kod artık çalışmaz; okula katılmış olanlar etkilenmez.</p>
+    </div>
+
+    <div class="blok">
+      <div class="blok-baslik"><h2>Araçlar</h2><span class="durum" id="ok-durum" role="status"></span></div>
+      <div class="tablo-kap"><table class="ok-arac-tablo" id="ok-araclar"></table></div>
+      <p class="mini">Yöneticiler tüm araçları her zaman görür. Değişiklik, kullanıcı bir sonraki girişinde ya da sayfayı yenilediğinde menüsüne yansır.</p>
+      <div class="alt-aksiyon"><button type="button" class="btn btn-primary" id="ok-kaydet" disabled>Kaydet</button></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Üyeler">
+    <div class="blok">
+      <div class="blok-baslik"><h2>Üyeler</h2><span class="say" id="ok-uye-say"></span></div>
+      <div class="gunler" role="group" aria-label="Rol filtresi" id="ok-filtre"></div>
+      <div id="ok-uyeler" class="ok-uyeler"></div>
+    </div>
+  </section>
+</div>
+
+<style>
+  @media (min-width: 62rem) { .ok-layout { grid-template-columns: minmax(0, 26rem) minmax(0, 1fr); } }
+  .ok-kod-satir { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+  .ok-kod { font-family: var(--font-mono); font-size: 1.6rem; letter-spacing: 0.25em; padding: 0.35rem 0.75rem; border-radius: 8px; background: var(--surface-2); color: var(--yan); }
+  .ok-arac-tablo { min-width: 0; width: 100%; }
+  .ok-arac-tablo th, .ok-arac-tablo td { text-align: left; }
+  .ok-arac-tablo tbody th { white-space: normal; }
+  .ok-arac-tablo td, .ok-arac-tablo thead th + th { text-align: center; width: 6.2rem; }
+  .ok-arac-tablo input { width: 1.15rem; height: 1.15rem; accent-color: var(--accent); cursor: pointer; }
+  .ok-uyeler { display: grid; gap: 0.5rem; }
+  .ok-uye { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.2rem 0.75rem; align-items: center; padding: 0.6rem 0.75rem; border: 1px solid var(--line); border-radius: 8px; }
+  .ok-uye strong { font-weight: 600; }
+  .ok-uye .mini { margin: 0; }
+  .ok-uye-rol { justify-self: start; }
+  .ok-cikar { color: var(--warn); }
+</style>
+
+<script>
+(function () {
+  var durum = { okulId: null, veri: null, secim: null, filtre: 'hepsi', yukleniyor: false };
+  var ROL = { admin: 'Admin', yonetici: 'Yönetici', ogretmen: 'Öğretmen', ogrenci: 'Öğrenci' };
+
+  function bildir(m) {
+    $('ok-durum').textContent = m;
+    clearTimeout(bildir.z);
+    bildir.z = setTimeout(function () { $('ok-durum').textContent = ''; }, 2500);
+  }
+  function hataYaz(e) {
+    if (e && e.message && /Oturum/.test(e.message)) { MDEA.oturumBitti(); return; }
+    var kap = $('ok-uyeler');
+    kap.textContent = '';
+    kap.appendChild(el('p', { class: 'bos', text: 'Okul bilgileri alınamadı: ' + (e && e.message ? e.message : e) }));
+  }
+
+  function yukle() {
+    if (!MDEA.token || durum.yukleniyor) return;
+    durum.yukleniyor = true;
+    MDEA.cagir('okulPaneli', [MDEA.token, durum.okulId]).then(function (r) {
+      durum.veri = r;
+      durum.secim = JSON.parse(JSON.stringify(r.okul.araclar));
+      ciz();
+    }).catch(hataYaz).then(function () { durum.yukleniyor = false; });
+  }
+  /* Admin panelinden başka bir okulu yönetmek için */
+  MDEA.okulPaneliAc = function (okulId) {
+    durum.okulId = okulId || null;
+    durum.veri = null;
+    MDEA.panelSec('okul');
+    yukle();
+  };
+
+  function degisti() {
+    var v = durum.veri;
+    return v && JSON.stringify(durum.secim) !== JSON.stringify(v.okul.araclar);
+  }
+
+  function ciz() {
+    var v = durum.veri;
+    if (!v) return;
+    $('ok-baslik').textContent = v.okul.ad;
+    $('ok-kod').textContent = v.okul.kod;
+
+    var t = $('ok-araclar');
+    t.textContent = '';
+    t.appendChild(el('thead', {}, [el('tr', {}, [
+      el('th', { scope: 'col', text: 'Araç' }), el('th', { scope: 'col', text: 'Öğretmenler' }), el('th', { scope: 'col', text: 'Öğrenciler' })
+    ])]));
+    var govde = el('tbody');
+    v.araclar.forEach(function (a) {
+      var satir = el('tr', {}, [el('th', { scope: 'row', text: a.ad })]);
+      ['ogretmen', 'ogrenci'].forEach(function (rol) {
+        var k = el('input', { type: 'checkbox', 'aria-label': a.ad + ' · ' + (rol === 'ogretmen' ? 'öğretmenler' : 'öğrenciler') });
+        k.checked = durum.secim[rol].indexOf(a.id) > -1;
+        k.addEventListener('change', function () {
+          var l = durum.secim[rol].filter(function (x) { return x !== a.id; });
+          if (this.checked) l.push(a.id);
+          durum.secim[rol] = v.araclar.map(function (x) { return x.id; }).filter(function (x) { return l.indexOf(x) > -1; });
+          $('ok-kaydet').disabled = !degisti();
+        });
+        satir.appendChild(el('td', {}, [k]));
+      });
+      govde.appendChild(satir);
+    });
+    t.appendChild(govde);
+    $('ok-kaydet').disabled = !degisti();
+    uyeleriCiz();
+  }
+
+  function uyeleriCiz() {
+    var v = durum.veri;
+    var sayilar = { hepsi: v.uyeler.length };
+    v.uyeler.forEach(function (u) { sayilar[u.rol] = (sayilar[u.rol] || 0) + 1; });
+    $('ok-uye-say').textContent = v.uyeler.length + ' kişi';
+    var f = $('ok-filtre');
+    f.textContent = '';
+    [['hepsi', 'Hepsi'], ['yonetici', 'Yöneticiler'], ['ogretmen', 'Öğretmenler'], ['ogrenci', 'Öğrenciler']].forEach(function (x) {
+      if (x[0] !== 'hepsi' && !sayilar[x[0]]) return;
+      f.appendChild(el('button', {
+        type: 'button', class: 'chip', 'aria-pressed': durum.filtre === x[0] ? 'true' : 'false',
+        text: x[1] + ' (' + (sayilar[x[0]] || 0) + ')',
+        onclick: function () { durum.filtre = x[0]; uyeleriCiz(); }
+      }));
+    });
+    var kap = $('ok-uyeler');
+    kap.textContent = '';
+    var liste = v.uyeler.filter(function (u) { return durum.filtre === 'hepsi' || u.rol === durum.filtre; });
+    if (!v.uyeler.length) {
+      kap.appendChild(el('p', { class: 'bos', text: 'Henüz üye yok. Okul kodunu öğretmen ve öğrencilerinizle paylaşın.' }));
+      return;
+    }
+    var ben = MDEA.bilgi && MDEA.bilgi.kullanici;
+    var admin = MDEA.bilgi && MDEA.bilgi.rol === 'admin';
+    liste.forEach(function (u) {
+      var cikarilabilir = u.kullanici !== ben && (admin || (u.rol !== 'yonetici' && u.rol !== 'admin'));
+      kap.appendChild(el('div', { class: 'ok-uye' }, [
+        el('div', {}, [
+          el('strong', { text: u.ad }),
+          el('p', { class: 'mini', text: '@' + u.kullanici + ' · ' + u.eposta + (u.dogrulandi ? '' : ' · e-posta doğrulanmadı') })
+        ]),
+        cikarilabilir ? el('button', {
+          type: 'button', class: 'link-btn ok-cikar', text: 'Okuldan çıkar', 'aria-label': u.ad + ' okuldan çıkar',
+          onclick: function () { cikar(u); }
+        }) : el('span', {}),
+        el('span', { class: 'etiket ok-uye-rol', text: ROL[u.rol] || u.rol })
+      ]));
+    });
+  }
+
+  function cikar(u) {
+    if (!confirm(u.ad + ' okuldan çıkarılsın mı? Hesabı silinmez; okulun araç ayarları artık ona uygulanmaz.')) return;
+    MDEA.cagir('okuldanCikar', [MDEA.token, durum.veri.okul.id, u.kullanici]).then(function (r) {
+      if (!r || !r.ok) { alert((r && r.hata) || 'Çıkarılamadı.'); return; }
+      bildir(u.ad + ' okuldan çıkarıldı.');
+      yukle();
+    }).catch(hataYaz);
+  }
+
+  $('ok-kaydet').addEventListener('click', function () {
+    var b = this;
+    b.disabled = true;
+    MDEA.cagir('okulAraclariKaydet', [MDEA.token, durum.veri.okul.id, durum.secim]).then(function (r) {
+      if (!r || !r.ok) { bildir((r && r.hata) || 'Kaydedilemedi.'); b.disabled = false; return; }
+      durum.veri.okul.araclar = r.araclar;
+      durum.secim = JSON.parse(JSON.stringify(r.araclar));
+      bildir('Kaydedildi');
+      ciz();
+    }).catch(function (e) { b.disabled = false; hataYaz(e); });
+  });
+
+  $('ok-kod-yenile').addEventListener('click', function () {
+    if (!durum.veri || !confirm('Yeni okul kodu üretilsin mi? Eski kod artık çalışmayacak.')) return;
+    MDEA.cagir('okulKoduYenile', [MDEA.token, durum.veri.okul.id]).then(function (r) {
+      if (!r || !r.ok) return;
+      durum.veri.okul.kod = r.kod;
+      $('ok-kod').textContent = r.kod;
+      bildir('Yeni kod üretildi');
+    }).catch(hataYaz);
+  });
+
+  $('ok-kopyala').addEventListener('click', function () {
+    if (!durum.veri) return;
+    var metin = durum.veri.okul.kod;
+    try { navigator.clipboard.writeText(metin).then(function () { bildir('Kod kopyalandı'); }, function () { bildir('Kod: ' + metin); }); }
+    catch (e) { bildir('Kod: ' + metin); }
+  });
+
+  $('ok-yenile').addEventListener('click', yukle);
+
+  document.addEventListener('mdea:panel', function (e) {
+    if (e.detail.id === 'okul' && !durum.veri) yukle();
+  });
+  document.addEventListener('mdea:giris', function () { durum = { okulId: null, veri: null, secim: null, filtre: 'hepsi', yukleniyor: false }; });
+  document.addEventListener('mdea:cikis', function () {
+    durum = { okulId: null, veri: null, secim: null, filtre: 'hepsi', yukleniyor: false };
+    $('ok-uyeler').textContent = '';
+    $('ok-araclar').textContent = '';
+    $('ok-kod').textContent = '––––––';
+  });
+})();
+</script>

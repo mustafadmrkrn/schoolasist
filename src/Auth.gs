@@ -250,10 +250,18 @@ function authOturumAc(k, ad) {
     JSON.stringify({ k: k, bitis: Date.now() + AUTH_OTURUM_MS })
   );
   if (Math.random() < 0.1) authSuresiDolanlariTemizle();
-  return { ok: true, token: token, kullanici: k, ad: ad };
+  return authRolEkle({ ok: true, token: token, kullanici: k, ad: ad }, k);
 }
 
-function authKayitOl(ad, kullanici, eposta, sifre) {
+/** Roller.gs yüklüyse yanıta rol, okul ve araç bilgisini ekler. */
+function authRolEkle(r, k, u) {
+  if (typeof rolKullaniciBilgisi !== 'function') return r;
+  var b = rolKullaniciBilgisi(k, u || authKullaniciOku(k));
+  Object.keys(b).forEach(function (a) { r[a] = b[a]; });
+  return r;
+}
+
+function authKayitOl(ad, kullanici, eposta, sifre, rolBilgi) {
   ad = String(ad || '').trim();
   var k = authKullaniciNormal(kullanici);
   var e = authEpostaNormal(eposta);
@@ -266,6 +274,8 @@ function authKayitOl(ad, kullanici, eposta, sifre) {
   if (s.length < 8 || s.length > 100) return { ok: false, hata: 'Şifre en az 8 karakter olmalı.' };
   if (s.toLowerCase() === k) return { ok: false, hata: 'Şifre kullanıcı adıyla aynı olamaz.' };
   if (!authEpostaGecerli(e)) return { ok: false, hata: 'Geçerli bir e-posta adresi yazın.' };
+  var rolAlanlari = typeof rolKayitHazirla === 'function' ? rolKayitHazirla(rolBilgi) : {};
+  if (rolAlanlari.hata) return { ok: false, hata: rolAlanlari.hata };
 
   var kilit = LockService.getScriptLock();
   kilit.waitLock(10000);
@@ -276,6 +286,7 @@ function authKayitOl(ad, kullanici, eposta, sifre) {
     if (authEpostaSahibi(e)) return { ok: false, hata: 'Bu e-posta adresiyle kayıtlı bir hesap var. Giriş yapın ya da şifrenizi yenileyin.' };
     var tuz = Utilities.getUuid() + Utilities.getUuid();
     u = { ad: ad, tuz: tuz, hash: authHashle(s, tuz), olusturma: Date.now(), eposta: e, dogrulandi: false };
+    Object.keys(rolAlanlari).forEach(function (a) { u[a] = rolAlanlari[a]; });
     var hata = authKodGonder(k, u, 'dogrulama');
     if (hata) return { ok: false, hata: hata };
     authKullaniciYaz(k, u);
@@ -471,7 +482,7 @@ function authOturum(token) {
   var u = authKullaniciOku(o.k);
   // E-postası doğrulanmamış (ör. eski) hesapların oturumu geçersizdir; yeniden girişte doğrulanır.
   if (!authDogrulanmisMi(u)) return { ok: false };
-  return { ok: true, kullanici: o.k, ad: u.ad, eposta: authEpostaMaskele(u.eposta) };
+  return authRolEkle({ ok: true, kullanici: o.k, ad: u.ad, eposta: authEpostaMaskele(u.eposta) }, o.k, u);
 }
 
 function authCikis(token) {

@@ -1,0 +1,226 @@
+<div class="top">
+  <div>
+    <p class="panel-ad">Admin</p>
+    <p class="alt">Yönetici başvurularını onaylayın, okulları ve kullanıcıların rollerini yönetin.</p>
+  </div>
+  <div class="top-actions">
+    <span class="durum" id="ad-durum" role="status"></span>
+    <button type="button" class="btn" id="ad-yenile">Yenile</button>
+  </div>
+</div>
+
+<section class="panel" aria-label="Özet">
+  <dl class="ozet" id="ad-ozet"></dl>
+</section>
+
+<section class="panel" aria-labelledby="ad-bas-baslik">
+  <div class="blok">
+    <div class="blok-baslik"><h2 id="ad-bas-baslik">Bekleyen yönetici başvuruları</h2><span class="say" id="ad-bas-say"></span></div>
+    <div id="ad-basvurular" class="ad-liste"></div>
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="ad-okul-baslik">
+  <div class="blok">
+    <div class="blok-baslik"><h2 id="ad-okul-baslik">Okullar</h2><span class="say" id="ad-okul-say"></span></div>
+    <div class="tablo-kap"><table id="ad-okullar"></table></div>
+    <form class="ad-yeni-okul" id="ad-yeni-okul" novalidate>
+      <label class="mini" for="ad-yeni-okul-ad">Yeni okul</label>
+      <input id="ad-yeni-okul-ad" class="inp" type="text" maxlength="80" placeholder="Okulun adı">
+      <button type="submit" class="btn">Okul aç</button>
+    </form>
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="ad-k-baslik">
+  <div class="blok">
+    <div class="blok-baslik"><h2 id="ad-k-baslik">Kullanıcılar</h2><span class="say" id="ad-k-say"></span></div>
+    <input id="ad-ara" class="inp ad-ara" type="search" placeholder="Ad, kullanıcı adı ya da e-posta ara" aria-label="Kullanıcı ara">
+    <div class="tablo-kap"><table class="ad-kullanicilar" id="ad-kullanicilar"></table></div>
+    <p class="mini">Rol ya da okul değiştirdiğiniz satırda "Kaydet" düğmesi açılır. Kod içinde admin olarak tanımlı hesabın rolü değiştirilemez.</p>
+  </div>
+</section>
+
+<style>
+  .ad-liste { display: grid; gap: 0.6rem; }
+  .ad-basvuru { display: grid; gap: 0.5rem; padding: 0.75rem 0.9rem; border: 1px solid var(--line); border-left: 3px solid var(--warn); border-radius: 8px; }
+  .ad-basvuru p { margin: 0; }
+  .ad-basvuru-alt { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+  .ad-basvuru-alt .inp { width: auto; min-width: 0; max-width: 16rem; }
+  .ad-yeni-okul { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+  .ad-yeni-okul .inp { flex: 1 1 14rem; }
+  .ad-ara { max-width: 24rem; }
+  .ad-kullanicilar td, .ad-kullanicilar th { vertical-align: middle; }
+  .ad-kullanicilar .inp { padding: 0.3rem 0.45rem; font-size: 0.85rem; min-width: 8rem; }
+  .ad-kullanicilar small { display: block; color: var(--muted); font-weight: 400; }
+  .ad-kod { font-family: var(--font-mono); letter-spacing: 0.12em; }
+  .ad-kullanicilar th[scope="row"] { white-space: normal; min-width: 10rem; }
+  .ad-red { color: var(--warn); }
+</style>
+
+<script>
+(function () {
+  var veri = null;
+  var duzen = {};   // kullanıcı → { rol, okul } bekleyen değişiklik
+  var ROL_SIRA = ['ogrenci', 'ogretmen', 'yonetici', 'admin'];
+
+  function bildir(m) {
+    $('ad-durum').textContent = m;
+    clearTimeout(bildir.z);
+    bildir.z = setTimeout(function () { $('ad-durum').textContent = ''; }, 3000);
+  }
+  function hata(e) {
+    if (e && e.message && /Oturum/.test(e.message)) { MDEA.oturumBitti(); return; }
+    bildir('Hata: ' + (e && e.message ? e.message : e));
+  }
+  function tarih(ms) { return ms ? new Date(ms).toLocaleDateString('tr-TR') : '–'; }
+
+  function yukle() {
+    if (!MDEA.token) return;
+    MDEA.cagir('adminPaneli', [MDEA.token]).then(function (r) {
+      veri = r;
+      duzen = {};
+      ciz();
+    }).catch(hata);
+  }
+
+  function okulAdi(id) {
+    var o = veri.okullar.filter(function (x) { return x.id === id; })[0];
+    return o ? o.ad : '';
+  }
+
+  function ciz() {
+    var k = veri.kullanicilar;
+    var say = { admin: 0, yonetici: 0, ogretmen: 0, ogrenci: 0 };
+    k.forEach(function (x) { say[x.rol]++; });
+    var oz = $('ad-ozet');
+    oz.textContent = '';
+    [['Kullanıcı', k.length], ['Okul', veri.okullar.length], ['Yönetici', say.yonetici], ['Öğretmen', say.ogretmen], ['Öğrenci', say.ogrenci]].forEach(function (x) {
+      oz.appendChild(el('div', {}, [el('dt', { text: x[0] }), el('dd', { text: String(x[1]) })]));
+    });
+    basvurulariCiz();
+    okullariCiz();
+    kullanicilariCiz();
+  }
+
+  function basvurulariCiz() {
+    var kap = $('ad-basvurular');
+    kap.textContent = '';
+    var b = veri.kullanicilar.filter(function (x) { return x.basvuru; });
+    $('ad-bas-say').textContent = b.length ? b.length + ' bekliyor' : '';
+    if (!b.length) { kap.appendChild(el('p', { class: 'mini', text: 'Bekleyen başvuru yok.' })); return; }
+    b.forEach(function (x) {
+      var sec = el('select', { class: 'inp', 'aria-label': x.ad + ' için okul' });
+      sec.appendChild(el('option', { value: '', text: 'Yeni okul aç: ' + x.basvuru.okulAdi }));
+      veri.okullar.forEach(function (o) { sec.appendChild(el('option', { value: o.id, text: 'Mevcut okula ata: ' + o.ad })); });
+      kap.appendChild(el('div', { class: 'ad-basvuru' }, [
+        el('p', {}, [el('strong', { text: x.ad }), ' · @' + x.kullanici + ' · ' + x.eposta + (x.dogrulandi ? '' : ' (e-posta doğrulanmadı)')]),
+        el('p', { class: 'mini', text: 'Okul: ' + x.basvuru.okulAdi + ' · başvuru ' + tarih(x.basvuru.tarih) }),
+        el('div', { class: 'ad-basvuru-alt' }, [
+          sec,
+          el('button', { type: 'button', class: 'btn btn-primary', text: 'Onayla', onclick: function () {
+            MDEA.cagir('adminBasvuruOnayla', [MDEA.token, x.kullanici, sec.value || null]).then(function (r) {
+              if (!r || !r.ok) { bildir((r && r.hata) || 'Onaylanamadı.'); return; }
+              bildir(x.ad + ' okul yöneticisi oldu.');
+              yukle();
+            }).catch(hata);
+          } }),
+          el('button', { type: 'button', class: 'btn ad-red', text: 'Reddet', onclick: function () {
+            if (!confirm(x.ad + ' adlı kişinin yöneticilik başvurusu reddedilsin mi? Hesabı öğretmen olarak kalır.')) return;
+            MDEA.cagir('adminBasvuruReddet', [MDEA.token, x.kullanici]).then(function () { bildir('Başvuru reddedildi.'); yukle(); }).catch(hata);
+          } })
+        ])
+      ]));
+    });
+  }
+
+  function okullariCiz() {
+    var t = $('ad-okullar');
+    t.textContent = '';
+    $('ad-okul-say').textContent = veri.okullar.length ? veri.okullar.length + ' okul' : '';
+    if (!veri.okullar.length) {
+      t.appendChild(el('caption', { text: 'Henüz okul yok. Yönetici başvurusu onaylandığında ya da aşağıdan okul açtığınızda burada görünür.' }));
+      return;
+    }
+    t.appendChild(el('thead', {}, [el('tr', {}, ['Okul', 'Kod', 'Üye', 'Yöneticiler', ''].map(function (b) { return el('th', { scope: 'col', text: b }); }))]));
+    var g = el('tbody');
+    veri.okullar.forEach(function (o) {
+      g.appendChild(el('tr', {}, [
+        el('th', { scope: 'row' }, [o.ad, el('small', { class: 'mini', text: ' · ' + tarih(o.olusturma) })]),
+        el('td', { class: 'ad-kod', text: o.kod }),
+        el('td', { class: 'sayisal', text: String(o.uyeSayisi) }),
+        el('td', { text: o.yoneticiler.length ? o.yoneticiler.join(', ') : '–' }),
+        el('td', {}, [el('button', { type: 'button', class: 'btn', text: 'Yönet', onclick: function () { MDEA.okulPaneliAc(o.id); } })])
+      ]));
+    });
+    t.appendChild(g);
+  }
+
+  function kullanicilariCiz() {
+    var t = $('ad-kullanicilar');
+    t.textContent = '';
+    var q = $('ad-ara').value.trim().toLocaleLowerCase('tr');
+    var liste = veri.kullanicilar.filter(function (x) {
+      return !q || (x.ad + ' ' + x.kullanici + ' ' + x.eposta).toLocaleLowerCase('tr').indexOf(q) > -1;
+    });
+    $('ad-k-say').textContent = liste.length + ' / ' + veri.kullanicilar.length;
+    t.appendChild(el('thead', {}, [el('tr', {}, ['Kullanıcı', 'E-posta', 'Rol', 'Okul', ''].map(function (b) { return el('th', { scope: 'col', text: b }); }))]));
+    var g = el('tbody');
+    liste.forEach(function (x) {
+      var d = duzen[x.kullanici] || { rol: x.rol, okul: x.okul };
+      var rol = el('select', { class: 'inp', 'aria-label': x.ad + ' rolü', disabled: x.sabitAdmin ? 'disabled' : false });
+      ROL_SIRA.forEach(function (r) { rol.appendChild(el('option', { value: r, text: veri.roller[r] })); });
+      rol.value = d.rol;
+      var okul = el('select', { class: 'inp', 'aria-label': x.ad + ' okulu' });
+      okul.appendChild(el('option', { value: '', text: 'Okulsuz' }));
+      veri.okullar.forEach(function (o) { okul.appendChild(el('option', { value: o.id, text: o.ad })); });
+      okul.value = d.okul || '';
+      var kaydet = el('button', { type: 'button', class: 'btn btn-primary', text: 'Kaydet' });
+      function guncel() {
+        var degisik = rol.value !== x.rol || okul.value !== (x.okul || '');
+        if (degisik) duzen[x.kullanici] = { rol: rol.value, okul: okul.value }; else delete duzen[x.kullanici];
+        kaydet.disabled = !degisik;
+      }
+      rol.addEventListener('change', guncel);
+      okul.addEventListener('change', guncel);
+      kaydet.addEventListener('click', function () {
+        kaydet.disabled = true;
+        MDEA.cagir('adminKullaniciGuncelle', [MDEA.token, x.kullanici, { rol: rol.value, okul: okul.value }]).then(function (r) {
+          if (!r || !r.ok) { bildir((r && r.hata) || 'Kaydedilemedi.'); kaydet.disabled = false; return; }
+          bildir(x.ad + ' güncellendi.');
+          yukle();
+        }).catch(function (e) { kaydet.disabled = false; hata(e); });
+      });
+      guncel();
+      g.appendChild(el('tr', {}, [
+        el('th', { scope: 'row' }, [x.ad, el('small', { text: '@' + x.kullanici + ' · ' + tarih(x.olusturma) + (x.basvuru ? ' · başvuru bekliyor' : '') })]),
+        el('td', {}, [x.eposta, el('small', { text: x.dogrulandi ? 'doğrulandı' : 'doğrulanmadı' })]),
+        el('td', {}, [rol]),
+        el('td', {}, [okul]),
+        el('td', {}, [kaydet])
+      ]));
+    });
+    t.appendChild(g);
+  }
+
+  $('ad-ara').addEventListener('input', function () { if (veri) kullanicilariCiz(); });
+  $('ad-yenile').addEventListener('click', yukle);
+  $('ad-yeni-okul').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var ad = $('ad-yeni-okul-ad').value.trim();
+    if (ad.length < 3) { bildir('Okulun adını yazın (en az 3 karakter).'); return; }
+    MDEA.cagir('adminOkulOlustur', [MDEA.token, ad]).then(function (r) {
+      if (!r || !r.ok) { bildir((r && r.hata) || 'Okul açılamadı.'); return; }
+      $('ad-yeni-okul-ad').value = '';
+      bildir(ad + ' açıldı · kod ' + r.kod);
+      yukle();
+    }).catch(hata);
+  });
+
+  document.addEventListener('mdea:panel', function (e) { if (e.detail.id === 'admin') yukle(); });
+  document.addEventListener('mdea:cikis', function () {
+    veri = null; duzen = {};
+    ['ad-ozet', 'ad-basvurular', 'ad-okullar', 'ad-kullanicilar'].forEach(function (id) { $(id).textContent = ''; });
+  });
+})();
+</script>

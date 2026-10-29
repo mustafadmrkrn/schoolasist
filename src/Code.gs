@@ -1,4 +1,4 @@
-var SURUM = '27.10.2026';
+var SURUM = '29.10.2026';
 
 /**
  * Web uygulaması giriş noktası.
@@ -34,8 +34,8 @@ function sistemDurumu() {
   return r;
 }
 
-function kayitOl(ad, kullanici, eposta, sifre) {
-  return authKayitOl(ad, kullanici, eposta, sifre);
+function kayitOl(ad, kullanici, eposta, sifre, rolBilgi) {
+  return authKayitOl(ad, kullanici, eposta, sifre, rolBilgi);
 }
 
 function epostaKoduGonder(bilet, eposta) {
@@ -70,19 +70,32 @@ function cikisYap(token) {
 /* ---------- Araçlar (geçerli oturum gerekir) ---------- */
 
 function cizelgeUret(token, girdi) {
-  authOturumZorunlu(token);
+  rolAracZorunlu(token, 'nobet');
   return olusturNobetCizelgesi(girdi);
 }
 
 function sinavAnaliz(token, girdi) {
-  authOturumZorunlu(token);
+  rolAracZorunlu(token, 'sinav');
   return sinavAnaliziYap(girdi);
 }
 
 function denemeAnaliz(token, girdi) {
-  authOturumZorunlu(token);
+  rolAracZorunlu(token, 'sinav');
   return denemeAnaliziYap(girdi);
 }
+
+/* ---------- Okul yönetimi ve admin (geçerli oturum ve yetki gerekir) ---------- */
+
+function okulPaneli(token, okulId) { return rolOkulPaneli(token, okulId); }
+function okulAraclariKaydet(token, okulId, araclar) { return rolOkulAraclariKaydet(token, okulId, araclar); }
+function okulKoduYenile(token, okulId) { return rolOkulKoduYenile(token, okulId); }
+function okuldanCikar(token, okulId, kullanici) { return rolOkuldanCikar(token, okulId, kullanici); }
+function okulaKatil(token, kod) { return rolOkulaKatil(token, kod); }
+function adminPaneli(token) { return rolAdminPaneli(token); }
+function adminBasvuruOnayla(token, kullanici, okulId) { return rolAdminBasvuruOnayla(token, kullanici, okulId); }
+function adminBasvuruReddet(token, kullanici) { return rolAdminBasvuruReddet(token, kullanici); }
+function adminKullaniciGuncelle(token, kullanici, degisiklik) { return rolAdminKullaniciGuncelle(token, kullanici, degisiklik); }
+function adminOkulOlustur(token, ad) { return rolAdminOkulOlustur(token, ad); }
 
 /* ---------- Kurulum yardımcısı ---------- */
 

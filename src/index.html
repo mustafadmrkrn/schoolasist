@@ -185,7 +185,7 @@
   .dolgu.uyari-dolgu { background: var(--warn); }
 
   /* Sol menülü kabuk */
-  .kabuk { display: grid; grid-template-columns: 15.5rem minmax(0, 1fr); min-height: 100%; }
+  .kabuk { display: grid; grid-template-columns: 15.5rem minmax(0, 1fr); min-height: 100%; min-height: 100vh; }
   .yan {
     background: var(--yan); color: var(--yan-ink); padding-block: 1.25rem;
     padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 1rem;
@@ -215,6 +215,17 @@
     font-weight: 600; font-size: 0.85rem; cursor: pointer;
   }
   .cikis:hover { background: rgba(255, 255, 255, 0.14); }
+  .rol-satir { grid-column: 1 / -1; margin: 0.55rem 0 0; display: flex; flex-wrap: wrap; gap: 0.3rem 0.5rem; align-items: center; font-size: 0.78rem; }
+  .rol-rozet { padding: 0.1rem 0.5rem; border-radius: 999px; background: #fff; color: var(--yan); font-weight: 700; font-size: 0.72rem; }
+  .rol-rozet:empty { display: none; }
+  .rol-okul { color: var(--yan-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+  .rol-not { grid-column: 1 / -1; margin: 0.45rem 0 0; font-size: 0.78rem; color: var(--yan-ink); background: rgba(255, 255, 255, 0.12); border-radius: 6px; padding: 0.4rem 0.55rem; }
+  .okula-katil { grid-column: 1 / -1; margin-top: 0.5rem; font-size: 0.85rem; }
+  .okula-katil summary { cursor: pointer; font-weight: 600; }
+  .okula-katil-form { display: grid; gap: 0.4rem; margin-top: 0.4rem; }
+  .okula-katil-form .inp { background: #fff; color: var(--ink); }
+  .yan-baslik-ara { margin-top: 0.9rem; }
+  .okul-kodu-inp { font-family: var(--font-mono); letter-spacing: 0.18em; text-transform: uppercase; }
   .yan-nav { display: grid; gap: 0.25rem; }
   .yan-baslik { margin: 0 0 0.25rem; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--yan-muted); }
   .nav-btn {
@@ -245,7 +256,7 @@
   }
 
   /* Giriş ekranı */
-  .giris-kap { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 100%; }
+  .giris-kap { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 100%; min-height: 100vh; }
   @media (min-width: 56rem) { .giris-kap { grid-template-columns: minmax(0, 1fr) minmax(0, 34rem); } }
   .giris-tanitim {
     background: var(--yan); color: var(--yan-ink); display: grid; align-content: center; gap: 1.5rem;
@@ -282,6 +293,11 @@
   .uyari-kutu { margin: 0; padding: 0.65rem 0.85rem; border-radius: 6px; background: var(--warn-soft); color: var(--ink); border-left: 3px solid var(--warn); font-size: 0.9rem; }
   .uyari-kutu strong { color: var(--warn); }
   .surum { margin: 0; font-size: 0.75rem; color: var(--muted); text-align: center; }
+  .segment-3 { grid-template-columns: repeat(3, 1fr); }
+  .segment-3 .seg { padding-inline: 0.3rem; font-size: 0.88rem; line-height: 1.2; }
+  .seg[aria-checked="true"] { background: #fff; color: var(--accent); box-shadow: 0 1px 2px rgba(16, 38, 74, 0.14); }
+  .alan-etiket { font-size: 0.85rem; font-weight: 600; }
+  .alan-not { font-weight: 400; color: var(--muted); }
   .demo-not { margin: 0; padding: 0.6rem 0.8rem; border: 1px dashed var(--line); border-radius: 6px; font-size: 0.8rem; color: var(--muted); }
 
   /* Sınav analizi */
@@ -318,8 +334,9 @@
 <script>/*__NOBET__*/</script>
 <script>/*__SINAV__*/</script>
 <script>/*__DENEME__*/</script>
+<script>/*__DEMO__*/</script>
 <script>
-  var MDEA_SURUM = '27.10.2026';
+  var MDEA_SURUM = '29.10.2026';
   var MDEA = { token: null, kullanici: null, baslat: function () {}, oturumBitti: function () {} };
 
   function $(id) { return document.getElementById(id); }
@@ -362,6 +379,17 @@
         <span class="av" id="kullanici-bas" aria-hidden="true">?</span>
         <p class="hesap-ad" id="kullanici-ad"></p>
         <p class="yan-alt" id="kullanici-k"></p>
+        <p class="rol-satir"><span class="rol-rozet" id="kullanici-rol"></span><span class="rol-okul" id="kullanici-okul"></span></p>
+        <p class="rol-not" id="kullanici-basvuru" hidden></p>
+        <details class="okula-katil" id="okula-katil" hidden>
+          <summary>Okul kodu gir</summary>
+          <form id="okula-katil-form" class="okula-katil-form" novalidate>
+            <label class="yan-alt" for="okula-katil-kod">Okulunuzun 6 karakterlik kodu</label>
+            <input id="okula-katil-kod" class="inp okul-kodu-inp" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="9">
+            <button type="submit" class="cikis">Okula katıl</button>
+            <p class="rol-not" id="okula-katil-hata" role="alert" hidden></p>
+          </form>
+        </details>
         <button type="button" class="cikis" id="cikis">Çıkış yap</button>
       </div>
 
@@ -382,6 +410,15 @@
         <button type="button" class="nav-btn" id="nav-yillik">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h11.5a2 2 0 0 1 2 2V20H7a2 2 0 0 1-2-2z"/><path d="M5 18a2 2 0 0 1 2-2h11.5"/><path d="M9 8.5h6M9 11.5h4"/></svg>
           Yıllık plan
+        </button>
+        <p class="yan-baslik yan-baslik-ara" id="yonetim-baslik" hidden>Yönetim</p>
+        <button type="button" class="nav-btn" id="nav-okul" hidden>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 9.5 12 4l8.5 5.5"/><path d="M5.5 9v10.5h13V9"/><path d="M10 19.5v-5h4v5"/></svg>
+          Okul yönetimi
+        </button>
+        <button type="button" class="nav-btn" id="nav-admin" hidden>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 5 6.5v5c0 4.2 3 7.6 7 9 4-1.4 7-4.8 7-9v-5z"/><path d="m9 12 2 2 4-4"/></svg>
+          Admin
         </button>
       </nav>
     </div>
@@ -405,29 +442,92 @@
       <?!= include('yillik-cekirdek') ?>
       <?!= include('yillik-panel') ?>
     </section>
+
+    <section class="arac" id="panel-okul" aria-label="Okul yönetimi" hidden>
+      <?!= include('okul-panel') ?>
+    </section>
+
+    <section class="arac" id="panel-admin" aria-label="Admin" hidden>
+      <?!= include('admin-panel') ?>
+    </section>
+
+    <section class="arac" id="panel-bos" aria-label="Araçlar" hidden>
+      <div class="top"><div><p class="panel-ad">Hoş geldiniz</p><p class="alt" id="bos-metin"></p></div></div>
+    </section>
   </main>
 </div>
 
 <script>
   (function () {
-    var idler = ['nobet', 'sinav', 'mentor', 'yillik'];
+    var ARACLAR = ['nobet', 'sinav', 'mentor', 'yillik'];
+    var PANELLER = ['okul', 'admin'];
+    var TUMU = ARACLAR.concat(PANELLER);
+    var gorunur = ARACLAR.slice();
+
     function sec(id) {
-      idler.forEach(function (k) {
+      if (gorunur.indexOf(id) < 0) id = gorunur[0] || 'bos';
+      TUMU.concat(['bos']).forEach(function (k) {
         var acik = k === id;
-        if (acik) $('nav-' + k).setAttribute('aria-current', 'page');
-        else $('nav-' + k).removeAttribute('aria-current');
+        var n = $('nav-' + k);
+        if (n) { if (acik) n.setAttribute('aria-current', 'page'); else n.removeAttribute('aria-current'); }
         $('panel-' + k).hidden = !acik;
       });
+      document.dispatchEvent(new CustomEvent('mdea:panel', { detail: { id: id } }));
     }
-    idler.forEach(function (k) {
+    MDEA.panelSec = sec;
+    TUMU.forEach(function (k) {
       $('nav-' + k).addEventListener('click', function () { sec(k); });
     });
     function hasheGit() {
       var h = (location.hash || '').replace('#', '');
-      if (idler.indexOf(h) > -1) sec(h);
+      if (gorunur.indexOf(h) > -1) sec(h);
     }
     window.addEventListener('hashchange', hasheGit);
-    hasheGit();
+
+    /* Rol bilgisine göre menü: yalnızca izin verilen araçlar ve paneller görünür */
+    function rolUygula(b) {
+      b = b || MDEA.bilgi || {};
+      var araclar = (b.araclar || []).filter(function (x) { return ARACLAR.indexOf(x) > -1; });
+      var paneller = (b.paneller || []).filter(function (x) { return PANELLER.indexOf(x) > -1; });
+      gorunur = araclar.concat(paneller);
+      ARACLAR.forEach(function (k) { $('nav-' + k).hidden = araclar.indexOf(k) < 0; });
+      PANELLER.forEach(function (k) { $('nav-' + k).hidden = paneller.indexOf(k) < 0; });
+      $('yonetim-baslik').hidden = !paneller.length;
+      document.querySelector('.yan-nav > .yan-baslik').hidden = !araclar.length;
+      $('kullanici-rol').textContent = b.rolAdi || '';
+      $('kullanici-okul').textContent = b.okul ? b.okul.ad : '';
+      var bas = $('kullanici-basvuru');
+      bas.hidden = !b.basvuru;
+      bas.textContent = b.basvuru ? 'Yöneticilik başvurunuz (' + b.basvuru.okulAdi + ') onay bekliyor.' : '';
+      var katil = (b.rol === 'ogretmen' || b.rol === 'ogrenci') && !b.okul && !b.basvuru;
+      $('okula-katil').hidden = !katil;
+      if (!katil) $('okula-katil').open = false;
+      $('bos-metin').textContent = b.rol === 'ogrenci'
+        ? (b.okul ? 'Okulunuz henüz öğrencilere araç açmadı. Açıldığında burada görünecek.' : 'Araçları görmek için soldaki "Okul kodu gir" bölümünden okulunuza katılın.')
+        : 'Okulunuz size henüz araç açmadı. Okul yöneticinizle görüşün.';
+      var h = (location.hash || '').replace('#', '');
+      var acik = TUMU.filter(function (k) { return !$('panel-' + k).hidden; })[0];
+      sec(gorunur.indexOf(h) > -1 ? h : (gorunur.indexOf(acik) > -1 ? acik : gorunur[0]));
+    }
+    MDEA.rolUygula = rolUygula;
+    document.addEventListener('mdea:giris', function (e) { rolUygula(e.detail); });
+
+    $('okula-katil-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var kod = $('okula-katil-kod').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      var h = $('okula-katil-hata');
+      if (kod.length !== 6) { h.textContent = 'Kod 6 karakter olmalı.'; h.hidden = false; return; }
+      h.hidden = true;
+      MDEA.cagir('okulaKatil', [MDEA.token, kod]).then(function (r) {
+        if (!r || !r.ok) { h.textContent = (r && r.hata) || 'Katılınamadı.'; h.hidden = false; return; }
+        Object.keys(r.bilgi).forEach(function (a) { MDEA.bilgi[a] = r.bilgi[a]; });
+        $('okula-katil-kod').value = '';
+        rolUygula(MDEA.bilgi);
+      }).catch(function (err) {
+        if (err && /Oturum/.test(err.message)) { MDEA.oturumBitti(); return; }
+        h.textContent = (err && err.message) || 'Bağlantı hatası.'; h.hidden = false;
+      });
+    });
     MDEA.baslat();
   })();
 </script>
