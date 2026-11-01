@@ -24,3 +24,30 @@ Okuma bilmeyen çocuklar için her soru açıldığında otomatik olarak Türkç
 (ya da maskota, konuşma balonuna) dokununca soru tekrar okunur. Sonuç ekranı da sesli söylenir.
 Tablette Türkçe ses yoksa: iPad → Ayarlar › Erişilebilirlik › Seslendirilen İçerik › Sesler › Türkçe;
 Android → Ayarlar › Metin okuma (TTS) › Google Konuşma Hizmetleri › Türkçe.
+
+## Aile hesabı (kullanıcı adı + şifre)
+- Aile **hesap oluşturur** ya da **giriş yapar**, çocuklarını ekler (ad, renk, karakter, günlük süre sınırı).
+- **▶ Çocuğa aç** ile tablet çocuk moduna geçer; uygulama kapatılıp açılsa da çocuk modunda kalır.
+- Panele dönmek için üstteki **🔒** düğmesi: ebeveyn kontrolü (iki basamaklı toplama) sorulur.
+- **Süre sayacı:** günlük sınır seçilirse ekranın altında geri sayım görünür; son 1 dakikada uyarı, süre bitince
+  "Bugünlük süre doldu" ekranı gelir. Ebeveyn +5/+10/+20/+30 dk ekleyebilir. Aile panelinde son 7 günün süreleri görünür.
+- İlerleme ve süre **hesapta** saklanır: başka tablet ya da telefondan giriş yapınca aynı ilerleme gelir.
+  İnternet yoksa cihazda tutulur, bağlantı gelince gönderilir. İki cihazda oynanırsa veriler birleştirilir.
+- **Hesapsız dene:** sunucu gerekmeden, yalnızca o cihazda. Sonradan "Hesap oluştur ve taşı" ile hesaba aktarılır.
+
+## Hesap sunucusu kurulumu (bir kez, ~5 dakika)
+Sunucu, `sunucu/Kod.gs` dosyasındaki küçük bir Google Apps Script'tir. Veriler Drive'ınızda otomatik açılan
+**"Dikkat Atölyesi Veritabanı"** E-Tablosunda tutulur (şifreler düz metin olarak değil, tuzlanmış özet olarak).
+
+1. script.google.com → **Yeni proje**. Adını "Dikkat Atölyesi Sunucu" yapın.
+2. `Kod.gs` içeriğini tamamen silin, bu depodaki `sunucu/Kod.gs` içeriğini yapıştırın, **Kaydet**.
+3. Üstteki işlev listesinden **kurulum** seçip **Çalıştır**. İzin isteyecek: hesabınızı seçin →
+   **Gelişmiş → (proje)'ye git → İzin ver**. Günlükte "Veritabanı hazır: …" yazar.
+4. **Dağıt → Yeni dağıtım → Web uygulaması**. Yürüt: **Ben**, Erişimi olanlar: **Herkes** → **Dağıt**.
+5. Verilen **Web uygulaması URL**'sini (…/exec) kopyalayın ve `config.js` içindeki `API: ""` tırnaklarının
+   arasına yapıştırın. (İsterseniz bu adresi Claude'a verin, o ekler.)
+6. Kodu sonradan güncellerseniz: **Dağıt → Dağıtımları yönet → kalem → Sürüm: Yeni sürüm → Dağıt** (adres değişmez).
+
+Şifresini unutan aile için: Apps Script'te `sifreSifirla` işlevindeki iki değeri değiştirip çalıştırın.
+
+Testler: `node tests/sunucu.test.js` · Yerel deneme sunucusu: `node tests/taklit.js 8765`

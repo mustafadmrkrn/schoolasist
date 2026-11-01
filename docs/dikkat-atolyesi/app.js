@@ -424,16 +424,24 @@ function getExercise(i){
 const LEVELS=["Seviye 1 · 3 yaş","Seviye 2 · 3-4 yaş","Seviye 3 · 4 yaş","Seviye 4 · 4-5 yaş","Seviye 5 · 5+ yaş"];
 const dayLevel=day=>Math.min(4,Math.floor(((day-1)*PER_DAY)/100));
 
-/* ================= Kayıt ================= */
-const KEY="dikkat-atolyesi-v2";
-function load(){try{const v=JSON.parse(localStorage.getItem(KEY));if(v)return v;const o=JSON.parse(localStorage.getItem("dikkat-atolyesi-v1")||"{}");return{days:{},lang:o.lang,mute:o.mute};}catch(e){return{days:{}};}}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(store));}catch(e){}}
-let store=load();if(!store.days)store.days={};
+/* ================= Kayıt: cihaz ayarları, aile verisi, aktif çocuk ================= */
+const CFG_KEY="dikkat-atolyesi-cfg";
+function lsGet(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v;}catch(e){return d;}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+let cfg=lsGet(CFG_KEY,{});
+(function(){const o=lsGet("dikkat-atolyesi-v2",null)||lsGet("dikkat-atolyesi-v1",null);if(o){if(cfg.lang==null&&o.lang)cfg.lang=o.lang;if(cfg.mute==null&&o.mute)cfg.mute=o.mute;}})();
+function saveCfg(){lsSet(CFG_KEY,cfg);}
+const famKey=()=>"dikkat-atolyesi-fam:"+(cfg.mode==="account"?cfg.user:"guest");
+let fam={children:[]};
+function loadFam(){fam=lsGet(famKey(),{children:[]});if(!fam.children)fam.children=[];}
+function saveFam(){lsSet(famKey(),fam);}
+let store={days:{},usage:{},bonus:{}}; /* aktif çocuk */
+function save(){store.ts=Date.now();saveFam();markDirty(store.id);}
 
 /* ================= Ses efektleri ================= */
 let AC=null;
 function tone(freq,dur,type,when,vol,slide){
-  if(store.mute)return;
+  if(cfg.mute)return;
   try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();
     const t=AC.currentTime+(when||0),o=AC.createOscillator(),g=AC.createGain();
     o.type=type||"sine";o.frequency.setValueAtTime(freq,t);if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+dur);
@@ -453,17 +461,17 @@ const SFX={
 /* ================= Durum ================= */
 let S=null,memTimer=null;
 const MASCOT={body:"round",color:"turuncu",eyes:2,top:"antenna",arms:"up",mouth:"teeth",spots:true,cheeks:true};
-function LG(){return store.lang||"tr";}
+function LG(){return cfg.lang||"tr";}
 function U(){return I18N.UI[LG()];}
 const titleOf=ex=>I18N.TITLES[LG()][ex.type];
 const promptOf=ex=>I18N.prompt(LG(),ex.pr);
-if(!store.lang){const nl=(navigator.language||"tr").slice(0,2).toLowerCase();store.lang=I18N.LANGS.includes(nl)?nl:"tr";}
+if(!cfg.lang){const nl=(navigator.language||"tr").slice(0,2).toLowerCase();cfg.lang=I18N.LANGS.includes(nl)?nl:"tr";}
 const voiceCache={},voiceWarned={};
 function pickVoice(lang){try{const pre=lang.slice(0,2),vs=speechSynthesis.getVoices().filter(v=>v.lang&&v.lang.slice(0,2).toLowerCase()===pre);
   return vs.find(v=>v.lang.replace("_","-").toLowerCase()===lang.toLowerCase()&&/google|natural|premium|enhanced|yelda|anna|milena|samantha/i.test(v.name))||vs.find(v=>v.lang.replace("_","-").toLowerCase()===lang.toLowerCase())||vs[0]||null;}catch(e){return null;}}
 try{speechSynthesis.onvoiceschanged=()=>{for(const k in voiceCache)delete voiceCache[k];};}catch(e){}
 function speak(t,force){
-  if(!force&&store.mute)return;
+  if(!force&&cfg.mute)return;
   const L=U().voice;
   try{
     if(!window.speechSynthesis){toast(U().noTTS);return;}
@@ -485,8 +493,8 @@ function toast(t){document.querySelectorAll(".toast").forEach(e=>e.remove());con
 const starCount=(c,t)=>{const p=c/t;return p>=.9?3:p>=.6?2:p>0?1:0;};
 function starsHTML(n,cls){let h="";for(let i=0;i<3;i++)h+=`<span class="st ${i<n?"on":""} ${cls||""}" style="animation-delay:${.15*i}s">★</span>`;return h;}
 function fmtTime(ms){const s=Math.round(ms/1000);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
-const muteBtn=()=>`<button class="iconbtn" id="mute" aria-label="Ses">${store.mute?"🔇":"🔊"}</button>`;
-function bindMute(){const m=$("#mute");if(m)m.onclick=()=>{store.mute=!store.mute;save();m.textContent=store.mute?"🔇":"🔊";if(!store.mute)SFX.tap();};}
+const muteBtn=()=>`<button class="iconbtn" id="mute" aria-label="Ses">${cfg.mute?"🔇":"🔊"}</button>`;
+function bindMute(){const m=$("#mute");if(m)m.onclick=()=>{cfg.mute=!cfg.mute;saveCfg();m.textContent=cfg.mute?"🔇":"🔊";if(!cfg.mute)SFX.tap();};}
 
 /* ================= Arka plan & efektler ================= */
 function buildBg(){
@@ -531,11 +539,11 @@ function home(){
   let li=0;const title=U().title.map(w=>[...w].map(ch=>`<span style="animation-delay:${(li++)*.08}s">${ch}</span>`).join("")).join("<br>");
   document.documentElement.lang=LG();document.title=U().title.join(" ").replace("- ","-")+" – 500";
   const langs=I18N.LANGS.map(l=>`<button class="lang ${l===LG()?"on":""}" data-lang="${l}"><span class="fl">${I18N.UI[l].flag}</span><span>${I18N.UI[l].name}</span></button>`).join("");
-  let h=`<div class="topbar"><span class="logo">🧠</span><span class="flex"></span><span class="chip">⭐ ${starsTot}</span>${muteBtn()}</div>
+  let h=`<div class="topbar"><button class="iconbtn lockbtn" id="lock" aria-label="${U().parent}">🔒</button>${store.name?`<span class="kidchip">${avatar(store,"sm")}<b>${esc(store.name)}</b></span>`:""}<span class="flex"></span><span class="chip">⭐ ${starsTot}</span>${muteBtn()}</div>
   <div class="langbar"><span class="lglbl">🌍 ${U().lang}</span>${langs}</div>
   <div class="hero">
     <div class="hero-txt"><h1 class="wavy">${title}</h1>
-      <div class="speechrow"><div class="speech">${U().hello(U().mascot,done)}</div>${bigSpeaker("hspk","")}</div>
+      <div class="speechrow"><div class="speech">${store.name?U().helloKid(esc(store.name),U().mascot):U().hello(U().mascot,done)}</div>${bigSpeaker("hspk","")}</div>
       <button class="cta" id="play">${U().start(cur)}</button></div>
     <div class="hero-mascot">${creature(MASCOT)}</div>
   </div>
@@ -563,8 +571,9 @@ function home(){
   <p class="hint">${U().saved}</p>`;
   render(h,"in-up");
   $("#play").onclick=()=>{SFX.go();startDay(cur);};
-  $("#hspk").onclick=()=>speak(U().helloSay(U().mascot,done),true);
-  document.querySelectorAll("[data-lang]").forEach(b=>b.onclick=()=>{store.lang=b.dataset.lang;save();SFX.tap();home();speak(U().chosen+". "+U().helloSay(U().mascot,done),true);});
+  $("#hspk").onclick=()=>speak(store.name?U().helloKidSay(store.name,U().mascot):U().helloSay(U().mascot,done),true);
+  $("#lock").onclick=()=>{SFX.tap();parentGate(()=>parentPanel());};
+  document.querySelectorAll("[data-lang]").forEach(b=>b.onclick=()=>{cfg.lang=b.dataset.lang;saveCfg();SFX.tap();home();speak(U().chosen+". "+(store.name?U().helloKidSay(store.name,U().mascot):U().helloSay(U().mascot,done)),true);});
   document.querySelectorAll("[data-day]").forEach(b=>b.onclick=e=>{const r=b.querySelector(".disc").getBoundingClientRect();burst(r.left+r.width/2,r.top+r.height/2);SFX.go();setTimeout(()=>startDay(+b.dataset.day),260);});
   document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{SFX.tap();b.dataset.go==="report"?report():legend();});
   const c=document.querySelector(".node.current");if(c&&cur>1)setTimeout(()=>c.scrollIntoView({behavior:"smooth",block:"center"}),500);
@@ -644,7 +653,7 @@ function finish(){
   if(empty&&!finAsked){finAsked=true;toast(U().empty(empty));setTimeout(()=>finAsked=false,3000);return;}
   finAsked=false;S.time=Date.now()-S.start;S.review=true;
   const res=dayResult(S.day,S.answers);const prev=store.days[S.day];
-  store.days[S.day]={best:Math.max(prev?prev.best:0,res.correct),lastCorrect:res.correct,answers:S.answers.slice(),time:S.time,date:new Date().toISOString().slice(0,10)};
+  store.days[S.day]={best:Math.max(prev?prev.best:0,res.correct),lastCorrect:res.correct,answers:S.answers.slice(),time:S.time,ts:Date.now(),date:new Date().toISOString().slice(0,10)};
   save();results(false);
 }
 function dayResult(day,answers){
@@ -691,19 +700,320 @@ function results(quiet){
 function report(){
   const sk={};let days=0;
   Object.entries(store.days).forEach(([day,v])=>{days++;const r=dayResult(+day,v.answers);Object.entries(r.sk).forEach(([k,x])=>{sk[k]=sk[k]||{c:0,t:0};sk[k].c+=x.c;sk[k].t+=x.t;});});
-  let h=`<div class="topbar"><button class="iconbtn" id="x">🏠</button><span class="flex ttl">📈 ${U().report}</span>${muteBtn()}</div>
-  <div class="card intro"><div class="intro-m">${creature({body:"tall",color:"mavi",eyes:2,top:"ears",arms:"up",mouth:"smile",spots:false,cheeks:true})}</div><p>${U().repIntro(days)}<br>🟢 %80+ · 🟡 %50–79 · 🔴 %50 altı</p></div>${skillRows(sk)}`;
+  let h=`<div class="topbar"><button class="iconbtn" id="x">🏠</button><span class="flex ttl">📈 ${U().report}${store.name?" · "+esc(store.name):""}</span>${muteBtn()}</div>
+  <div class="card intro"><div class="intro-m">${creature({body:"tall",color:"mavi",eyes:2,top:"ears",arms:"up",mouth:"smile",spots:false,cheeks:true})}</div><p>${U().repIntro(days)}<br>🟢 %80+ · 🟡 %50–79 · 🔴 %50 altı</p></div>${weekChart(store)}${skillRows(sk)}`;
   if(days)h+=`<div class="nav"><button class="btn" id="reset">${U().reset}</button></div>`;
-  render(h,"in-up");growBars();$("#x").onclick=()=>{SFX.tap();home();};
-  let ask=false;if($("#reset"))$("#reset").onclick=()=>{if(!ask){ask=true;toast(U().sure);return;}const m=store.mute;store={days:{},mute:m,lang:LG()};save();home();};
+  render(h,"in-up");growBars();$("#x").onclick=()=>{SFX.tap();back();};
+  let ask=false;if($("#reset"))$("#reset").onclick=()=>{if(!ask){ask=true;toast(U().sure);return;}store.days={};save();report();};
 }
 function legend(){
   let h=`<div class="topbar"><button class="iconbtn" id="x">🏠</button><span class="flex ttl">🏷️ ${U().legend}</span>${muteBtn()}</div>
   <div class="card intro"><div class="intro-m">${creature({body:"square",color:"mor",eyes:3,top:"horns",arms:"up",mouth:"teeth",spots:true,cheeks:false})}</div><p>${U().legIntro}</p></div><div class="legend">`;
   Object.keys(SKILLS).forEach((k,i)=>h+=`<div class="li" style="animation-delay:${i*.03}s">${skillTile(k)}<span>${skName(k)}</span></div>`);
-  h+=`</div>`;render(h,"in-up");$("#x").onclick=()=>{SFX.tap();home();};
+  h+=`</div>`;render(h,"in-up");$("#x").onclick=()=>{SFX.tap();back();};
 }
 
-window.__DA={getExercise,TOTAL,TYPE_ORDER};
-svgDefs();buildBg();home();
+/* ================= Hesap, aile paneli, ebeveyn kilidi, süre sayacı ================= */
+const API=(window.DIKKAT_CONFIG&&window.DIKKAT_CONFIG.API)||"";
+const esc=t=>String(t==null?"":t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const KID_LOOKS=[["round","antenna"],["square","ears"],["tall","horns"],["tri","hair"],["round","ears"],["square","horns"],["tall","antenna"],["tri","horns"]];
+function avatar(ch,cls){const lk=KID_LOOKS[(ch.look||0)%KID_LOOKS.length];return`<span class="av ${cls||""}">${creature({body:lk[0],color:ch.color||"mavi",eyes:2,top:lk[1],arms:"up",mouth:"teeth",spots:true,cheeks:true},{still:cls==="sm"})}</span>`;}
+function todayKey(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function dayKeyAgo(n){const d=new Date();d.setDate(d.getDate()-n);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+const newId=()=>Math.random().toString(36).slice(2,8)+Date.now().toString(36).slice(-4);
+let ctx="child"; /* "child" | "parent" */
+function back(){ctx==="parent"?parentPanel():home();}
+function childStats(ch){const days=ch.days||{};const done=Object.keys(days).length;let c=0,st=0;Object.values(days).forEach(v=>{c+=v.lastCorrect||0;st+=starCount(v.best||0,PER_DAY);});
+  let cur=DAYS;for(let d=1;d<=DAYS;d++)if(!days[d]){cur=d;break;}
+  return{done,stars:st,pct:done?Math.round(c/(done*PER_DAY)*100):0,cur,todayMin:Math.round(((ch.usage||{})[todayKey()]||0)/60)};}
+
+/* ---------- Sunucu ---------- */
+async function api(obj){
+  if(!API)throw{hata:"ag"};
+  const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),25000);
+  try{
+    const r=await fetch(API,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(obj),signal:ctl.signal,redirect:"follow"});
+    const j=await r.json();clearTimeout(to);
+    if(!j.ok)throw{hata:j.hata||"sunucu_hatasi"};
+    return j;
+  }catch(e){clearTimeout(to);if(e&&e.hata)throw e;throw{hata:"ag"};}
+}
+const errText=e=>(U().err[e&&e.hata]||U().err.sunucu_hatasi);
+
+/* İki kopyayı birleştir (sunucudaki ile aynı kural) */
+function mergeChild(a,b){
+  if(!a)return b;if(!b)return a;
+  const s=Object.assign({},a,b);
+  s.days=Object.assign({},a.days||{});
+  for(const k in (b.days||{})){const x=b.days[k],y=s.days[k];if(!y||(x.ts||0)>=(y.ts||0)){s.days[k]=Object.assign({},x,{best:Math.max(x.best||0,(y&&y.best)||0)});}}
+  ["usage","bonus"].forEach(f=>{s[f]=Object.assign({},a[f]||{});for(const t in (b[f]||{}))s[f][t]=Math.max(s[f][t]||0,b[f][t]||0);});
+  return s;
+}
+
+/* ---------- Eşitleme ---------- */
+let syncState="ok",syncTimer=null,syncing=false;
+function markDirty(id){if(cfg.mode!=="account"||!id)return;cfg.dirty=cfg.dirty||[];if(!cfg.dirty.includes(id))cfg.dirty.push(id);saveCfg();scheduleSync(4000);}
+function scheduleSync(ms){clearTimeout(syncTimer);syncTimer=setTimeout(syncNow,ms);}
+async function syncNow(){
+  if(cfg.mode!=="account"||syncing||!(cfg.dirty||[]).length){showSync();return;}
+  syncing=true;syncState="busy";showSync();
+  try{
+    for(const id of cfg.dirty.slice()){
+      const ch=fam.children.find(c=>c.id===id);
+      if(!ch){cfg.dirty=cfg.dirty.filter(x=>x!==id);continue;}
+      const r=await api({action:"saveChild",token:cfg.token,child:ch});
+      const merged=mergeChild(r.child,ch);
+      Object.keys(ch).forEach(k=>delete ch[k]);Object.assign(ch,merged);
+      cfg.dirty=cfg.dirty.filter(x=>x!==id);
+    }
+    saveFam();saveCfg();syncState="ok";
+  }catch(e){
+    if(e.hata==="oturum_yok"){syncing=false;sessionExpired();return;}
+    syncState="off";scheduleSync(60000);
+  }
+  syncing=false;showSync();
+}
+function showSync(){const el=document.getElementById("sync");if(!el)return;
+  el.textContent=cfg.mode!=="account"?U().local:syncState==="busy"?U().syncing:syncState==="off"?U().offline:U().synced;el.className="sync "+syncState;}
+window.addEventListener("online",()=>scheduleSync(500));
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"){flushUsage();syncNow();}});
+function sessionExpired(){const lang=cfg.lang,mute=cfg.mute;cfg={lang,mute};saveCfg();stopTimer();welcome(U().err.oturum_yok);}
+
+/* ---------- Açılış ---------- */
+async function boot(){
+  if(!cfg.mode){welcome();return;}
+  loadFam();
+  if(cfg.mode==="account"&&API){
+    if(!fam.children.length){welcome("",true);}
+    api({action:"load",token:cfg.token}).then(r=>{
+      const local=fam.children;const out=[];
+      r.data.children.forEach(sc=>{const lc=local.find(c=>c.id===sc.id);out.push(lc?mergeChild(sc,lc):sc);});
+      local.forEach(lc=>{if(!out.find(c=>c.id===lc.id)&&(cfg.dirty||[]).includes(lc.id))out.push(lc);});
+      fam.children=out;saveFam();syncState="ok";
+      if(ctx==="child"&&cfg.active){const ch=fam.children.find(c=>c.id===cfg.active);if(ch)store=ch;}
+      if(document.querySelector(".ppanel")||document.querySelector(".welcome"))openStart();else showSync();
+      scheduleSync(1000);
+    }).catch(e=>{if(e.hata==="oturum_yok")sessionExpired();else{syncState="off";showSync();if(document.querySelector(".welcome"))openStart();}});
+    if(!fam.children.length)return;
+  }
+  openStart();
+}
+function openStart(){
+  const ch=cfg.active&&fam.children.find(c=>c.id===cfg.active);
+  if(ch)openChild(ch,true);else parentPanel();
+}
+function openChild(ch,silent){
+  store=ch;store.days=store.days||{};store.usage=store.usage||{};store.bonus=store.bonus||{};
+  cfg.active=ch.id;saveCfg();ctx="child";startTimer();home();
+  if(!silent)setTimeout(()=>speak(U().helloKidSay(ch.name,U().mascot)),700);
+}
+
+/* ---------- Karşılama, giriş, kayıt ---------- */
+function langBar(){return`<div class="langbar"><span class="lglbl">🌍 ${U().lang}</span>${I18N.LANGS.map(l=>`<button class="lang ${l===LG()?"on":""}" data-lang="${l}"><span class="fl">${I18N.UI[l].flag}</span><span>${I18N.UI[l].name}</span></button>`).join("")}</div>`;}
+function bindLang(again){document.querySelectorAll("[data-lang]").forEach(b=>b.onclick=()=>{cfg.lang=b.dataset.lang;saveCfg();SFX.tap();again();});}
+function welcome(msg,loading){
+  stopTimer();ctx="parent";
+  let li=0;const title=U().title.map(w=>[...w].map(ch=>`<span style="animation-delay:${(li++)*.08}s">${ch}</span>`).join("")).join("<br>");
+  let h=`<div class="welcome">${langBar()}
+  <div class="hero wl"><div class="hero-txt"><h1 class="wavy">${title}</h1><p class="wsub">${U().welcomeSub}</p></div><div class="hero-mascot">${creature(MASCOT)}</div></div>
+  ${msg?`<div class="alert">${esc(msg)}</div>`:""}
+  ${loading?`<div class="card center"><div class="spin"></div></div>`:`<div class="wbtns">
+    <button class="btn primary big" id="wlogin" ${API?"":"disabled"}>${U().login}</button>
+    <button class="btn big" id="wreg" ${API?"":"disabled"}>${U().register}</button>
+    ${API?"":`<p class="note">${U().noServer}</p>`}
+    <button class="btn ghost" id="wguest">${U().guest}<small>${U().guestNote}</small></button></div>`}</div>`;
+  render(h,"in-up");bindLang(()=>welcome(msg,loading));
+  if(loading)return;
+  $("#wlogin").onclick=()=>{SFX.tap();authForm("login");};
+  $("#wreg").onclick=()=>{SFX.tap();authForm("register");};
+  $("#wguest").onclick=()=>{SFX.tap();cfg.mode="guest";saveCfg();loadFam();migrateOld();parentPanel();};
+}
+function migrateOld(){
+  const o=lsGet("dikkat-atolyesi-v2",null);
+  if(o&&o.days&&Object.keys(o.days).length&&!fam.children.length){fam.children.push({id:newId(),name:U().kid+" 1",color:"mavi",look:0,limit:0,days:o.days,usage:{},bonus:{}});saveFam();}
+}
+function authForm(mode,carry){
+  const reg=mode==="register";
+  let h=`<div class="topbar"><button class="iconbtn" id="x">◀</button><span class="flex ttl">${reg?U().register:U().login}</span></div>
+  <form class="card form" id="af" autocomplete="on">
+    <div class="formm">${creature(Object.assign({},MASCOT,{arms:"side",mouth:"smile"}))}</div>
+    <label>${U().user}<input id="fu" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="24" required></label>
+    ${reg?`<small class="hint2">${U().userHint}</small>`:""}
+    <label>${U().pass}<span class="pw"><input id="fp" name="password" type="password" autocomplete="${reg?"new-password":"current-password"}" maxlength="100" required><button type="button" class="eye" data-for="fp">👁️</button></span></label>
+    ${reg?`<small class="hint2">${U().passHint}</small><label>${U().pass2}<input id="fp2" type="password" autocomplete="new-password" maxlength="100" required></label>`:""}
+    <div class="ferr" id="ferr"></div>
+    <button class="btn primary big" id="fgo" type="submit">${reg?U().doRegister:U().doLogin}</button>
+    <button class="linkbtn" type="button" id="fswap">${reg?U().haveAcc:U().noAcc}</button>
+  </form>`;
+  render(h,"in-right");
+  $("#x").onclick=()=>{SFX.tap();carry?parentPanel():welcome();};
+  $("#fswap").onclick=()=>authForm(reg?"login":"register",carry);
+  document.querySelectorAll(".eye").forEach(b=>b.onclick=()=>{const i=$("#"+b.dataset.for);i.type=i.type==="password"?"text":"password";});
+  $("#fu").focus();
+  $("#af").onsubmit=async e=>{
+    e.preventDefault();const u=$("#fu").value.trim().toLowerCase(),p=$("#fp").value;const er=$("#ferr");er.textContent="";
+    if(reg&&p!==$("#fp2").value){er.textContent=U().err.ayni_degil;return;}
+    if(reg&&!/^[a-z0-9._-]{3,24}$/.test(u)){er.textContent=U().err.kullanici_gecersiz;return;}
+    if(reg&&p.length<6){er.textContent=U().err.sifre_kisa;return;}
+    const btn=$("#fgo");btn.disabled=true;btn.innerHTML=`<span class="spin sm"></span>`;
+    try{
+      const r=await api({action:reg?"register":"login",u,p});
+      const guestKids=carry?fam.children.slice():[];
+      cfg.mode="account";cfg.user=r.user;cfg.token=r.token;cfg.active=null;cfg.dirty=[];saveCfg();
+      fam={children:r.data.children||[]};
+      guestKids.forEach(g=>{if(!fam.children.find(c=>c.id===g.id)){fam.children.push(g);cfg.dirty.push(g.id);}});
+      saveFam();saveCfg();SFX.go();
+      if(carry){try{localStorage.removeItem("dikkat-atolyesi-fam:guest");}catch(_){}}
+      parentPanel();if(cfg.dirty.length)scheduleSync(300);
+    }catch(err){btn.disabled=false;btn.textContent=reg?U().doRegister:U().doLogin;er.textContent=errText(err);SFX.tap();}
+  };
+}
+
+/* ---------- Aile paneli ---------- */
+function weekChart(ch){
+  const u=ch.usage||{};const vals=[];for(let i=6;i>=0;i--)vals.push(Math.round((u[dayKeyAgo(i)]||0)/60));
+  const mx=Math.max(ch.limit||0,...vals,5);
+  const dn=i=>{const d=new Date();d.setDate(d.getDate()-i);return d.toLocaleDateString(LG(),{weekday:"short"});};
+  return`<div class="week"><div class="wk-t">${U().week}</div><div class="wk-bars">${vals.map((v,i)=>`<div class="wk"><b style="height:${Math.max(3,v/mx*100)}%" class="${ch.limit&&v>=ch.limit?"full":""}"></b><span>${v||""}</span><small>${dn(6-i)}</small></div>`).join("")}${ch.limit?`<i class="wk-lim" style="bottom:${ch.limit/mx*100}%"></i>`:""}</div></div>`;
+}
+function parentPanel(){
+  stopTimer();ctx="parent";cfg.active=null;saveCfg();
+  const acc=cfg.mode==="account";
+  let h=`<div class="ppanel">
+  <div class="topbar"><span class="logo">👨‍👩‍👧</span><span class="flex ttl">${U().panel}</span>${muteBtn()}</div>
+  ${langBar()}
+  <div class="card acct"><div><small>${U().account}</small><b>${acc?esc(cfg.user):U().guest}</b></div><span class="sync" id="sync"></span></div>
+  ${acc?"":`<div class="alert info">${U().guestBanner}${API?`<button class="btn primary sm" id="mkacc">${U().makeAcc}</button>`:""}</div>`}
+  <h2 class="sec">🧒 ${U().children}</h2>
+  ${fam.children.length?"":`<p class="empty">${U().firstChild}</p>`}
+  <div class="kids">`;
+  fam.children.forEach(ch=>{const st=childStats(ch);
+    h+=`<div class="kid" style="--kc:${CHEX[ch.color]||"#3fa9f5"}">
+      <div class="kid-top">${avatar(ch)}<div class="kid-info"><b>${esc(ch.name)}</b><span>${U().progress(st.cur,st.stars,st.pct)}</span>
+        <span class="kid-time">⏱️ ${U().today}: <b>${st.todayMin}</b>${ch.limit?` / ${ch.limit}`:""} ${U().min}</span></div>
+        <button class="iconbtn" data-edit="${ch.id}" aria-label="⚙️">⚙️</button></div>
+      ${weekChart(ch)}
+      <div class="kid-btns"><button class="btn" data-rep="${ch.id}">📈 ${U().report}</button><button class="btn primary" data-open="${ch.id}">${U().openChild}</button></div>
+    </div>`;});
+  h+=`</div><button class="btn big addkid" id="add">${U().addChild}</button>
+  <p class="hint">${U().kidsHint}</p>
+  <div class="row-btns">${acc?`<button class="pill" id="chpw">${U().changePass}</button><button class="pill" id="out">🚪 ${U().logout}</button>`:`<button class="pill" id="out">◀ ${U().back}</button>`}<button class="pill" id="leg">🏷️ ${U().legend}</button></div></div>`;
+  render(h,"in-up");showSync();bindLang(parentPanel);
+  $("#add").onclick=()=>{SFX.tap();childForm(null);};
+  if($("#mkacc"))$("#mkacc").onclick=()=>authForm("register",true);
+  $("#leg").onclick=()=>{SFX.tap();legend();};
+  if($("#chpw"))$("#chpw").onclick=()=>passForm();
+  $("#out").onclick=async()=>{SFX.tap();if(acc){await syncNow();try{api({action:"logout",token:cfg.token});}catch(e){}}const lang=cfg.lang,mute=cfg.mute;cfg={lang,mute};saveCfg();welcome();};
+  document.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>{SFX.go();openChild(fam.children.find(c=>c.id===b.dataset.open));});
+  document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>{SFX.tap();childForm(fam.children.find(c=>c.id===b.dataset.edit));});
+  document.querySelectorAll("[data-rep]").forEach(b=>b.onclick=()=>{SFX.tap();store=fam.children.find(c=>c.id===b.dataset.rep);ctx="parent";report();});
+  if(acc&&(cfg.dirty||[]).length)scheduleSync(500);
+}
+function childForm(ch){
+  const isNew=!ch;ch=ch?Object.assign({},ch):{id:newId(),name:"",color:pick(Math.random,COLORS).k,look:fam.children.length%KID_LOOKS.length,limit:20,days:{},usage:{},bonus:{}};
+  const LIM=[0,10,15,20,30,45,60];
+  const draw=()=>{
+    let h=`<div class="topbar"><button class="iconbtn" id="x">◀</button><span class="flex ttl">${isNew?U().addChild:esc(ch.name)}</span></div>
+    <div class="card form">
+      <div class="kidprev" id="kp">${avatar(ch)}</div>
+      <div class="looks">${KID_LOOKS.map((_,i)=>`<button class="lk ${i===(ch.look||0)?"on":""}" data-look="${i}">${avatar(Object.assign({},ch,{look:i}),"sm")}</button>`).join("")}</div>
+      <label>${U().childName}<input id="cn" maxlength="30" value="${esc(ch.name)}" autocomplete="off"></label>
+      <div class="lbl">${U().color}</div><div class="colors">${COLORS.map(c=>`<button class="cl ${c.k===ch.color?"on":""}" data-col="${c.k}" style="background:${c.hex}"></button>`).join("")}</div>
+      <div class="lbl">⏳ ${U().limit}</div><div class="lims">${LIM.map(m=>`<button class="lm ${m===(ch.limit||0)?"on":""}" data-lim="${m}">${m?m+" "+U().min:U().noLimit}</button>`).join("")}</div>
+      <div class="ferr" id="ferr"></div>
+      <button class="btn primary big" id="sv">${U().save}</button>
+      ${isNew?"":`<div class="row-btns"><button class="pill" id="rs">${U().resetP}</button><button class="pill danger" id="dl">${U().del}</button></div>`}
+    </div>`;
+    render(h,"in-fade");
+    $("#x").onclick=()=>{SFX.tap();parentPanel();};
+    $("#cn").oninput=e=>{ch.name=e.target.value;};
+    document.querySelectorAll("[data-look]").forEach(b=>b.onclick=()=>{ch.look=+b.dataset.look;ch.name=$("#cn").value;SFX.tap();draw();});
+    document.querySelectorAll("[data-col]").forEach(b=>b.onclick=()=>{ch.color=b.dataset.col;ch.name=$("#cn").value;SFX.tap();draw();});
+    document.querySelectorAll("[data-lim]").forEach(b=>b.onclick=()=>{ch.limit=+b.dataset.lim;ch.name=$("#cn").value;SFX.tap();draw();});
+    $("#sv").onclick=()=>{
+      ch.name=$("#cn").value.trim();if(!ch.name){$("#ferr").textContent=U().childName+" ?";$("#cn").focus();return;}
+      if(isNew&&fam.children.length>=8){$("#ferr").textContent=U().err.cok_cocuk;return;}
+      const i=fam.children.findIndex(c=>c.id===ch.id);ch.ts=Date.now();
+      if(i<0)fam.children.push(ch);else fam.children[i]=ch;
+      saveFam();markDirty(ch.id);SFX.ok();parentPanel();
+    };
+    let dAsk=false,rAsk=false;
+    if($("#dl"))$("#dl").onclick=async()=>{if(!dAsk){dAsk=true;toast(U().delSure);return;}
+      fam.children=fam.children.filter(c=>c.id!==ch.id);saveFam();cfg.dirty=(cfg.dirty||[]).filter(x=>x!==ch.id);saveCfg();
+      if(cfg.mode==="account"){try{await api({action:"deleteChild",token:cfg.token,id:ch.id});}catch(e){}}parentPanel();};
+    if($("#rs"))$("#rs").onclick=()=>{if(!rAsk){rAsk=true;toast(U().sure);return;}const i=fam.children.findIndex(c=>c.id===ch.id);
+      fam.children[i].days={};fam.children[i].resetAt=Date.now();fam.children[i].ts=Date.now();saveFam();markDirty(ch.id);parentPanel();};
+  };
+  draw();
+}
+function passForm(){
+  let h=`<div class="topbar"><button class="iconbtn" id="x">◀</button><span class="flex ttl">${U().changePass}</span></div>
+  <form class="card form" id="pf"><label>${U().oldPass}<input id="po" type="password" autocomplete="current-password" required></label>
+  <label>${U().newPass}<input id="pn" type="password" autocomplete="new-password" required></label><small class="hint2">${U().passHint}</small>
+  <div class="ferr" id="ferr"></div><button class="btn primary big" id="pg" type="submit">${U().save}</button></form>`;
+  render(h,"in-right");$("#x").onclick=()=>parentPanel();
+  $("#pf").onsubmit=async e=>{e.preventDefault();const er=$("#ferr");er.textContent="";
+    if($("#pn").value.length<6){er.textContent=U().err.sifre_kisa;return;}
+    try{await api({action:"changePassword",token:cfg.token,old:$("#po").value,p:$("#pn").value});toast(U().passChanged);parentPanel();}catch(err){er.textContent=errText(err);}};
+}
+
+/* ---------- Ebeveyn kilidi ---------- */
+function parentGate(onOk){
+  const a=ri(Math.random,11,19),b=ri(Math.random,3,9);let val="";
+  const ov=document.createElement("div");ov.className="overlay";
+  const draw=()=>{ov.innerHTML=`<div class="gate"><button class="gx" id="gx">✕</button><h3>${U().gateTitle}</h3><p>${U().gateHint}</p>
+    <div class="gq">${a} + ${b} = <span class="gv">${val||"?"}</span></div><div class="gerr" id="gerr"></div>
+    <div class="keys">${[1,2,3,4,5,6,7,8,9,"⌫",0,"✓"].map(k=>`<button class="key ${k==="✓"?"ok":""}" data-k="${k}">${k}</button>`).join("")}</div></div>`;
+    ov.querySelector("#gx").onclick=()=>ov.remove();
+    ov.querySelectorAll(".key").forEach(btn=>btn.onclick=()=>{const k=btn.dataset.k;SFX.tap();
+      if(k==="⌫")val=val.slice(0,-1);else if(k==="✓"){if(+val===a+b){ov.remove();onOk();return;}val="";draw();ov.querySelector("#gerr").textContent=U().gateWrong;return;}else if(val.length<3)val+=k;
+      ov.querySelector(".gv").textContent=val||"?";});};
+  draw();document.body.appendChild(ov);
+}
+
+/* ---------- Süre sayacı ---------- */
+let tick=null,lastTick=0,warned=false,lastSave=0,lastSync=0;
+function remaining(){if(!store.limit)return Infinity;const t=todayKey();return store.limit*60+((store.bonus||{})[t]||0)*60-((store.usage||{})[t]||0);}
+function startTimer(){
+  stopTimer();lastTick=Date.now();warned=remaining()<=60;
+  let el=document.getElementById("tmr");if(!el){el=document.createElement("div");el.id="tmr";document.body.appendChild(el);}
+  updateTimer();
+  tick=setInterval(()=>{
+    const now=Date.now();const dt=Math.min(5,Math.round((now-lastTick)/1000));lastTick=now;
+    if(document.visibilityState!=="visible"||ctx!=="child"||document.querySelector(".overlay.timeup"))return;
+    const t=todayKey();store.usage[t]=(store.usage[t]||0)+dt;
+    if(now-lastSave>10000){lastSave=now;saveFam();}
+    if(now-lastSync>60000){lastSync=now;markDirty(store.id);}
+    updateTimer();
+  },1000);
+}
+function stopTimer(){clearInterval(tick);tick=null;const el=document.getElementById("tmr");if(el)el.remove();document.querySelectorAll(".overlay.timeup").forEach(o=>o.remove());}
+function flushUsage(){if(ctx==="child"&&store.id){saveFam();markDirty(store.id);}}
+function updateTimer(){
+  const el=document.getElementById("tmr");if(!el)return;
+  const rem=remaining();
+  if(rem===Infinity){const m=Math.floor(((store.usage||{})[todayKey()]||0)/60);el.className="tmr free";el.innerHTML=`⏱️ ${m} ${U().min}`;return;}
+  const r=Math.max(0,rem);el.className="tmr"+(r<=60?" warn":"");el.innerHTML=`⏳ ${Math.floor(r/60)}:${String(r%60).padStart(2,"0")}`;
+  if(r<=60&&r>0&&!warned){warned=true;toast(U().oneMin);speak(U().oneMinSay);}
+  if(r<=0)timeUp();
+}
+function timeUp(){
+  if(document.querySelector(".overlay.timeup"))return;
+  clearTimeout(memTimer);saveFam();markDirty(store.id);syncNow();
+  const ov=document.createElement("div");ov.className="overlay timeup";
+  ov.innerHTML=`<div class="tu"><div class="tu-m">${creature(Object.assign({},MASCOT,{arms:"down",mouth:"smile"}))}<span class="zz">Z<i>z</i><b>z</b></span></div>
+    <h2>🌙 ${U().timeUp}</h2><p>${esc(store.name||"")}</p>${bigSpeaker("tuspk","")}
+    <button class="btn" id="tup">🔒 ${U().parent}</button></div>`;
+  document.body.appendChild(ov);
+  const say=U().timeUpSay(store.name||"");setTimeout(()=>speak(say),400);
+  ov.querySelector("#tuspk").onclick=()=>speak(say,true);
+  ov.querySelector("#tup").onclick=()=>parentGate(()=>{
+    const box=ov.querySelector(".tu");box.innerHTML=`<h2>🔓 ${U().parent}</h2><div class="lims">${[5,10,20,30].map(m=>`<button class="lm" data-more="${m}">${U().more(m)}</button>`).join("")}</div><button class="btn primary" id="tpp">👨‍👩‍👧 ${U().panel}</button>`;
+    box.querySelectorAll("[data-more]").forEach(b=>b.onclick=()=>{const t=todayKey();store.bonus[t]=(store.bonus[t]||0)+(+b.dataset.more);store.ts=Date.now();saveFam();markDirty(store.id);warned=false;ov.remove();updateTimer();});
+    box.querySelector("#tpp").onclick=()=>{ov.remove();parentPanel();};
+  });
+}
+
+window.__DA={getExercise,TOTAL,TYPE_ORDER,get fam(){return fam;},get cfg(){return cfg;},syncNow,mergeChild};
+svgDefs();buildBg();boot();
 })();
