@@ -37,7 +37,9 @@ const SKILLS={
   SB:["S.B","Sözel Beceriler","💬","b"],
   B3A:["3B.A","3 Boyutlu Algı","🧊","y"]
 };
-function skillTile(k){const s=SKILLS[k];return `<span class="sk ${s[3]}" data-sk="${k}" title="${s[1]}"><span class="e">${s[2]}</span><span class="c">${s[0]}</span></span>`;}
+function skName(k){const l=LG();return l==="tr"?SKILLS[k][1]:I18N.SKILL_NAMES[l][k];}
+function skCode(k){const l=LG();return l==="tr"?SKILLS[k][0]:I18N.SKILL_CODES[l][k];}
+function skillTile(k){const s=SKILLS[k];return `<span class="sk ${s[3]}" data-sk="${k}" title="${skName(k)}"><span class="e">${s[2]}</span><span class="c">${skCode(k)}</span></span>`;}
 
 /* ================= Renkler & şekiller ================= */
 const COLORS=[
@@ -184,28 +186,28 @@ const GEN={
       pairs.push([b,m]);
     }
     const p=placeAnswer(r,[correct,correct],pairs.map(pp=>r()<.5?pp:[pp[1],pp[0]]));
-    return{title:"İkizler",prompt:"Birbirinin tıpatıp aynısı olan ikizler hangisi?",
+    return{pr:{k:"twins"},
       options:p.items.map(pr=>`<div class="pair">${creature(pr[0])}${creature(pr[1])}</div>`),answer:p.answer,cols:"cols2"};
   },
   shadow(r,d){
     const n=d<1?3:4;const c=randomCreature(r);
     const w=distinctMutations(r,c,SIL_D[d],n-1,skey);
     const p=placeAnswer(r,c,w);
-    return{title:"Gölgeler",prompt:`${CNAME[c.color]} canavarın gölgesi hangisi? Bul, eşleştir.`,
+    return{pr:{k:"shadow",c:c.color},
       stim:creature(c),options:p.items.map(x=>creature(x,{sil:true})),answer:p.answer,cols:n===4?"cols4":"cols3"};
   },
   odd(r,d){
     const n=d<1?4:d<3?5:6;const c=randomCreature(r);
     const w=distinctMutations(r,c,FEATS_D[d],1,ckey)[0];
     const items=Array(n-1).fill(c);const pos=ri(r,0,n-1);items.splice(pos,0,w);
-    return{title:"Farklı Olan",prompt:"Diğerlerinden farklı olan canavar hangisi?",
+    return{pr:{k:"odd"},
       options:items.map(x=>creature(x)),answer:pos,cols:n===4?"cols4":"cols3"};
   },
   match(r,d){
     const n=d<2?3:4;const c=randomCreature(r);
     const w=distinctMutations(r,c,FEATS_D[Math.min(4,d+1)],n-1,ckey);
     const p=placeAnswer(r,c,w);
-    return{title:"Aynısını Bul",prompt:"Yukarıdaki canavarın aynısı hangisi?",
+    return{pr:{k:"match"},
       stim:creature(c),options:p.items.map(x=>creature(x)),answer:p.answer,cols:n===4?"cols4":"cols3"};
   },
   count(r,d){
@@ -222,7 +224,7 @@ const GEN={
     const set=new Set([cnt]);const cands=shuffle(r,[cnt-2,cnt-1,cnt+1,cnt+2].filter(x=>x>0));
     const nOpt=d<1?3:4;for(const x of cands){if(set.size>=nOpt)break;set.add(x);}
     const opts=[...set].sort((a,b)=>a-b);
-    return{title:"Sayalım",prompt:`Kaç tane ${SHAPES[target].n} var?`,stim:svg,
+    return{pr:{k:"count",s:target},stim:svg,
       options:opts.map(x=>`<div class="num">${x}</div>`),answer:opts.indexOf(cnt),cols:opts.length===4?"cols4":"cols3"};
   },
   color(r,d){
@@ -239,7 +241,7 @@ const GEN={
     }
     const p=placeAnswer(r,[tk,tc],w);
     const nm=d<1?SHAPES[tk].acc:`${CNAME[tc].toLowerCase()} ${SHAPES[tk].acc}`;
-    return{title:"Renkler",prompt:d<1?`${CNAME[tc]} renkli ${SHAPES[tk].acc} bul.`:`${nm.charAt(0).toUpperCase()+nm.slice(1)} bul.`,
+    return{pr:{k:"color",c:tc,s:tk,easy:d<1},
       options:p.items.map(x=>shapeSVG(x[0],x[1],.9)),answer:p.answer,cols:n<=3?"cols3":n===4?"cols4":"cols3 wide"};
   },
   size(r,d){
@@ -248,7 +250,7 @@ const GEN={
     const scales=[];for(let i=0;i<n;i++)scales.push(+(1-i*gap).toFixed(2));
     const big=r()<.5;const order=shuffle(r,scales);
     const ans=order.indexOf(big?scales[0]:scales[n-1]);
-    return{title:"Büyük – Küçük",prompt:`En ${big?"büyük":"küçük"} ${SHAPES[k].n} hangisi?`,
+    return{pr:{k:"size",s:k,big},
       options:order.map(s=>shapeSVG(k,c,s)),answer:ans,cols:n===3?"cols3":n===4?"cols4":"cols3 wide"};
   },
   pattern(r,d){
@@ -272,7 +274,7 @@ const GEN={
     let svg=`<svg viewBox="0 0 ${w} 56" class="art" style="width:100%">`;
     seq.forEach((L,i)=>{const cx=27+i*44;if(i===len-1){svg+=`<rect x="${cx-19}" y="9" width="38" height="38" rx="9" fill="#fff" stroke="#ff7a3d" stroke-width="3" stroke-dasharray="5 4"/><text x="${cx}" y="37" font-size="24" font-weight="800" text-anchor="middle" fill="#ff7a3d">?</text>`;}else svg+=shapeEl(map[L][0],map[L][1],cx,28,15);});
     svg+=`</svg>`;
-    return{title:"Örüntü",prompt:"Sırayı devam ettir. Soru işaretinin yerine hangisi gelir?",stim:svg,
+    return{pr:{k:"pattern"},stim:svg,
       options:p.items.map(x=>shapeSVG(x[0],x[1],.85)),answer:p.answer,cols:p.items.length===4?"cols4":"cols3"};
   },
   memory(r,d){
@@ -280,7 +282,7 @@ const GEN={
     const w=distinctMutations(r,c,FEATS_D[Math.min(4,d+(d<2?0:-1))],n-1,ckey);
     const p=placeAnswer(r,c,w);
     const secs=[5,5,4,4,3][d];
-    return{title:"Hafıza",prompt:`Resme ${secs} saniye iyi bak. Sonra hangisini gördüğünü bul!`,
+    return{pr:{k:"memory",secs},
       memory:{html:creature(c),secs},options:p.items.map(x=>creature(x)),answer:p.answer,cols:n===4?"cols4":"cols3"};
   },
   direction(r,d){
@@ -289,7 +291,7 @@ const GEN={
     const other=vertical?(main==="up"?"down":"up"):(main==="left"?"right":"left");
     const pos=ri(r,0,n-1);const stripe=r()<.5;
     const items=[];for(let i=0;i<n;i++)items.push(fish(d>=2?pick(r,COLORS).k:col,i===pos?other:main,stripe));
-    return{title:"Yönler",prompt:"Diğerlerinden farklı yöne bakan balık hangisi?",
+    return{pr:{k:"direction"},
       options:items,answer:pos,cols:n===3?"cols3":n===4?"cols4":"cols3 wide"};
   },
   category(r,d){
@@ -307,7 +309,7 @@ const GEN={
     const g2=pick(r,pool);const n=d<1?3:d<3?4:5;
     const same=shuffle(r,G[g1]).slice(0,n-1);const odd=pick(r,G[g2]);
     const p=placeAnswer(r,odd,same);
-    return{title:"Gruplar",prompt:"Hangisi bu gruba ait değil?",
+    return{pr:{k:"category"},
       options:p.items.map(x=>`<div class="emo">${x}</div>`),answer:p.answer,cols:n===3?"cols3":n===4?"cols4":"cols3 wide"};
   },
   more(r,d){
@@ -324,7 +326,7 @@ const GEN={
       for(let i=0;i<cnt;i++){const cc=cells[i];s+=shapeEl(k,c,20+(cc%3)*40+ri(r,-4,4),20+Math.floor(cc/3)*40+ri(r,-4,4),13);}
       return s+`</svg>`;
     });
-    return{title:"Çok – Az",prompt:`Hangi kutuda ${fewest?"en az":"en çok"} ${SHAPES[k].n} var?`,
+    return{pr:{k:"more",s:k,few:fewest},
       options:opts,answer:ans,cols:n===2?"cols2":"cols3"};
   }
 };
@@ -372,26 +374,34 @@ const SFX={
 /* ================= Durum ================= */
 let S=null,memTimer=null;
 const MASCOT={body:"round",color:"turuncu",eyes:2,top:"antenna",arms:"up",mouth:"teeth",spots:true,cheeks:true};
-let trVoice=null,voiceWarned=false;
-function pickVoice(){try{const vs=speechSynthesis.getVoices();trVoice=vs.find(v=>/^tr(-|_|$)/i.test(v.lang)&&/google|yelda|female|kadın/i.test(v.name))||vs.find(v=>/^tr/i.test(v.lang))||null;}catch(e){}}
-try{pickVoice();speechSynthesis.onvoiceschanged=pickVoice;}catch(e){}
+function LG(){return store.lang||"tr";}
+function U(){return I18N.UI[LG()];}
+const titleOf=ex=>I18N.TITLES[LG()][ex.type];
+const promptOf=ex=>I18N.prompt(LG(),ex.pr);
+if(!store.lang){const nl=(navigator.language||"tr").slice(0,2).toLowerCase();store.lang=I18N.LANGS.includes(nl)?nl:"tr";}
+const voiceCache={},voiceWarned={};
+function pickVoice(lang){try{const pre=lang.slice(0,2),vs=speechSynthesis.getVoices().filter(v=>v.lang&&v.lang.slice(0,2).toLowerCase()===pre);
+  return vs.find(v=>v.lang.replace("_","-").toLowerCase()===lang.toLowerCase()&&/google|natural|premium|enhanced|yelda|anna|milena|samantha/i.test(v.name))||vs.find(v=>v.lang.replace("_","-").toLowerCase()===lang.toLowerCase())||vs[0]||null;}catch(e){return null;}}
+try{speechSynthesis.onvoiceschanged=()=>{for(const k in voiceCache)delete voiceCache[k];};}catch(e){}
 function speak(t,force){
   if(!force&&store.mute)return;
+  const L=U().voice;
   try{
-    if(!window.speechSynthesis){toast("Bu cihazda sesli okuma yok");return;}
-    if(!trVoice)pickVoice();
-    if(!trVoice&&!voiceWarned&&speechSynthesis.getVoices().length){voiceWarned=true;toast("Cihazda Türkçe ses bulunamadı. Ayarlar > Erişilebilirlik > Konuşma'dan Türkçe ses ekleyin.");}
+    if(!window.speechSynthesis){toast(U().noTTS);return;}
+    if(!voiceCache[L])voiceCache[L]=pickVoice(L);
+    const v=voiceCache[L];
+    if(!v&&!voiceWarned[L]&&speechSynthesis.getVoices().length){voiceWarned[L]=1;toast(U().noVoice);}
     speechSynthesis.cancel();
-    const u=new SpeechSynthesisUtterance(t);u.lang="tr-TR";if(trVoice)u.voice=trVoice;u.rate=.88;u.pitch=1.15;
+    const u=new SpeechSynthesisUtterance(t);u.lang=L;if(v)u.voice=v;u.rate=.88;u.pitch=1.15;
     u.onstart=()=>document.body.classList.add("talking");
     u.onend=u.onerror=()=>document.body.classList.remove("talking");
     setTimeout(()=>speechSynthesis.speak(u),60);
-  }catch(e){toast("Bu cihazda sesli okuma yok");}
+  }catch(e){toast(U().noTTS);}
 }
 /* iPad/iPhone: ilk dokunuşta sesi aç */
 function unlockSpeech(){try{const u=new SpeechSynthesisUtterance(" ");u.volume=0;speechSynthesis.speak(u);}catch(e){}document.removeEventListener("touchend",unlockSpeech);document.removeEventListener("click",unlockSpeech);}
 document.addEventListener("touchend",unlockSpeech,{once:true});document.addEventListener("click",unlockSpeech,{once:true});
-const bigSpeaker=(id,label)=>`<button class="spkbig" id="${id}" aria-label="Tekrar dinle"><span class="spk-ic"><svg viewBox="0 0 48 48"><path d="M8 18h8l11-9v30l-11-9H8z" fill="#fff" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path class="w1" d="M32 17q5 7 0 14" stroke="#fff" stroke-width="3.5" fill="none" stroke-linecap="round"/><path class="w2" d="M37 12q9 12 0 24" stroke="#fff" stroke-width="3.5" fill="none" stroke-linecap="round"/></svg></span><span class="spk-l">${label||"Dinle"}</span></button>`;
+const bigSpeaker=(id,label)=>`<button class="spkbig" id="${id}" aria-label="${U().listen}"><span class="spk-ic"><svg viewBox="0 0 48 48"><path d="M8 18h8l11-9v30l-11-9H8z" fill="#fff" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path class="w1" d="M32 17q5 7 0 14" stroke="#fff" stroke-width="3.5" fill="none" stroke-linecap="round"/><path class="w2" d="M37 12q9 12 0 24" stroke="#fff" stroke-width="3.5" fill="none" stroke-linecap="round"/></svg></span><span class="spk-l">${label||U().listenS}</span></button>`;
 function toast(t){document.querySelectorAll(".toast").forEach(e=>e.remove());const el=document.createElement("div");el.className="toast";el.textContent=t;document.body.appendChild(el);setTimeout(()=>el.remove(),2200);}
 const starCount=(c,t)=>{const p=c/t;return p>=.9?3:p>=.6?2:p>0?1:0;};
 function starsHTML(n,cls){let h="";for(let i=0;i<3;i++)h+=`<span class="st ${i<n?"on":""} ${cls||""}" style="animation-delay:${.15*i}s">★</span>`;return h;}
@@ -439,20 +449,23 @@ function home(){
   const done=Object.keys(store.days).length;
   let correct=0,starsTot=0;Object.values(store.days).forEach(v=>{correct+=v.lastCorrect;starsTot+=starCount(v.best,PER_DAY);});
   const cur=currentDay();
-  const title="Dikkat Atölyesi".split("").map((ch,i)=>ch===" "?"<br>":`<span style="animation-delay:${i*.08}s">${ch}</span>`).join("");
+  let li=0;const title=U().title.map(w=>[...w].map(ch=>`<span style="animation-delay:${(li++)*.08}s">${ch}</span>`).join("")).join("<br>");
+  document.documentElement.lang=LG();document.title=U().title.join(" ").replace("- ","-")+" – 200";
+  const langs=I18N.LANGS.map(l=>`<button class="lang ${l===LG()?"on":""}" data-lang="${l}"><span class="fl">${I18N.UI[l].flag}</span><span>${I18N.UI[l].name}</span></button>`).join("");
   let h=`<div class="topbar"><span class="logo">🧠</span><span class="flex"></span><span class="chip">⭐ ${starsTot}</span>${muteBtn()}</div>
+  <div class="langbar"><span class="lglbl">🌍 ${U().lang}</span>${langs}</div>
   <div class="hero">
     <div class="hero-txt"><h1 class="wavy">${title}</h1>
-      <div class="speechrow"><div class="speech">Merhaba! Ben <b>Pıtırcık</b>. ${done?`Harika gidiyorsun!`:`Hadi birlikte oynayalım!`}</div>${bigSpeaker("hspk","")}</div>
-      <button class="cta" id="play">▶ Gün ${cur}'e Başla</button></div>
+      <div class="speechrow"><div class="speech">${U().hello(U().mascot,done)}</div>${bigSpeaker("hspk","")}</div>
+      <button class="cta" id="play">${U().start(cur)}</button></div>
     <div class="hero-mascot">${creature(MASCOT)}</div>
   </div>
-  <div class="statrow"><div class="statc"><b>${done}</b><small>/20 gün</small></div><div class="statc"><b>${done?Math.round(correct/(done*PER_DAY)*100):0}%</b><small>başarı</small></div><div class="statc"><b>${starsTot}</b><small>/60 yıldız</small></div></div>
-  <div class="row-btns"><button class="pill" data-go="report"><span>📈</span>Beceri Karnesi</button><button class="pill" data-go="legend"><span>🏷️</span>Beceri Simgeleri</button></div>`;
+  <div class="statrow"><div class="statc"><b>${done}</b><small>${U().days}</small></div><div class="statc"><b>${done?Math.round(correct/(done*PER_DAY)*100):0}%</b><small>${U().success}</small></div><div class="statc"><b>${starsTot}</b><small>${U().stars}</small></div></div>
+  <div class="row-btns"><button class="pill" data-go="report"><span>📈</span>${U().report}</button><button class="pill" data-go="legend"><span>🏷️</span>${U().legend}</button></div>`;
   // ---- harita
   const nodes=[];let y=40;const XS=[50,80,50,20];let k=0;let html="";
   for(let L=0;L<5;L++){
-    html+=`<div class="zone" style="top:${y}px;--c:${LCOL[L]}"><span>${LICON[L]}</span><b>${LNAME[L]}</b><small>${LEVELS[L]}</small></div>`;y+=150;
+    html+=`<div class="zone" style="top:${y}px;--c:${LCOL[L]}"><span>${LICON[L]}</span><b>${U().zones[L]}</b><small>${U().levels[L]}</small></div>`;y+=150;
     for(let day=1;day<=DAYS;day++){if(dayLevel(day)!==L)continue;
       const x=XS[k++%4];nodes.push({x,y,day,L});y+=118;}
   }
@@ -465,17 +478,14 @@ function home(){
     html+=`<button class="node ${st?"done":""} ${isCur?"current":""}" data-day="${n.day}" style="left:${n.x}%;top:${n.y}px;--c:${LCOL[n.L]}">
       ${isCur?`<span class="pin">${creature(MASCOT,{still:false})}</span>`:""}
       <span class="disc"><span class="num">${n.day}</span></span>
-      <span class="nst">${st?starsHTML(starCount(st.best,PER_DAY)):isCur?`<span class="go">OYNA!</span>`:""}</span></button>`;});
-  h+=`<h2 class="sec">🗺️ Macera Haritası</h2><div class="map" style="height:${H}px">${html}</div>
-  <div class="card how"><h3>👨‍👩‍👧 Ebeveyn için</h3>
-    <p>👆 Çocuğunuz her sayfada cevabı seçer. Doğru/yanlış <b>hemen söylenmez</b>.</p>
-    <p>🏁 10 sayfa bitince <b>Bitir</b>: skor, doğru-yanlış listesi ve becerilere göre sonuç.</p>
-    <p>🏷️ Sayfanın altındaki simgeler o alıştırmanın geliştirdiği beceriler. Dokununca adı yazar.</p>
-    <p>⏱️ Mavi kutu yaklaşık süredir (± 1 dk). 🔊 düğmesi soruyu sesli okur.</p></div>
-  <p class="hint">İlerleme bu cihazda saklanır.</p>`;
+      <span class="nst">${st?starsHTML(starCount(st.best,PER_DAY)):isCur?`<span class="go">${U().go}</span>`:""}</span></button>`;});
+  h+=`<h2 class="sec">🗺️ ${U().map}</h2><div class="map" style="height:${H}px">${html}</div>
+  <div class="card how"><h3>${U().parent}</h3>${U().parentP.map(p=>`<p>${p}</p>`).join("")}</div>
+  <p class="hint">${U().saved}</p>`;
   render(h,"in-up");
   $("#play").onclick=()=>{SFX.go();startDay(cur);};
-  $("#hspk").onclick=()=>speak(`Merhaba! Ben Pıtırcık. ${done?"Harika gidiyorsun!":"Hadi birlikte oynayalım!"} Oynamak için sarı düğmeye bas. Her soruyu ben okuyacağım. Anlamazsan hoparlöre dokun, tekrar söylerim.`,true);
+  $("#hspk").onclick=()=>speak(U().helloSay(U().mascot,done),true);
+  document.querySelectorAll("[data-lang]").forEach(b=>b.onclick=()=>{store.lang=b.dataset.lang;save();SFX.tap();home();speak(U().chosen+". "+U().helloSay(U().mascot,done),true);});
   document.querySelectorAll("[data-day]").forEach(b=>b.onclick=e=>{const r=b.querySelector(".disc").getBoundingClientRect();burst(r.left+r.width/2,r.top+r.height/2);SFX.go();setTimeout(()=>startDay(+b.dataset.day),260);});
   document.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{SFX.tap();b.dataset.go==="report"?report():legend();});
   const c=document.querySelector(".node.current");if(c&&cur>1)setTimeout(()=>c.scrollIntoView({behavior:"smooth",block:"center"}),500);
@@ -484,8 +494,8 @@ function home(){
 function startDay(day){S={day,idx:0,answers:Array(PER_DAY).fill(null),start:Date.now(),review:false,memShown:{}};quiz("in-up");}
 
 function sayText(ex,showMem){
-  if(ex.memory){return showMem?"Resme iyi bak ve aklında tut! "+ex.memory.secs+" saniye sonra kaybolacak.":S&&S.review?ex.prompt:"Şimdi bul bakalım! Az önce hangisini gördün?";}
-  return ex.prompt;
+  if(ex.memory){return S&&S.review?promptOf(ex):I18N.memSay(LG(),ex.memory.secs,showMem);}
+  return promptOf(ex);
 }
 function quiz(anim){
   const i=(S.day-1)*PER_DAY+S.idx;const ex=getExercise(i);const sel=S.answers[S.idx];
@@ -498,14 +508,14 @@ function quiz(anim){
     ${muteBtn()}</div>
   <div class="dots">${dots}</div>
   <div class="ask"><div class="ask-m">${creature(Object.assign({},MASCOT,{arms:"side",mouth:"open"}))}</div>
-    <div class="ask-b"><div class="ask-top"><span class="badge" style="background:${LCOL[L]}">Gün ${S.day} · ${S.idx+1}/${PER_DAY}${S.review?" · İnceleme":""}</span></div><h3>${ex.title}</h3><p>${sayText(ex,showMem)}</p></div>
-    ${bigSpeaker("spk","Tekrar dinle")}</div>
+    <div class="ask-b"><div class="ask-top"><span class="badge" style="background:${LCOL[L]}">${U().day} ${S.day} · ${S.idx+1}/${PER_DAY}${S.review?" · "+U().review:""}</span></div><h3>${titleOf(ex)}</h3><p>${sayText(ex,showMem)}</p></div>
+    ${bigSpeaker("spk",U().listen)}</div>
   <div class="page">`;
   if(ex.stim)h+=`<div class="stim">${ex.stim}</div>`;
   if(ex.memory){
-    if(showMem)h+=`<div class="stim memo"><div class="lab">👀 İyi bak, aklında tut!</div><div class="memo-art">${ex.memory.html}</div>
+    if(showMem)h+=`<div class="stim memo"><div class="lab">${U().memLook}</div><div class="memo-art">${ex.memory.html}</div>
       <div class="ringwrap"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="19" class="rbg"/><circle cx="22" cy="22" r="19" class="rfg" style="animation-duration:${ex.memory.secs}s"/></svg><b id="cd">${ex.memory.secs}</b></div></div>`;
-    else if(S.review)h+=`<div class="stim"><div class="lab">Gösterilen resim</div><div style="width:120px">${ex.memory.html}</div></div>`;
+    else if(S.review)h+=`<div class="stim"><div class="lab">${U().memShown}</div><div style="width:120px">${ex.memory.html}</div></div>`;
   }
   if(!showMem){
     h+=`<div class="opts ${ex.cols||"cols3"}">`;
@@ -517,12 +527,12 @@ function quiz(anim){
     });
     h+=`</div>`;
   }
-  h+=`<div class="skillbar">${ex.skills.map(skillTile).join("")}<span class="mins">${ex.min}<small>Dakika</small></span><span class="pageno">${ex.no}</span></div>
+  h+=`<div class="skillbar">${ex.skills.map(skillTile).join("")}<span class="mins">${ex.min}<small>${U().min}</small></span><span class="pageno">${ex.no}</span></div>
     <div class="skname" id="skn"></div></div>`;
   const last=S.idx===PER_DAY-1;
   h+=`<div class="nav"><button class="btn" id="prev" ${S.idx===0?"disabled":""}>◀</button>`;
-  if(S.review)h+=last?`<button class="btn primary" id="res">Sonuçlar 📊</button>`:`<button class="btn primary" id="next">İleri ▶</button>`;
-  else h+=last?`<button class="btn green" id="fin">Bitir 🏁</button>`:`<button class="btn primary ${sel!==null?"glow":""}" id="next">İleri ▶</button>`;
+  if(S.review)h+=last?`<button class="btn primary" id="res">${U().results}</button>`:`<button class="btn primary" id="next">${U().next}</button>`;
+  else h+=last?`<button class="btn green" id="fin">${U().finish}</button>`:`<button class="btn primary ${sel!==null?"glow":""}" id="next">${U().next}</button>`;
   h+=`</div>`;
   render(h,anim||"in-right");
 
@@ -532,7 +542,7 @@ function quiz(anim){
   document.querySelector(".ask-m").onclick=()=>speak(said,true);
   document.querySelector(".ask-b").onclick=()=>speak(said,true);
   if(!S.review&&!(S.spoken||{})[S.idx+(showMem?"m":"")]){S.spoken=S.spoken||{};S.spoken[S.idx+(showMem?"m":"")]=1;setTimeout(()=>{if(S&&!S.review)speak(said);},450);}
-  document.querySelectorAll(".sk").forEach(el=>el.onclick=()=>{const s=SKILLS[el.dataset.sk];$("#skn").textContent=s[2]+" "+s[0]+" · "+s[1];el.classList.remove("jig");void el.offsetWidth;el.classList.add("jig");SFX.tap();});
+  document.querySelectorAll(".sk").forEach(el=>el.onclick=()=>{const s=SKILLS[el.dataset.sk];$("#skn").textContent=s[2]+" "+skCode(el.dataset.sk)+" · "+skName(el.dataset.sk);el.classList.remove("jig");void el.offsetWidth;el.classList.add("jig");SFX.tap();});
   if($("#prev"))$("#prev").onclick=()=>{SFX.swoosh();S.idx--;quiz("in-left");};
   if($("#next"))$("#next").onclick=()=>{SFX.swoosh();S.idx++;quiz("in-right");};
   if($("#res"))$("#res").onclick=()=>results(true);
@@ -548,11 +558,11 @@ function quiz(anim){
   if(showMem){let t=ex.memory.secs;const tick=()=>{t--;const cd=$("#cd");if(!cd)return;SFX.tick();if(t<=0){S.memShown[S.idx]=true;quiz("in-fade");}else{cd.textContent=t;memTimer=setTimeout(tick,1000);}};memTimer=setTimeout(tick,1000);}
 }
 let leaveAsked=false;
-function confirmLeave(){if(leaveAsked){leaveAsked=false;return true;}leaveAsked=true;toast("Çıkmak için ✕'e tekrar dokunun (cevaplar kaybolur)");setTimeout(()=>leaveAsked=false,2500);return false;}
+function confirmLeave(){if(leaveAsked){leaveAsked=false;return true;}leaveAsked=true;toast(U().leave);setTimeout(()=>leaveAsked=false,2500);return false;}
 let finAsked=false;
 function finish(){
   const empty=S.answers.filter(a=>a===null).length;
-  if(empty&&!finAsked){finAsked=true;toast(`${empty} sayfa boş! Boş olanlar yanlış sayılır. Bitirmek için tekrar dokunun.`);setTimeout(()=>finAsked=false,3000);return;}
+  if(empty&&!finAsked){finAsked=true;toast(U().empty(empty));setTimeout(()=>finAsked=false,3000);return;}
   finAsked=false;S.time=Date.now()-S.start;S.review=true;
   const res=dayResult(S.day,S.answers);const prev=store.days[S.day];
   store.days[S.day]={best:Math.max(prev?prev.best:0,res.correct),lastCorrect:res.correct,answers:S.answers.slice(),time:S.time,date:new Date().toISOString().slice(0,10)};
@@ -565,28 +575,28 @@ function dayResult(day,answers){
 }
 function skillRows(sk){
   const ks=Object.keys(sk).sort((a,b)=>sk[b].c/sk[b].t-sk[a].c/sk[a].t||sk[b].t-sk[a].t);
-  if(!ks.length)return`<p class="empty">Henüz veri yok. Haritadan bir gün tamamlayın! 🗺️</p>`;
+  if(!ks.length)return`<p class="empty">${U().noData}</p>`;
   return ks.map((k,i)=>{const p=Math.round(sk[k].c/sk[k].t*100);const cls=p>=80?"good":p>=50?"mid":"low";
-    return`<div class="skrow" style="animation-delay:${i*.04}s">${skillTile(k)}<div class="nm">${SKILLS[k][1]} <small>(${sk[k].c}/${sk[k].t})</small></div><div class="bar"><i class="${cls}" data-w="${p}"></i></div><div class="pc">%${p}</div></div>`;}).join("");
+    return`<div class="skrow" style="animation-delay:${i*.04}s">${skillTile(k)}<div class="nm">${skName(k)} <small>(${sk[k].c}/${sk[k].t})</small></div><div class="bar"><i class="${cls}" data-w="${p}"></i></div><div class="pc">%${p}</div></div>`;}).join("");
 }
 function growBars(){setTimeout(()=>document.querySelectorAll(".bar>i[data-w]").forEach(b=>b.style.width=b.dataset.w+"%"),120);}
 function results(quiet){
   const res=dayResult(S.day,S.answers);const n=starCount(res.correct,PER_DAY);
-  const msg=res.correct>=9?"Muhteşem! 🏆":res.correct>=7?"Süpersin! 🎉":res.correct>=5?"Çok iyi! 👏":"Güzel deneme! 💪";
-  let h=`<div class="topbar"><button class="iconbtn" id="x">🏠</button><span class="flex ttl">Gün ${S.day} sonuçları</span>${muteBtn()}</div>
+  const M=U().msgs,msg=res.correct>=9?M[0]:res.correct>=7?M[1]:res.correct>=5?M[2]:M[3];
+  let h=`<div class="topbar"><button class="iconbtn" id="x">🏠</button><span class="flex ttl">${U().resOf(S.day)}</span>${muteBtn()}</div>
   <div class="score">
     <div class="rays"></div>
     <div class="score-m ${n>=2?"dance":""}">${creature(Object.assign({},MASCOT,{mouth:n>=2?"teeth":"smile"}))}</div>
     <div class="msgrow"><div class="msg">${msg}</div>${bigSpeaker("rspk","")}</div>
     <div class="bigstars">${starsHTML(n,"pop")}</div>
     <div class="big"><span id="cnt">0</span><small> / ${PER_DAY}</small></div>
-    <div class="sub"><span class="ok">✅ Doğru <b>${res.correct}</b></span><span class="no">❌ Yanlış <b>${res.wrong}</b></span><span>🎯 %${res.correct*10}</span>${S.time?`<span>⏱️ ${fmtTime(S.time)}</span>`:""}</div>
+    <div class="sub"><span class="ok">✅ ${U().correct} <b>${res.correct}</b></span><span class="no">❌ ${U().wrong} <b>${res.wrong}</b></span><span>🎯 %${res.correct*10}</span>${S.time?`<span>⏱️ ${fmtTime(S.time)}</span>`:""}</div>
   </div>
-  <h2 class="sec">📋 Sayfa sayfa <small>(dokun, incele)</small></h2><div class="grid10">`;
+  <h2 class="sec">${U().pages} <small>${U().tapReview}</small></h2><div class="grid10">`;
   S.answers.forEach((a,k)=>{const ex=getExercise((S.day-1)*PER_DAY+k);const ok=a===ex.answer;
-    h+=`<button class="tile ${ok?"ok":"no"}" data-k="${k}" style="animation-delay:${.6+k*.07}s"><span class="ic">${ok?"✓":"✗"}</span><b>${k+1}</b><small>${ex.title}</small><em>${a===null?"Boş":LET[a]} → ${LET[ex.answer]}</em></button>`;});
-  h+=`</div><h2 class="sec">🧩 Bugün çalışılan beceriler</h2>${skillRows(res.sk)}
-  <div class="nav"><button class="btn" id="again">🔁 Tekrar</button>${S.day<DAYS?`<button class="btn primary glow" id="nextday">Gün ${S.day+1} ▶</button>`:""}</div>`;
+    h+=`<button class="tile ${ok?"ok":"no"}" data-k="${k}" style="animation-delay:${.6+k*.07}s"><span class="ic">${ok?"✓":"✗"}</span><b>${k+1}</b><small>${titleOf(ex)}</small><em>${a===null?U().blank:LET[a]} → ${LET[ex.answer]}</em></button>`;});
+  h+=`</div><h2 class="sec">${U().todaySkills}</h2>${skillRows(res.sk)}
+  <div class="nav"><button class="btn" id="again">${U().again}</button>${S.day<DAYS?`<button class="btn primary glow" id="nextday">${U().nextDay(S.day+1)}</button>`:""}</div>`;
   render(h,"in-up");growBars();
   $("#x").onclick=()=>{SFX.tap();home();};
   $("#again").onclick=()=>{SFX.go();startDay(S.day);};
@@ -595,23 +605,23 @@ function results(quiet){
   // sayaç
   let c=0;const el=$("#cnt");const step=()=>{if(c>=res.correct)return;c++;el.textContent=c;el.parentNode.classList.remove("bump");void el.offsetWidth;el.parentNode.classList.add("bump");if(!quiet)tone(500+c*60,.08,"triangle",0,.1);setTimeout(step,110);};
   setTimeout(step,400);
-  const sayRes=`${msg.replace(/[^\p{L}\p{N}\s!.,]/gu,"").trim()} On sorudan ${res.correct} tanesini doğru yaptın!`;
+  const sayRes=U().sayRes(msg.replace(/[^\p{L}\p{N}\s!.,]/gu,"").trim(),res.correct);
   if(!quiet){setTimeout(()=>{n>=2?SFX.win():SFX.ok();},300);if(n>=1)setTimeout(confetti,350);setTimeout(()=>speak(sayRes),1700);}
   $("#rspk").onclick=()=>speak(sayRes,true);
 }
 function report(){
   const sk={};let days=0;
   Object.entries(store.days).forEach(([day,v])=>{days++;const r=dayResult(+day,v.answers);Object.entries(r.sk).forEach(([k,x])=>{sk[k]=sk[k]||{c:0,t:0};sk[k].c+=x.c;sk[k].t+=x.t;});});
-  let h=`<div class="topbar"><button class="iconbtn" id="x">🏠</button><span class="flex ttl">📈 Beceri Karnesi</span>${muteBtn()}</div>
-  <div class="card intro"><div class="intro-m">${creature({body:"tall",color:"mavi",eyes:2,top:"ears",arms:"up",mouth:"smile",spots:false,cheeks:true})}</div><p><b>${days}</b> gün tamamlandı. Her günün son denemesine göre becerilerdeki doğru oranı.<br>🟢 %80+ · 🟡 %50–79 · 🔴 %50 altı</p></div>${skillRows(sk)}`;
-  if(days)h+=`<div class="nav"><button class="btn" id="reset">🗑️ İlerlemeyi sıfırla</button></div>`;
+  let h=`<div class="topbar"><button class="iconbtn" id="x">🏠</button><span class="flex ttl">📈 ${U().report}</span>${muteBtn()}</div>
+  <div class="card intro"><div class="intro-m">${creature({body:"tall",color:"mavi",eyes:2,top:"ears",arms:"up",mouth:"smile",spots:false,cheeks:true})}</div><p>${U().repIntro(days)}<br>🟢 %80+ · 🟡 %50–79 · 🔴 %50 altı</p></div>${skillRows(sk)}`;
+  if(days)h+=`<div class="nav"><button class="btn" id="reset">${U().reset}</button></div>`;
   render(h,"in-up");growBars();$("#x").onclick=()=>{SFX.tap();home();};
-  let ask=false;if($("#reset"))$("#reset").onclick=()=>{if(!ask){ask=true;toast("Emin misiniz? Tekrar dokunun.");return;}const m=store.mute;store={days:{},mute:m};save();home();};
+  let ask=false;if($("#reset"))$("#reset").onclick=()=>{if(!ask){ask=true;toast(U().sure);return;}const m=store.mute;store={days:{},mute:m,lang:LG()};save();home();};
 }
 function legend(){
-  let h=`<div class="topbar"><button class="iconbtn" id="x">🏠</button><span class="flex ttl">🏷️ Beceri Simgeleri</span>${muteBtn()}</div>
-  <div class="card intro"><div class="intro-m">${creature({body:"square",color:"mor",eyes:3,top:"horns",arms:"up",mouth:"teeth",spots:true,cheeks:false})}</div><p>Bu simgeler her sayfanın altında yer alır ve alıştırmanın yarar sağladığı alanı gösterir. Mavi kutudaki sayı yaklaşık süredir (± 1 dk).</p></div><div class="legend">`;
-  Object.keys(SKILLS).forEach((k,i)=>h+=`<div class="li" style="animation-delay:${i*.03}s">${skillTile(k)}<span>${SKILLS[k][1]}</span></div>`);
+  let h=`<div class="topbar"><button class="iconbtn" id="x">🏠</button><span class="flex ttl">🏷️ ${U().legend}</span>${muteBtn()}</div>
+  <div class="card intro"><div class="intro-m">${creature({body:"square",color:"mor",eyes:3,top:"horns",arms:"up",mouth:"teeth",spots:true,cheeks:false})}</div><p>${U().legIntro}</p></div><div class="legend">`;
+  Object.keys(SKILLS).forEach((k,i)=>h+=`<div class="li" style="animation-delay:${i*.03}s">${skillTile(k)}<span>${skName(k)}</span></div>`);
   h+=`</div>`;render(h,"in-up");$("#x").onclick=()=>{SFX.tap();home();};
 }
 

@@ -1,5 +1,7 @@
 # Dikkat Atölyesi 🧠
 
+🌍 **Diller:** Türkçe · English · Deutsch · Русский (ana sayfadan seçilir; sorular, arayüz ve seslendirme seçilen dilde)
+
 Çocuklar için (3–5+ yaş) **200 dikkat ve beceri alıştırması** içeren, mobil uyumlu web uygulaması.
 
 - **20 gün × 10 sayfa**, 5 zorluk seviyesi (Seviye 1 · 3 yaş → Seviye 5 · 5+ yaş)

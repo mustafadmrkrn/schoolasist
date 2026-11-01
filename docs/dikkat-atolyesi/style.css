@@ -281,3 +281,14 @@ body.talking .ask-b{box-shadow:0 5px 0 #b9a8ff,0 0 0 4px rgba(124,92,255,.35)}
   .hero-mascot{max-width:260px}
   .wavy{font-size:3rem}
 }
+
+/* ---------- Dil seçimi ---------- */
+.langbar{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.85);backdrop-filter:blur(6px);border-radius:22px;padding:6px;margin-bottom:12px;box-shadow:0 5px 0 #cfe2f2;overflow-x:auto;scrollbar-width:none}
+.langbar::-webkit-scrollbar{display:none}
+.lglbl{font-weight:800;font-size:.85rem;color:var(--muted);padding:0 4px 0 6px;white-space:nowrap}
+.lang{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:7px 8px;border-radius:16px;font-weight:800;font-size:.9rem;white-space:nowrap;transition:transform .15s,background .15s}
+.lang .fl{font-size:1.45rem;line-height:1}
+.lang.on{background:linear-gradient(180deg,#8f7bff,#6a4dff);color:#fff;box-shadow:0 4px 0 #4a2fd1;transform:translateY(-2px)}
+.lang:active{transform:scale(.94)}
+@media (max-width:430px){.lang span:not(.fl){display:none}.lang .fl{font-size:1.7rem}.lang{padding:6px}}
+.wavy{font-size:clamp(1.55rem,7.4vw,2.35rem);word-break:keep-all}@media (min-width:700px){.wavy{font-size:3rem}}
