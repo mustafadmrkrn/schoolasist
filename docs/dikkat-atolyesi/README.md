@@ -2,10 +2,10 @@
 
 🌍 **Diller:** Türkçe · English · Deutsch · Русский (ana sayfadan seçilir; sorular, arayüz ve seslendirme seçilen dilde)
 
-Çocuklar için (3–5+ yaş) **200 dikkat ve beceri alıştırması** içeren, mobil uyumlu web uygulaması.
+Çocuklar için (3–5+ yaş) **500 dikkat ve beceri alıştırması** içeren, mobil uyumlu web uygulaması.
 
-- **20 gün × 10 sayfa**, 5 zorluk seviyesi (Seviye 1 · 3 yaş → Seviye 5 · 5+ yaş)
-- **12 alıştırma türü:** İkizler, Gölgeler, Farklı Olan, Aynısını Bul, Sayalım, Renkler, Büyük–Küçük, Örüntü, Hafıza, Yönler, Gruplar, Çok–Az
+- **50 gün × 10 sayfa**, 5 zorluk seviyesi (Seviye 1 · 3 yaş → Seviye 5 · 5+ yaş)
+- **17 alıştırma türü:** İkizler, Gölgeler, Farklı Olan, Aynısını Bul, Sayalım, Renkler, Büyük–Küçük, Örüntü, Hafıza, Yönler, Gruplar, Çok–Az, Konum, Toplama, Farkları Say, Yarım Resim, Bul Bakalım
 - Her sayfanın altında o alıştırmanın çalıştırdığı **beceri simgeleri** (G.A, D.Y.K, K.S.H, AB …) ve yaklaşık süre
 - Cevaplar seçim sırasında doğru/yanlış diye gösterilmez; **Bitir**'e basınca skor, doğru–yanlış listesi ve beceri bazında sonuç çıkar
 - Sayfa sayfa inceleme (doğru cevap yeşil, yanlış kırmızı)

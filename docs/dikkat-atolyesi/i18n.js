@@ -21,6 +21,17 @@ const RU_S={daire:["круг","m","кругов"],kare:["квадрат","m","к
 const ruAdj=(c,g)=>RU_C[c][g==="m"?0:g==="f"?1:2];
 const RU_BIG={m:["самый большой","самый маленький"],f:["самую большую","самую маленькую"],n:["самое большое","самое маленькое"]};
 const ruSec=n=>n%10===1&&n%100!==11?"секунду":(n%10>=2&&n%10<=4&&(n%100<10||n%100>=20))?"секунды":"секунд";
+const TR_GEN={daire:"dairenin",kare:"karenin",ucgen:"üçgenin",yildiz:"yıldızın",kalp:"kalbin",bulut:"bulutun"};
+const TR_POS={above:"üstünde",below:"altında",left:"solunda",right:"sağında"};
+const EN_POS={above:"above",below:"below",left:"to the left of",right:"to the right of"};
+const DE_POS={above:"über",below:"unter",left:"links neben",right:"rechts neben"};
+const RU_INS={kirmizi:"красным",mavi:"синим",yesil:"зелёным",sari:"жёлтым",turuncu:"оранжевым",mor:"фиолетовым",pembe:"розовым"};
+const RU_FOBL={kirmizi:"красной",mavi:"синей",yesil:"зелёной",sari:"жёлтой",turuncu:"оранжевой",mor:"фиолетовой",pembe:"розовой"};
+const RU_SI={daire:"кругом",kare:"квадратом",ucgen:"треугольником",yildiz:"звездой",kalp:"сердцем",bulut:"облаком"};
+const RU_SG={daire:"круга",kare:"квадрата",ucgen:"треугольника",yildiz:"звезды",kalp:"сердца",bulut:"облака"};
+function ruPos(rel,c,s){const g=RU_S[s][1];
+  if(rel==="above"||rel==="below")return(rel==="above"?"над ":"под ")+(g==="f"?RU_FOBL[c]:RU_INS[c])+" "+RU_SI[s];
+  return(rel==="left"?"слева от ":"справа от ")+(g==="f"?RU_FOBL[c]:RU_C[c][3])+" "+RU_SG[s];}
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 
 const SKILL_NAMES={
@@ -36,10 +47,10 @@ const SKILL_CODES={
 };
 
 const TITLES={
- tr:{twins:"İkizler",shadow:"Gölgeler",odd:"Farklı Olan",match:"Aynısını Bul",count:"Sayalım",color:"Renkler",size:"Büyük – Küçük",pattern:"Örüntü",memory:"Hafıza",direction:"Yönler",category:"Gruplar",more:"Çok – Az"},
- en:{twins:"Twins",shadow:"Shadows",odd:"Odd One Out",match:"Find the Same",count:"Let's Count",color:"Colors",size:"Big – Small",pattern:"Pattern",memory:"Memory",direction:"Directions",category:"Groups",more:"More – Less"},
- de:{twins:"Zwillinge",shadow:"Schatten",odd:"Was ist anders?",match:"Finde das Gleiche",count:"Zählen",color:"Farben",size:"Groß – Klein",pattern:"Muster",memory:"Gedächtnis",direction:"Richtungen",category:"Gruppen",more:"Mehr – Weniger"},
- ru:{twins:"Близнецы",shadow:"Тени",odd:"Кто отличается?",match:"Найди такой же",count:"Считаем",color:"Цвета",size:"Большой – маленький",pattern:"Узор",memory:"Память",direction:"Направления",category:"Группы",more:"Больше – меньше"}
+ tr:{position:"Konum",add:"Toplama",diff:"Farkları Say",half:"Yarım Resim",search:"Bul Bakalım",twins:"İkizler",shadow:"Gölgeler",odd:"Farklı Olan",match:"Aynısını Bul",count:"Sayalım",color:"Renkler",size:"Büyük – Küçük",pattern:"Örüntü",memory:"Hafıza",direction:"Yönler",category:"Gruplar",more:"Çok – Az"},
+ en:{position:"Where Is It?",add:"Adding",diff:"Spot the Differences",half:"Half Picture",search:"Seek and Find",twins:"Twins",shadow:"Shadows",odd:"Odd One Out",match:"Find the Same",count:"Let's Count",color:"Colors",size:"Big – Small",pattern:"Pattern",memory:"Memory",direction:"Directions",category:"Groups",more:"More – Less"},
+ de:{position:"Wo ist es?",add:"Plus",diff:"Unterschiede",half:"Halbes Bild",search:"Such mal!",twins:"Zwillinge",shadow:"Schatten",odd:"Was ist anders?",match:"Finde das Gleiche",count:"Zählen",color:"Farben",size:"Groß – Klein",pattern:"Muster",memory:"Gedächtnis",direction:"Richtungen",category:"Gruppen",more:"Mehr – Weniger"},
+ ru:{position:"Где это?",add:"Сложение",diff:"Отличия",half:"Половинка",search:"Найди!",twins:"Близнецы",shadow:"Тени",odd:"Кто отличается?",match:"Найди такой же",count:"Считаем",color:"Цвета",size:"Большой – маленький",pattern:"Узор",memory:"Память",direction:"Направления",category:"Группы",more:"Больше – меньше"}
 };
 
 function prompt(lang,p){
@@ -57,6 +68,11 @@ function prompt(lang,p){
     case"direction":return"Diğerlerinden farklı yöne bakan balık hangisi?";
     case"category":return"Hangisi bu gruba ait değil?";
     case"more":return`Hangi kutuda ${p.few?"en az":"en çok"} ${TR_S[s][0]} var?`;
+    case"position":return`${TR_C[c]} ${TR_GEN[s]} ${TR_POS[p.rel]} hangisi var?`;
+    case"add":return`İki kutuda toplam kaç tane ${TR_S[s][0]} var?`;
+    case"diff":return"İki resim arasında kaç fark var?";
+    case"half":return"Bu yarım resmin tamamı hangisi?";
+    case"search":return"Farklı olanı bul ve ona dokun!";
   }
   if(lang==="en")switch(k){
     case"twins":return"Which twins are exactly the same?";
@@ -71,6 +87,11 @@ function prompt(lang,p){
     case"direction":return"Which fish is facing a different way?";
     case"category":return"Which one does not belong to the group?";
     case"more":return`Which box has the ${p.few?"fewest":"most"} ${EN_S[s][1]}?`;
+    case"position":return`What is ${EN_POS[p.rel]} the ${EN_C[c]} ${EN_S[s][0]}?`;
+    case"add":return`How many ${EN_S[s][1]} are there in both boxes together?`;
+    case"diff":return"How many differences are there between the two pictures?";
+    case"half":return"Which whole monster does this half belong to?";
+    case"search":return"Find the different one and tap it!";
   }
   if(lang==="de"){const S=DE_S[s]||[],g=S[1];switch(k){
     case"twins":return"Welche Zwillinge sind ganz genau gleich?";
@@ -85,6 +106,11 @@ function prompt(lang,p){
     case"direction":return"Welcher Fisch schaut in eine andere Richtung?";
     case"category":return"Was passt nicht in die Gruppe?";
     case"more":return`In welcher Kiste sind die ${p.few?"wenigsten":"meisten"} ${S[2]}?`;
+    case"position":return`Was ist ${DE_POS[p.rel]} ${g==="f"?"der":"dem"} ${DE_C[c][1]?DE_C[c][0]:DE_C[c][0]+"en"} ${S[0]==="Herz"?"Herzen":S[0]}?`;
+    case"add":return`Wie viele ${S[2]} sind es in beiden Kisten zusammen?`;
+    case"diff":return"Wie viele Unterschiede gibt es zwischen den zwei Bildern?";
+    case"half":return"Zu welchem Monster gehört diese Hälfte?";
+    case"search":return"Finde das andere Bild und tippe darauf!";
   }}
   if(lang==="ru"){const S=RU_S[s]||[],g=S[1];switch(k){
     case"twins":return"Какие близнецы совсем одинаковые?";
@@ -99,6 +125,11 @@ function prompt(lang,p){
     case"direction":return"Какая рыбка смотрит в другую сторону?";
     case"category":return"Что здесь лишнее?";
     case"more":return`В какой коробке ${p.few?"меньше":"больше"} всего ${S[2]}?`;
+    case"position":return`Что находится ${ruPos(p.rel,c,s)}?`;
+    case"add":return`Сколько всего ${S[2]} в двух коробках?`;
+    case"diff":return"Сколько отличий между двумя картинками?";
+    case"half":return"Какому монстрику принадлежит эта половинка?";
+    case"search":return"Найди картинку, которая отличается, и нажми на неё!";
   }}
   return"";
 }
@@ -115,7 +146,7 @@ const UI={
  tr:{name:"Türkçe",flag:"🇹🇷",voice:"tr-TR",title:["Dikkat","Atölyesi"],mascot:"Pıtırcık",
   hello:(m,done)=>`Merhaba! Ben <b>${m}</b>. ${done?"Harika gidiyorsun!":"Hadi birlikte oynayalım!"}`,
   helloSay:(m,done)=>`Merhaba! Ben ${m}. ${done?"Harika gidiyorsun!":"Hadi birlikte oynayalım!"} Oynamak için sarı düğmeye bas. Her soruyu ben okuyacağım. Anlamazsan hoparlöre dokun, tekrar söylerim.`,
-  start:d=>`▶ Oyna: Gün ${d}`,days:"/20 gün",success:"başarı",stars:"/60 yıldız",report:"Beceri Karnesi",legend:"Beceri Simgeleri",map:"Macera Haritası",go:"OYNA!",
+  start:d=>`▶ Oyna: Gün ${d}`,days:"/50 gün",success:"başarı",stars:"/150 yıldız",report:"Beceri Karnesi",legend:"Beceri Simgeleri",map:"Macera Haritası",go:"OYNA!",
   zones:["Çayır Vadisi","Mavi Göl","Mor Orman","Turuncu Kanyon","Yıldız Tepesi"],levels:["Seviye 1 · 3 yaş","Seviye 2 · 3-4 yaş","Seviye 3 · 4 yaş","Seviye 4 · 4-5 yaş","Seviye 5 · 5+ yaş"],
   parent:"👨‍👩‍👧 Ebeveyn ve öğretmen için",parentP:["👆 Çocuk her sayfada cevabı seçer. Doğru/yanlış <b>hemen söylenmez</b>.","🔊 Her soru otomatik okunur. Sarı hoparlöre dokununca tekrar dinlenir.","🏁 10 sayfa bitince <b>Bitir</b>: skor, doğru-yanlış listesi ve becerilere göre sonuç.","🏷️ Sayfanın altındaki simgeler alıştırmanın geliştirdiği beceriler; dokununca adı yazar. Mavi kutu yaklaşık süredir (± 1 dk)."],
   saved:"İlerleme bu cihazda saklanır.",lang:"Dil",day:"Gün",review:"İnceleme",listen:"Tekrar dinle",listenS:"Dinle",next:"İleri ▶",finish:"Bitir 🏁",results:"Sonuçlar 📊",min:"Dakika",
@@ -128,7 +159,7 @@ const UI={
  en:{name:"English",flag:"🇬🇧",voice:"en-US",title:["Attention","Lab"],mascot:"Pip",
   hello:(m,done)=>`Hello! I'm <b>${m}</b>. ${done?"You're doing great!":"Let's play together!"}`,
   helloSay:(m,done)=>`Hello! I'm ${m}. ${done?"You're doing great!":"Let's play together!"} Press the yellow button to play. I will read every question. If you don't understand, tap the speaker and I'll say it again.`,
-  start:d=>`▶ Play Day ${d}`,days:"/20 days",success:"correct",stars:"/60 stars",report:"Skills Report",legend:"Skill Icons",map:"Adventure Map",go:"PLAY!",
+  start:d=>`▶ Play Day ${d}`,days:"/50 days",success:"correct",stars:"/150 stars",report:"Skills Report",legend:"Skill Icons",map:"Adventure Map",go:"PLAY!",
   zones:["Meadow Valley","Blue Lake","Purple Forest","Orange Canyon","Star Hill"],levels:["Level 1 · age 3","Level 2 · age 3-4","Level 3 · age 4","Level 4 · age 4-5","Level 5 · age 5+"],
   parent:"👨‍👩‍👧 For parents and teachers",parentP:["👆 The child picks an answer on each page. Right or wrong is <b>not shown right away</b>.","🔊 Every question is read aloud. Tap the yellow speaker to hear it again.","🏁 After 10 pages press <b>Finish</b>: score, right/wrong list and results by skill.","🏷️ The icons at the bottom show the skills each exercise trains; tap one to see its name. The blue box is the approximate time (± 1 min)."],
   saved:"Progress is saved on this device.",lang:"Language",day:"Day",review:"Review",listen:"Listen again",listenS:"Listen",next:"Next ▶",finish:"Finish 🏁",results:"Results 📊",min:"min",
@@ -141,7 +172,7 @@ const UI={
  de:{name:"Deutsch",flag:"🇩🇪",voice:"de-DE",title:["Fokus-","Werkstatt"],mascot:"Pipo",
   hello:(m,done)=>`Hallo! Ich bin <b>${m}</b>. ${done?"Du machst das super!":"Lass uns zusammen spielen!"}`,
   helloSay:(m,done)=>`Hallo! Ich bin ${m}. ${done?"Du machst das super!":"Lass uns zusammen spielen!"} Drück auf den gelben Knopf, um zu spielen. Ich lese dir jede Frage vor. Wenn du etwas nicht verstehst, tipp auf den Lautsprecher, dann sage ich es noch einmal.`,
-  start:d=>`▶ Tag ${d} spielen`,days:"/20 Tage",success:"richtig",stars:"/60 Sterne",report:"Fähigkeiten-Zeugnis",legend:"Symbole",map:"Abenteuerkarte",go:"LOS!",
+  start:d=>`▶ Tag ${d} spielen`,days:"/50 Tage",success:"richtig",stars:"/150 Sterne",report:"Fähigkeiten-Zeugnis",legend:"Symbole",map:"Abenteuerkarte",go:"LOS!",
   zones:["Wiesental","Blauer See","Lila Wald","Orange Schlucht","Sternenhügel"],levels:["Stufe 1 · 3 Jahre","Stufe 2 · 3-4 Jahre","Stufe 3 · 4 Jahre","Stufe 4 · 4-5 Jahre","Stufe 5 · 5+ Jahre"],
   parent:"👨‍👩‍👧 Für Eltern und Lehrkräfte",parentP:["👆 Das Kind wählt auf jeder Seite eine Antwort. Richtig oder falsch wird <b>nicht sofort gezeigt</b>.","🔊 Jede Frage wird vorgelesen. Auf den gelben Lautsprecher tippen, um sie noch einmal zu hören.","🏁 Nach 10 Seiten <b>Fertig</b> drücken: Punktzahl, Liste mit richtig/falsch und Ergebnis nach Fähigkeiten.","🏷️ Die Symbole unten zeigen, welche Fähigkeiten geübt werden; antippen zeigt den Namen. Das blaue Feld ist die ungefähre Zeit (± 1 Min.)."],
   saved:"Der Fortschritt wird auf diesem Gerät gespeichert.",lang:"Sprache",day:"Tag",review:"Rückblick",listen:"Nochmal hören",listenS:"Hören",next:"Weiter ▶",finish:"Fertig 🏁",results:"Ergebnis 📊",min:"Min.",
@@ -154,7 +185,7 @@ const UI={
  ru:{name:"Русский",flag:"🇷🇺",voice:"ru-RU",title:["Мастерская","внимания"],mascot:"Пип",
   hello:(m,done)=>`Привет! Я <b>${m}</b>. ${done?"У тебя отлично получается!":"Давай играть вместе!"}`,
   helloSay:(m,done)=>`Привет! Я ${m}. ${done?"У тебя отлично получается!":"Давай играть вместе!"} Чтобы начать, нажми на жёлтую кнопку. Я прочитаю каждый вопрос. Если не понял, нажми на динамик, и я повторю.`,
-  start:d=>`▶ Играть: день ${d}`,days:"/20 дней",success:"верно",stars:"/60 звёзд",report:"Табель навыков",legend:"Значки навыков",map:"Карта приключений",go:"ИГРАТЬ!",
+  start:d=>`▶ Играть: день ${d}`,days:"/50 дней",success:"верно",stars:"/150 звёзд",report:"Табель навыков",legend:"Значки навыков",map:"Карта приключений",go:"ИГРАТЬ!",
   zones:["Луговая долина","Синее озеро","Фиолетовый лес","Оранжевый каньон","Звёздный холм"],levels:["Уровень 1 · 3 года","Уровень 2 · 3–4 года","Уровень 3 · 4 года","Уровень 4 · 4–5 лет","Уровень 5 · 5+ лет"],
   parent:"👨‍👩‍👧 Для родителей и педагогов",parentP:["👆 Ребёнок выбирает ответ на каждой странице. Верно или нет — <b>сразу не показывается</b>.","🔊 Каждый вопрос читается вслух. Нажмите на жёлтый динамик, чтобы послушать ещё раз.","🏁 После 10 страниц нажмите <b>Готово</b>: баллы, список верных и неверных ответов и итоги по навыкам.","🏷️ Значки внизу показывают, какие навыки развивает упражнение; нажмите, чтобы увидеть название. Синий квадрат — примерное время (± 1 мин)."],
   saved:"Прогресс сохраняется на этом устройстве.",lang:"Язык",day:"День",review:"Разбор",listen:"Ещё раз",listenS:"Слушать",next:"Далее ▶",finish:"Готово 🏁",results:"Итоги 📊",min:"мин",

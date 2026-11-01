@@ -1,4 +1,4 @@
-/* Dikkat Atölyesi – 200 alıştırma, 20 gün x 10 sayfa */
+/* Dikkat Atölyesi – 500 alıştırma, 50 gün x 10 sayfa */
 (function(){
 "use strict";
 
@@ -7,7 +7,7 @@ function rngFrom(seed){let a=seed>>>0;return function(){a|=0;a=a+0x6D2B79F5|0;le
 const ri=(r,a,b)=>a+Math.floor(r()*(b-a+1));
 const pick=(r,arr)=>arr[Math.floor(r()*arr.length)];
 function shuffle(r,arr){arr=arr.slice();for(let i=arr.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
-const LET="ABCDEF";
+const LET="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const $=s=>document.querySelector(s);
 
 /* ================= Beceriler ================= */
@@ -163,7 +163,7 @@ const TYPE_INFO={
   more:{skills:["AB","YY","GA","GY","S"],min:2},
   match:{skills:["GA","BEN","DAV","GY","DSA","EGK"],min:2}
 };
-const TYPE_ORDER=["twins","count","shadow","color","odd","pattern","memory","size","match","category","direction","more"];
+const TYPE_ORDER=["twins","count","shadow","color","odd","position","pattern","memory","size","search","match","add","category","half","direction","diff","more"];
 
 const FEATS_D=[["color","body"],["color","body","top","arms"],["top","arms","eyes","mouth"],["eyes","mouth","spots","top","arms"],["spots","cheeks","mouth","eyes"]];
 const SIL_D=[["body"],["body","top"],["body","top","arms"],["top","arms"],["top","arms"]];
@@ -331,23 +331,102 @@ const GEN={
   }
 };
 
-const TOTAL=200,PER_DAY=10,DAYS=TOTAL/PER_DAY;
+/* ===== Yeni alıştırma türleri ===== */
+function halfCreature(c){
+  return creature(c,{still:true}).replace('viewBox="0 0 100 100" class="art"','viewBox="0 0 51 100" class="art" style="overflow:hidden;max-height:200px"').replace(/<\/svg>$/,'<line x1="50.5" y1="2" x2="50.5" y2="98" stroke="#ff7a3d" stroke-width="1.4" stroke-dasharray="3 3"/></svg>');
+}
+const SEARCH_PAIRS=[
+  [["🍎","🍌"],["🐶","🐱"],["⭐","❤️"],["🚗","🚀"],["🌞","🌧️"]],
+  [["🐱","🐶"],["🍓","🍒"],["🌞","🌙"],["🐸","🐢"],["🎈","⚽"]],
+  [["🍊","🍑"],["🐻","🐼"],["🚗","🚕"],["🐝","🐞"],["🌷","🌹"]],
+  [["😀","😃"],["🐟","🐠"],["🌳","🌲"],["🍏","🍎"],["🐮","🐷"]],
+  [["😊","🙂"],["🐭","🐹"],["⚽","🏐"],["🌼","🌻"],["🐤","🐥"]]
+];
+Object.assign(TYPE_INFO,{
+  position:{skills:["UMY","GA","SB","KBA","DYK"],min:1},
+  add:{skills:["AB","DBG","GY","S"],min:1},
+  diff:{skills:["DAV","GA","DSA","GY","BEN"],min:2},
+  half:{skills:["PBI","BA","GA","GH","UMY"],min:1},
+  search:{skills:["DYK","GY","DAV","GA","DSA","EGK"],min:1}
+});
+Object.assign(GEN,{
+  position(r,d){
+    const n=[4,5,6,7,8][d];const cells=shuffle(r,[...Array(9).keys()]).slice(0,n);
+    const items=[];const seen=new Set();let g=0;
+    const shapes=shuffle(r,SHAPE_KEYS);
+    while(items.length<n&&g++<300){
+      const k=d<2?shapes[items.length%shapes.length]:pick(r,SHAPE_KEYS),c=pick(r,COLORS).k;
+      if(d<2&&items.some(x=>x[0]===k))continue;
+      if(!seen.has(k+c)){seen.add(k+c);items.push([k,c]);}
+    }
+    while(items.length<n){items.push([pick(r,SHAPE_KEYS),pick(r,COLORS).k]);}
+    const at={};cells.forEach((c,i)=>at[c]=i);
+    const rels=d<1?["above","below"]:["above","below","left","right"];
+    const cands=[];
+    cells.forEach((c,i)=>{const x=c%3,y=Math.floor(c/3);rels.forEach(rel=>{const nc=rel==="above"?(y>0?c-3:-1):rel==="below"?(y<2?c+3:-1):rel==="left"?(x>0?c-1:-1):(x<2?c+1:-1);if(nc>=0&&at[nc]!==undefined)cands.push([i,at[nc],rel]);});});
+    let ref,tgt,rel;
+    if(cands.length){[ref,tgt,rel]=pick(r,cands);}else{ref=0;tgt=1;rel="above";}
+    const others=items.filter((_,i)=>i!==ref&&i!==tgt);
+    const nOpt=d<1?3:4;
+    const p=placeAnswer(r,items[tgt],shuffle(r,others).slice(0,nOpt-1));
+    let svg=`<svg viewBox="0 0 240 240" class="art" style="width:100%;max-width:300px">`;
+    for(let c=0;c<9;c++)svg+=`<rect x="${4+(c%3)*78}" y="${4+Math.floor(c/3)*78}" width="76" height="76" rx="14" fill="${(c+Math.floor(c/3))%2?"#fff":"#fff3dc"}" stroke="#ffd28a" stroke-width="2"/>`;
+    cells.forEach((c,i)=>{svg+=shapeEl(items[i][0],items[i][1],42+(c%3)*78,40+Math.floor(c/3)*78,24);});
+    svg+=`</svg>`;
+    return{pr:{k:"position",s:items[ref][0],c:items[ref][1],rel},stim:svg,
+      options:p.items.map(x=>shapeSVG(x[0],x[1],.85)),answer:p.answer,cols:p.items.length===4?"cols4":"cols3"};
+  },
+  add(r,d){
+    const mx=[5,6,8,10,12][d];const k=pick(r,SHAPE_KEYS),c=pick(r,COLORS).k;
+    const a=ri(r,1,Math.min(5,mx-1)),b=ri(r,1,Math.min(6,mx-a)),t=a+b;
+    const box=(cnt,x0)=>{const cells=shuffle(r,[...Array(9).keys()]);let s=`<rect x="${x0}" y="4" width="112" height="112" rx="16" fill="#fff" stroke="#ffd28a" stroke-width="3"/>`;for(let i=0;i<cnt;i++){const cc=cells[i];s+=shapeEl(k,c,x0+20+(cc%3)*36,24+Math.floor(cc/3)*36,12);}return s;};
+    let svg=`<svg viewBox="0 0 280 120" class="art" style="width:100%">${box(a,4)}<text x="140" y="74" font-size="44" font-weight="800" text-anchor="middle" fill="#ff7a3d">+</text>${box(b,164)}</svg>`;
+    const set=new Set([t]);for(const x of shuffle(r,[t-2,t-1,t+1,t+2].filter(x=>x>0))){if(set.size>=(d<1?3:4))break;set.add(x);}
+    const opts=[...set].sort((x,y)=>x-y);
+    return{pr:{k:"add",s:k},stim:svg,options:opts.map(x=>`<div class="num">${x}</div>`),answer:opts.indexOf(t),cols:opts.length===4?"cols4":"cols3"};
+  },
+  diff(r,d){
+    const base=randomCreature(r);
+    const pool=d<1?["color","top","arms","body","eyes"]:d<3?["top","arms","eyes","mouth","spots","body"]:["top","arms","eyes","mouth","spots","cheeks"];
+    const maxN=d<1?2:d<3?3:4;const n=ri(r,1,maxN);
+    const feats=shuffle(r,pool).slice(0,n);let m=Object.assign({},base);
+    feats.forEach(f=>{m[f]=pick(r,FEAT_VALUES[f].filter(v=>v!==base[f]));});
+    const opts=d<1?[1,2,3]:[1,2,3,4];
+    const stim=`<div class="duo"><div>${creature(base,{still:true})}</div><div class="vs">≠</div><div>${creature(m,{still:true})}</div></div>`;
+    return{pr:{k:"diff"},stim,options:opts.map(x=>`<div class="num">${x}</div>`),answer:opts.indexOf(n),cols:opts.length===4?"cols4":"cols3"};
+  },
+  half(r,d){
+    const FE=[["color","body"],["body","top","arms","color"],["top","arms","eyes","spots"],["top","arms","eyes","spots","cheeks"],["eyes","spots","cheeks","arms"]][d];
+    const n=d<1?3:4;const c=randomCreature(r);
+    const w=distinctMutations(r,c,FE,n-1,ckey);
+    const p=placeAnswer(r,c,w);
+    return{pr:{k:"half"},stim:halfCreature(c),options:p.items.map(x=>creature(x)),answer:p.answer,cols:n===4?"cols4":"cols3"};
+  },
+  search(r,d){
+    const pr=pick(r,SEARCH_PAIRS[d]);const sw=r()<.5;const same=sw?pr[1]:pr[0],odd=sw?pr[0]:pr[1];
+    const n=[6,9,12,16,20][d];const pos=ri(r,0,n-1);
+    const opts=[];for(let i=0;i<n;i++)opts.push(`<div class="emo">${i===pos?odd:same}</div>`);
+    return{pr:{k:"search"},options:opts,answer:pos,cols:(n<=9?"cols3":n<=16?"cols4":"cols5")+" emogrid"};
+  }
+});
+
+const TOTAL=500,PER_DAY=10,DAYS=TOTAL/PER_DAY;
 const cache={};
 function getExercise(i){
   if(cache[i])return cache[i];
   const type=TYPE_ORDER[i%TYPE_ORDER.length];
-  const d=Math.min(4,Math.floor(i/40));
+  const d=Math.min(4,Math.floor(i/100));
   const r=rngFrom(1000+i*7919);
   const ex=GEN[type](r,d);
   ex.type=type;ex.d=d;ex.no=i+1;ex.skills=TYPE_INFO[type].skills;ex.min=TYPE_INFO[type].min+(d>=3?1:0);
   return cache[i]=ex;
 }
 const LEVELS=["Seviye 1 · 3 yaş","Seviye 2 · 3-4 yaş","Seviye 3 · 4 yaş","Seviye 4 · 4-5 yaş","Seviye 5 · 5+ yaş"];
-const dayLevel=day=>Math.min(4,Math.floor(((day-1)*PER_DAY)/40));
+const dayLevel=day=>Math.min(4,Math.floor(((day-1)*PER_DAY)/100));
 
 /* ================= Kayıt ================= */
-const KEY="dikkat-atolyesi-v1";
-function load(){try{return JSON.parse(localStorage.getItem(KEY))||{days:{}};}catch(e){return{days:{}};}}
+const KEY="dikkat-atolyesi-v2";
+function load(){try{const v=JSON.parse(localStorage.getItem(KEY));if(v)return v;const o=JSON.parse(localStorage.getItem("dikkat-atolyesi-v1")||"{}");return{days:{},lang:o.lang,mute:o.mute};}catch(e){return{days:{}};}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(store));}catch(e){}}
 let store=load();if(!store.days)store.days={};
 
@@ -450,7 +529,7 @@ function home(){
   let correct=0,starsTot=0;Object.values(store.days).forEach(v=>{correct+=v.lastCorrect;starsTot+=starCount(v.best,PER_DAY);});
   const cur=currentDay();
   let li=0;const title=U().title.map(w=>[...w].map(ch=>`<span style="animation-delay:${(li++)*.08}s">${ch}</span>`).join("")).join("<br>");
-  document.documentElement.lang=LG();document.title=U().title.join(" ").replace("- ","-")+" – 200";
+  document.documentElement.lang=LG();document.title=U().title.join(" ").replace("- ","-")+" – 500";
   const langs=I18N.LANGS.map(l=>`<button class="lang ${l===LG()?"on":""}" data-lang="${l}"><span class="fl">${I18N.UI[l].flag}</span><span>${I18N.UI[l].name}</span></button>`).join("");
   let h=`<div class="topbar"><span class="logo">🧠</span><span class="flex"></span><span class="chip">⭐ ${starsTot}</span>${muteBtn()}</div>
   <div class="langbar"><span class="lglbl">🌍 ${U().lang}</span>${langs}</div>
@@ -625,6 +704,6 @@ function legend(){
   h+=`</div>`;render(h,"in-up");$("#x").onclick=()=>{SFX.tap();home();};
 }
 
-window.__DA={getExercise,TOTAL};
+window.__DA={getExercise,TOTAL,TYPE_ORDER};
 svgDefs();buildBg();home();
 })();
