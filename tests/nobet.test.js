@@ -90,4 +90,45 @@ function ogretmenUret(n, gunler) {
   assert.ok(s.sayaclar[ogretmenler[0].ad] <= 1);
 })();
 
+// 6) Altı hafta: her hafta tüm kontenjan dolar, aynı gün iki görev yok, toplam dağılım adil,
+//    haftalık sınır her hafta ayrı uygulanır, yerler haftalar arasında döner
+(function () {
+  var ogretmenler = ogretmenUret(12);
+  ogretmenler[0].haftalikMax = 1;
+  ogretmenler[1].gunler = [0, 2, 4];
+  var s = ctx.olusturNobetCizelgesi({
+    yerler: [{ ad: 'Bahçe', kisi: 2 }, { ad: 'Zemin', kisi: 1 }, { ad: 'Kantin', kisi: 1 }],
+    ogretmenler: ogretmenler,
+    haftaSayisi: 6
+  });
+  assert.strictEqual(s.atamalar.length, 6 * 5 * 4);
+  assert.strictEqual(s.uyarilar.length, 0);
+  assert.strictEqual(s.haftalik.length, 6);
+  var gorulen = {};
+  s.atamalar.forEach(function (a) {
+    assert.ok(a.hafta >= 0 && a.hafta < 6);
+    var k = a.hafta + '|' + a.gun + '|' + a.ogretmen;
+    assert.ok(!gorulen[k], 'Aynı gün iki görev: ' + k);
+    gorulen[k] = 1;
+    if (a.ogretmen === ogretmenler[1].ad) assert.ok([0, 2, 4].indexOf(a.gun) > -1);
+  });
+  s.haftalik.forEach(function (h) { assert.ok(h[ogretmenler[0].ad] <= 1, 'haftalık sınır aşıldı'); });
+  var serbest = Object.keys(s.sayaclar).filter(function (k) { return k !== ogretmenler[0].ad; }).map(function (k) { return s.sayaclar[k]; });
+  var fark = Math.max.apply(null, serbest) - Math.min.apply(null, serbest);
+  assert.ok(fark <= 1, '6 haftalık dağılım adil değil, fark: ' + fark + ' ' + JSON.stringify(s.sayaclar));
+  // Kimse 6 hafta boyunca hep aynı yerde olmasın
+  var yerler = {};
+  s.atamalar.forEach(function (a) { (yerler[a.ogretmen] = yerler[a.ogretmen] || {})[a.yer] = 1; });
+  Object.keys(yerler).forEach(function (ad) {
+    if (s.sayaclar[ad] >= 4) assert.ok(Object.keys(yerler[ad]).length >= 2, ad + ' hep aynı yerde');
+  });
+  // Haftalar birbirinin aynısı olmasın
+  var hafta = function (h) { return JSON.stringify(s.atamalar.filter(function (a) { return a.hafta === h; }).map(function (a) { return a.gun + a.yer + a.ogretmen; })); };
+  assert.notStrictEqual(hafta(0), hafta(1));
+  // Varsayılan tek hafta, atamalarda hafta 0
+  var t = ctx.olusturNobetCizelgesi({ yerler: [{ ad: 'B', kisi: 1 }], ogretmenler: ogretmenUret(3) });
+  assert.ok(t.atamalar.every(function (a) { return a.hafta === 0; }));
+  assert.strictEqual(t.haftalik.length, 1);
+})();
+
 console.log('Tüm testler geçti.');

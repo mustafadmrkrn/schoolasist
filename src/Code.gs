@@ -1,4 +1,4 @@
-var SURUM = '29.10.2026.3';
+var SURUM = '06.11.2026';
 
 /**
  * Web uygulaması giriş noktası.
