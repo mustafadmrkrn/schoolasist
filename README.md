@@ -3,7 +3,7 @@
 Öğretmenlerin gündelik işlerini kolaylaştıran, tek sayfalık Google Apps Script web uygulaması.
 Kullanıcı adı, şifre ve e-posta doğrulamasıyla girilir; soldaki menüden istenen araç seçilir.
 
-**Uygulamayı aç:** https://script.google.com/macros/s/AKfycbybTiZrUY-5rE21rwLKE5bfzOTRrpqKiRizeU7QI5dC8KicSPiKUvbqFyZxJHYC8aV7Aw/exec
+**Uygulamayı aç:** https://script.google.com/macros/s/AKfycbxun3_UR1iNKQziVebfyru7XiWQvuQcfUQGjX10krqHbQe7GhAZsEowOxr_QmQPJIlAuA/exec
 
 GitHub sayfası (`https://mustafadmrkrn.github.io/schoolasist/`) bu adrese yönlendirir. Kurulumsuz deneme için
 önizleme: `https://mustafadmrkrn.github.io/schoolasist/onizleme.html` (e-posta göndermez, veriler yalnızca o
