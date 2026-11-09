@@ -1337,6 +1337,7 @@ function yksOgrenciAnalizi(ogrenciler, dersler, oturumlar, secim) {
 function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', ','); }
 </script>
 <script></script>
+<script></script>
 <script>
   var MDEA_SURUM = '06.11.2026';
   var MDEA = { token: null, kullanici: null, baslat: function () {}, oturumBitti: function () {} };
@@ -1544,16 +1545,32 @@ function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', '
       kosucu[ad].apply(kosucu, args);
     });
   }
+  /* GitHub Pages sürümü: aynı işlevler Apps Script JSON API'sine fetch ile gider. */
+  function apiCagri(ad, args) {
+    return fetch(window.MDEA_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ ad: ad, args: args }),
+      credentials: 'omit',
+      redirect: 'follow'
+    }).then(function (r) { return r.json(); }, function () {
+      throw new Error('Sunucuya ulaşılamıyor. İnternet bağlantınızı denetleyin.');
+    }).then(function (j) {
+      if (!j || !j.ok) throw new Error((j && j.hata) || 'Sunucu hatası.');
+      return j.sonuc;
+    });
+  }
   /* Önizlemede (demo) aynı sunucu kodu tarayıcıda çalışır: demo-sunucu katmanı. */
   var demoCagri = typeof window.DEMO_SUNUCU !== 'undefined' ? window.DEMO_SUNUCU.cagir : null;
   var gasVar = typeof google !== 'undefined' && google.script && google.script.run;
   function cagir(ad, args) {
     if (gasVar) return sunucuCagri(ad, args);
+    if (window.MDEA_API_URL) return apiCagri(ad, args);
     if (demoCagri) return demoCagri(ad, args);
     return Promise.reject(new Error('Sunucuya ulaşılamıyor. Uygulamayı Google Apps Script bağlantısından açın.'));
   }
   var arka = {
-    demo: !gasVar && !!demoCagri,
+    demo: !gasVar && !window.MDEA_API_URL && !!demoCagri,
     kayit: function (ad, k, e, s, rol) { return cagir('kayitOl', [ad, k, e, s, rol]); },
     giris: function (k, s) { return cagir('girisYap', [k, s]); },
     kodGonder: function (bilet, e) { return cagir('epostaKoduGonder', [bilet, e || '']); },
@@ -2274,9 +2291,7 @@ function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', '
     if (typeof olusturNobetCizelgesi === 'function') {
       p = Promise.resolve(olusturNobetCizelgesi(girdi));
     } else {
-      p = new Promise(function (ok, hata) {
-        google.script.run.withSuccessHandler(ok).withFailureHandler(hata).cizelgeUret(MDEA.token, girdi);
-      });
+      p = MDEA.cagir('cizelgeUret', [MDEA.token, girdi]);
     }
     p.then(function (s) {
       if (no !== istek) return;
@@ -3151,9 +3166,7 @@ function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', '
 
   /* ---------- Hesaplama ---------- */
   function sunucu(ad, girdi) {
-    return new Promise(function (ok, hata) {
-      google.script.run.withSuccessHandler(ok).withFailureHandler(hata)[ad](MDEA.token, girdi);
-    });
+    return MDEA.cagir(ad, [MDEA.token, girdi]);
   }
 
   function hata(e) {

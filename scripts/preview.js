@@ -21,7 +21,15 @@ html = html.replace('/*__DENEME__*/', function () { return oku('Deneme.gs'); });
 
 // Demo sunucu: önizlemede giriş, roller ve okul işlemleri gerçek sunucu koduyla tarayıcıda çalışır.
 // Apps Script kurulum paketinde (--kurulum) gerçek sunucu kullanıldığı için eklenmez.
-var kurulum = process.argv.indexOf('--kurulum') > -1;
+var apiArg = process.argv.filter(function (a) { return a.indexOf('--api=') === 0; })[0];
+var apiUrl = apiArg ? apiArg.slice(6) : '';
+var kurulum = process.argv.indexOf('--kurulum') > -1 || !!apiUrl;
+html = html.replace('/*__API__*/', function () { return apiUrl ? 'window.MDEA_API_URL = ' + JSON.stringify(apiUrl) + ';' : ''; });
+if (apiUrl) {
+  // Bağımsız sayfa (GitHub Pages): Apps Script'in eklediği belge çatısını kendimiz ekleriz.
+  html = '<!doctype html>\n<html lang="tr">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
+    html.replace('</style>\n', '</style>\n</head>\n<body>\n').replace(/(\n)?$/, '\n</body>\n</html>\n');
+}
 html = html.replace('/*__DEMO__*/', function () {
   if (kurulum) return '';
   var shim = oku('demo-sunucu.js') + '\n' + oku('tablo-taklit.js') +

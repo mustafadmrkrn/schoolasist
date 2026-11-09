@@ -427,9 +427,7 @@
 
   /* ---------- Hesaplama ---------- */
   function sunucu(ad, girdi) {
-    return new Promise(function (ok, hata) {
-      google.script.run.withSuccessHandler(ok).withFailureHandler(hata)[ad](MDEA.token, girdi);
-    });
+    return MDEA.cagir(ad, [MDEA.token, girdi]);
   }
 
   function hata(e) {

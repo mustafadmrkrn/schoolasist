@@ -179,16 +179,32 @@
       kosucu[ad].apply(kosucu, args);
     });
   }
+  /* GitHub Pages sürümü: aynı işlevler Apps Script JSON API'sine fetch ile gider. */
+  function apiCagri(ad, args) {
+    return fetch(window.MDEA_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ ad: ad, args: args }),
+      credentials: 'omit',
+      redirect: 'follow'
+    }).then(function (r) { return r.json(); }, function () {
+      throw new Error('Sunucuya ulaşılamıyor. İnternet bağlantınızı denetleyin.');
+    }).then(function (j) {
+      if (!j || !j.ok) throw new Error((j && j.hata) || 'Sunucu hatası.');
+      return j.sonuc;
+    });
+  }
   /* Önizlemede (demo) aynı sunucu kodu tarayıcıda çalışır: demo-sunucu katmanı. */
   var demoCagri = typeof window.DEMO_SUNUCU !== 'undefined' ? window.DEMO_SUNUCU.cagir : null;
   var gasVar = typeof google !== 'undefined' && google.script && google.script.run;
   function cagir(ad, args) {
     if (gasVar) return sunucuCagri(ad, args);
+    if (window.MDEA_API_URL) return apiCagri(ad, args);
     if (demoCagri) return demoCagri(ad, args);
     return Promise.reject(new Error('Sunucuya ulaşılamıyor. Uygulamayı Google Apps Script bağlantısından açın.'));
   }
   var arka = {
-    demo: !gasVar && !!demoCagri,
+    demo: !gasVar && !window.MDEA_API_URL && !!demoCagri,
     kayit: function (ad, k, e, s, rol) { return cagir('kayitOl', [ad, k, e, s, rol]); },
     giris: function (k, s) { return cagir('girisYap', [k, s]); },
     kodGonder: function (bilet, e) { return cagir('epostaKoduGonder', [bilet, e || '']); },
@@ -545,7 +561,7 @@
       return;
     }
     $('surum').textContent = 'Sürüm ' + istemci;
-    sunucuCagri('sistemDurumu', []).then(function (r) {
+    cagir('sistemDurumu', []).then(function (r) {
       var parca = ['Sürüm ' + istemci];
       if (r && r.surum && r.surum !== istemci) parca.push('sunucu ' + r.surum);
       if (r && r.epostaIzni) parca.push('e-posta hazır (bugün kalan ' + r.kota + ')');

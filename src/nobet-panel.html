@@ -255,9 +255,7 @@
     if (typeof olusturNobetCizelgesi === 'function') {
       p = Promise.resolve(olusturNobetCizelgesi(girdi));
     } else {
-      p = new Promise(function (ok, hata) {
-        google.script.run.withSuccessHandler(ok).withFailureHandler(hata).cizelgeUret(MDEA.token, girdi);
-      });
+      p = MDEA.cagir('cizelgeUret', [MDEA.token, girdi]);
     }
     p.then(function (s) {
       if (no !== istek) return;

@@ -17,6 +17,47 @@ function include(ad) {
   return HtmlService.createHtmlOutputFromFile(ad).getContent();
 }
 
+/* ---------- JSON API (GitHub Pages ön yüzü için) ---------- */
+
+/**
+ * İstemcinin çağırabileceği işlevler. Listede olmayan hiçbir işlev dışarıdan çalıştırılamaz.
+ */
+function apiTablosu() {
+  return {
+    sistemDurumu: sistemDurumu, kayitOl: kayitOl, epostaKoduGonder: epostaKoduGonder, epostaDogrula: epostaDogrula,
+    sifreKoduIste: sifreKoduIste, sifreSifirla: sifreSifirla, girisYap: girisYap, oturumKontrol: oturumKontrol,
+    cikisYap: cikisYap, cizelgeUret: cizelgeUret, sinavAnaliz: sinavAnaliz, denemeAnaliz: denemeAnaliz,
+    okulPaneli: okulPaneli, okulAraclariKaydet: okulAraclariKaydet, okulKoduYenile: okulKoduYenile,
+    okuldanCikar: okuldanCikar, okulaKatil: okulaKatil, adminPaneli: adminPaneli,
+    adminBasvuruOnayla: adminBasvuruOnayla, adminBasvuruReddet: adminBasvuruReddet,
+    adminKullaniciGuncelle: adminKullaniciGuncelle, adminOkulOlustur: adminOkulOlustur,
+    veriOku: veriOku, veriKaydet: veriKaydet, dgDurum: dgDurum, dgGonder: dgGonder, dgHepsi: dgHepsi,
+    dgDuzenle: dgDuzenle, dgSil: dgSil
+  };
+}
+
+/** Gövde: {"ad": "işlevAdı", "args": [...]} → {ok:true, sonuc} ya da {ok:false, hata}. */
+function apiIsle(metin) {
+  var istek;
+  try { istek = JSON.parse(metin); } catch (e) { return { ok: false, hata: 'Geçersiz istek.' }; }
+  var tablo = apiTablosu();
+  if (!istek || typeof istek.ad !== 'string' || !Object.prototype.hasOwnProperty.call(tablo, istek.ad)) {
+    return { ok: false, hata: 'Bilinmeyen işlem.' };
+  }
+  var args = Array.isArray(istek.args) ? istek.args : [];
+  try {
+    var sonuc = tablo[istek.ad].apply(null, args);
+    return { ok: true, sonuc: sonuc === undefined ? null : sonuc };
+  } catch (e) {
+    return { ok: false, hata: String(e && e.message ? e.message : e) };
+  }
+}
+
+function doPost(e) {
+  var cevap = apiIsle(e && e.postData ? e.postData.contents : '');
+  return ContentService.createTextOutput(JSON.stringify(cevap)).setMimeType(ContentService.MimeType.JSON);
+}
+
 /* ---------- Hesap işlemleri (giriş yapmadan çağrılabilir) ---------- */
 
 /**
