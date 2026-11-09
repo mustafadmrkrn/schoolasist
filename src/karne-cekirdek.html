@@ -1,0 +1,398 @@
+<script>
+/**
+ * Veli karnesi değerlendirme: saf yardımcılar (DOM yok, testli).
+ * Kurumun deneme platformundan alınan "VELİ KARNE" HTML dışa aktarımını okur
+ * (her öğrenci için bir karne: YKS denemeleri, Neler Hatırlıyorum, İngilizce AGİS),
+ * sınıf ortalamalarını, sıraları ve öğrenci başına otomatik değerlendirmeyi üretir.
+ *
+ *   karneOku(html)            -> { ogrenciler: [ham], ogretmenler: { ders: [ad] } }
+ *   karneSinifKur(ham, kaynak) -> sınıf modeli (öğrenciler, sınıf istatistikleri, değerlendirmeler)
+ *
+ * Karnedeki YKS puan satırları yalnızca oluşan puan türlerini içerir ve başlık sırasına uymaz
+ * (ör. AYT'ye girmeyen öğrencide TYT puanı "SAY" sütununa yazılır). Puan türü, netlerden
+ * çıkarılır: SAY (sayısal AYT neti > 0), SÖZ (sözel AYT neti > 0), EA (Mat/Edb/Tar-1/Coğ-1 neti > 0), TYT.
+ */
+var KARNE_DERS = {
+  'TURTYT': ['Türkçe', 'TYT', ['TÜRKÇE TYT', 'TÜRKÇE', 'TÜRK DİLİ VE EDEBİYATI']],
+  'TARTYT': ['Tarih', 'TYT', ['TARİH']], 'COGTYT': ['Coğrafya', 'TYT', ['COĞRAFYA']],
+  'FEL-T': ['Felsefe', 'TYT', ['FELSEFE']], 'DİN-T': ['Din Kültürü', 'TYT', ['DİN KÜLTÜRÜ VE AHLAK BİLGİSİ']],
+  'MATTYT': ['Matematik', 'TYT', ['MATEMATİK TYT', 'MATEMATİK']], 'GEOTYT': ['Geometri', 'TYT', ['GEOMETRİ TYT', 'GEOMETRİ']],
+  'FİZ-T': ['Fizik', 'TYT', ['FİZİK TYT', 'FİZİK']], 'KİM-T': ['Kimya', 'TYT', ['KİMYA TYT', 'KİMYA']],
+  'BİY-T': ['Biyoloji', 'TYT', ['BİYOLOJİ TYT', 'BİYOLOJİ']],
+  'TDEAYT': ['Edebiyat', 'AYT', ['TÜRK DİLİ VE EDEBİYATI AYT', 'TÜRK DİLİ VE EDEBİYATI']],
+  'TAR1AYT': ['Tarih-1', 'AYT', ['TARİH']], 'COG1AYT': ['Coğrafya-1', 'AYT', ['COĞRAFYA']],
+  'TAR2AYT': ['Tarih-2', 'AYT', ['TARİH']], 'COG2AYT': ['Coğrafya-2', 'AYT', ['COĞRAFYA']],
+  'FELAYT': ['Felsefe Grubu', 'AYT', ['FELSEFE']], 'DİNAYT': ['Din Kültürü', 'AYT', ['DİN KÜLTÜRÜ VE AHLAK BİLGİSİ']],
+  'MATAYT': ['Matematik', 'AYT', ['MATEMATİK AYT', 'MATEMATİK']], 'GEOAYT': ['Geometri', 'AYT', ['GEOMETRİ AYT', 'GEOMETRİ']],
+  'FIZAYT': ['Fizik', 'AYT', ['FİZİK AYT', 'FİZİK']], 'KIMAYT': ['Kimya', 'AYT', ['KİMYA AYT', 'KİMYA']],
+  'BIYAYT': ['Biyoloji', 'AYT', ['BİYOLOJİ AYT', 'BİYOLOJİ']],
+  'TUR': ['Türkçe/Edebiyat', 'NHS', ['TÜRK DİLİ VE EDEBİYATI', 'TÜRKÇE TYT']],
+  'MAT': ['Matematik', 'NHS', ['MATEMATİK AYT', 'MATEMATİK', 'MATEMATİK TYT']],
+  'FIZ': ['Fizik', 'NHS', ['FİZİK AYT', 'FİZİK']], 'KIM': ['Kimya', 'NHS', ['KİMYA', 'KİMYA AYT']],
+  'BIO': ['Biyoloji', 'NHS', ['BİYOLOJİ', 'BİYOLOJİ AYT']],
+  'TAR': ['Tarih', 'NHS', ['TARİH']], 'COG': ['Coğrafya', 'NHS', ['COĞRAFYA']], 'FEL': ['Felsefe', 'NHS', ['FELSEFE']],
+  'DKA': ['Din Kültürü', 'NHS', ['DİN KÜLTÜRÜ VE AHLAK BİLGİSİ']],
+  'ING': ['İngilizce', 'ING', ['(FT) ENGLISH / İNGİLİZCE', 'ENGLISH / İNGİLİZCE']]
+};
+var KARNE_TYT_BLOK = [['Türkçe', ['TURTYT'], 40], ['Sosyal', ['TARTYT', 'COGTYT', 'FEL-T', 'DİN-T'], 20],
+  ['Matematik', ['MATTYT', 'GEOTYT'], 40], ['Fen', ['FİZ-T', 'KİM-T', 'BİY-T'], 20]];
+var KARNE_TYT_KOD = ['TURTYT', 'TARTYT', 'COGTYT', 'FEL-T', 'DİN-T', 'MATTYT', 'GEOTYT', 'FİZ-T', 'KİM-T', 'BİY-T'];
+var KARNE_SAY = ['MATAYT', 'GEOAYT', 'FIZAYT', 'KIMAYT', 'BIYAYT'];
+var KARNE_SOZ = ['TDEAYT', 'TAR1AYT', 'COG1AYT', 'TAR2AYT', 'COG2AYT', 'FELAYT', 'DİNAYT'];
+var KARNE_EA = ['MATAYT', 'GEOAYT', 'TDEAYT', 'TAR1AYT', 'COG1AYT'];
+var KARNE_ALAN = {
+  MF: { puan: 'SAY', ad: 'sayısal', kodlar: KARNE_SAY,
+    bloklar: [['Matematik', ['MATAYT', 'GEOAYT'], 40], ['Fizik', ['FIZAYT'], 14], ['Kimya', ['KIMAYT'], 13], ['Biyoloji', ['BIYAYT'], 13]] },
+  TM: { puan: 'EA', ad: 'eşit ağırlık', kodlar: KARNE_EA,
+    bloklar: [['Matematik', ['MATAYT', 'GEOAYT'], 40], ['Edebiyat', ['TDEAYT'], 24], ['Tarih-1', ['TAR1AYT'], 10], ['Coğrafya-1', ['COG1AYT'], 6]] }
+};
+var KARNE_SEVIYE = ['Üst düzey', 'İyi', 'Orta', 'Gelişmeli', 'Destek gerekli', 'Veri yok'];
+
+/* ---------- Okuma ---------- */
+var KARNE_VARLIK = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+function karneMetin(s) {
+  return String(s).replace(/<[^>]*>/g, '').replace(/&(#x[0-9a-f]+|#\d+|\w+);/gi, function (m, k) {
+    if (k[0] === '#') return String.fromCharCode(k[1] === 'x' || k[1] === 'X' ? parseInt(k.slice(2), 16) : +k.slice(1));
+    return KARNE_VARLIK[k.toLowerCase()] !== undefined ? KARNE_VARLIK[k.toLowerCase()] : m;
+  }).replace(/\s+/g, ' ').trim();
+}
+function karneHucreler(satir) {
+  var r = [], re = /<td[^>]*>([\s\S]*?)<\/td>/gi, m;
+  while ((m = re.exec(satir))) r.push(karneMetin(m[1]));
+  return r;
+}
+function karneSayi(x) {
+  var s = String(x == null ? '' : x).replace('%', '').replace(',', '.').trim();
+  if (s === '') return null;
+  var n = Number(s);
+  return isNaN(n) ? null : n;
+}
+function karneSira(x) {
+  var m = /^\s*(\d+)\s*\/\s*(\d+)\s*$/.exec(x || '');
+  return m ? [+m[1], +m[2]] : null;
+}
+function karneHepsi(re, s) { var r = [], m; while ((m = re.exec(s))) r.push(m); return r; }
+
+/** "VELİ KARNE" HTML metnini okur. */
+function karneOku(html) {
+  var s = String(html || '').replace(/data:image\/[^"']+/g, '').replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<script[\s\S]*?<\/script>/gi, '');
+  var parcalar = s.split('VELİ KARNESİ').slice(1);
+  var ogrenciler = [], ogretmenler = {};
+  parcalar.forEach(function (p) {
+    var duz = karneMetin(p.replace(/<[^>]+>/g, ' | ')).replace(/(\s*\|\s*)+/g, ' | ');
+    var al = function (k) { var m = new RegExp(k + '\\s*\\|\\s*([^|]*?)\\s*\\|').exec(duz); return m ? m[1].trim() : ''; };
+    var o = { ad: al('Adı:'), no: al('Numarası:'), sinif: al('Sınıfı:'), sube: al('Şubesi:'), puan: {}, net: {} };
+    if (!o.ad) return;
+    karneHepsi(/<table[^>]*class="border_cizgili"[^>]*>([\s\S]*?)<\/table>/gi, p).forEach(function (tm) {
+      var satirlar = karneHepsi(/<tr[^>]*>([\s\S]*?)<\/tr>/gi, tm[1]).map(function (x) { return x[1]; });
+      if (satirlar.length < 2) return;
+      var baslik = karneHucreler(satirlar[0])[0] || '';
+      if (/Puanlar$/.test(baslik)) {
+        var bol = baslik.replace(/\s*Puanlar$/, '');
+        satirlar.slice(2).forEach(function (r) {
+          var c = karneHucreler(r);
+          if (c.length && c[0]) (o.puan[bol] = o.puan[bol] || []).push({ sinav: c[0], degerler: c.slice(1) });
+        });
+      } else if (/Netler$/.test(baslik)) {
+        var bol2 = baslik.replace(/\s*Netler$/, '');
+        var dersler = karneHucreler(satirlar[1]).slice(1);
+        satirlar.slice(3).forEach(function (r) {
+          var c = karneHucreler(r);
+          if (!c.length || !c[0] || /^Net Ortalama/.test(c[0])) return;
+          var d = {};
+          dersler.forEach(function (ders, k) {
+            var q = c.slice(1 + 4 * k, 5 + 4 * k);
+            if (q.length === 4 && q.some(function (v) { return v !== ''; })) {
+              d[ders] = { S: karneSayi(q[0]) || 0, D: karneSayi(q[1]) || 0, Y: karneSayi(q[2]) || 0, N: karneSayi(q[3]) || 0 };
+            }
+          });
+          (o.net[bol2] = o.net[bol2] || []).push({ sinav: c[0], dersler: d });
+        });
+      }
+    });
+    var i = p.indexOf('Ders Öğretmenleri'), j = p.indexOf('Sınıf Öğretmeni');
+    if (i > -1) {
+      karneHepsi(/<tr[^>]*>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<td[^>]*>([\s\S]*?)<\/td>\s*<\/tr>/gi, p.slice(i, j > i ? j : undefined)).forEach(function (m) {
+        var ders = karneMetin(m[1]), ad = karneMetin(m[2]);
+        if (!ders || !ad) return;
+        var l = (ogretmenler[ders] = ogretmenler[ders] || []);
+        if (l.indexOf(ad) < 0) l.push(ad);
+      });
+    }
+    ogrenciler.push(o);
+  });
+  return { ogrenciler: ogrenciler, ogretmenler: ogretmenler };
+}
+
+/* ---------- Yardımcılar ---------- */
+function karneAdDuzelt(n) {
+  var kucuk = function (w) { return w.replace(/I/g, 'ı').replace(/İ/g, 'i').toLowerCase(); };
+  return String(n || '').split(/\s+/).filter(Boolean).map(function (w) { return w[0] + kucuk(w.slice(1)); }).join(' ');
+}
+function karneSinavKisa(ad) {
+  var m = /YKS\s*0?(\d)/.exec(ad);
+  if (m) return 'YKS-' + m[1];
+  if (/NELER/.test(ad)) return 'NHS';
+  if (/İNG|ING/.test(ad)) return 'ING';
+  return ad;
+}
+function karneOrt(a) { return a.length ? a.reduce(function (x, y) { return x + y; }, 0) / a.length : null; }
+function karneYuv(x, b) { var k = Math.pow(10, b === undefined ? 2 : b); return x == null ? null : Math.round(x * k) / k; }
+function karneOran(n, s) { return s ? 100 * n / s : 0; }
+function karneBlok(net, kodlar) {
+  var r = { S: 0, D: 0, Y: 0, N: 0 };
+  kodlar.forEach(function (c) { var v = net[c]; if (v) { r.S += v.S; r.D += v.D; r.Y += v.Y; r.N += v.N; } });
+  r.B = r.S - r.D - r.Y; r.N = karneYuv(r.N); return r;
+}
+function karneIsaret(net, c) { var v = net[c]; return v ? v.D + v.Y : 0; }
+function karneG(x) { return String(karneYuv(x)).replace('.', ','); }
+function karneSiraliNo(liste) { return liste.slice().sort(function (a, b) { return b[1] - a[1]; }).map(function (x) { return x[0]; }); }
+
+/** Sınıfın alanı: adında TM / EA / ESIT geçerse eşit ağırlık, aksi halde sayısal. */
+function karneAlanBul(sinifAdi) { return /\bTM\b|-TM|EA|EŞİT|ESIT/i.test(String(sinifAdi || '')) ? 'TM' : 'MF'; }
+
+/* ---------- Sınıf modeli ---------- */
+function karneSinifKur(ham, kaynak) {
+  var ogretmenler = ham.ogretmenler || {};
+  var etiket = (ham.ogrenciler[0] && ham.ogrenciler[0].sinif) || 'Sınıf';
+  var alan = karneAlanBul(etiket), A = KARNE_ALAN[alan], ANA = A.puan;
+  function dersOgretmen(c) {
+    var k = KARNE_DERS[c][2];
+    for (var i = 0; i < k.length; i++) if (ogretmenler[k[i]]) return ogretmenler[k[i]];
+    return [];
+  }
+  var ogr = ham.ogrenciler.map(function (r) {
+    var s = { ad: karneAdDuzelt(r.ad), no: r.no, sinif: r.sinif, sube: r.sube, sinavlar: {} };
+    var X = s.sinavlar;
+    var yeni = function (k, ad) { return X[k] || (X[k] = { ad: ad, puan: {}, net: {} }); };
+    Object.keys(r.net).forEach(function (b) { r.net[b].forEach(function (e) { yeni(karneSinavKisa(e.sinav), e.sinav).net = e.dersler; }); });
+    Object.keys(r.puan).forEach(function (b) {
+      r.puan[b].forEach(function (e) {
+        var k = karneSinavKisa(e.sinav), ex = yeni(k, e.sinav), v = e.degerler, gr = [];
+        for (var i = 0; i < v.length; i += 5) gr.push(v.slice(i, i + 5));
+        var turler;
+        if (/^YKS/.test(k)) {
+          var net = ex.net;
+          var N = function (cs) { return cs.reduce(function (t, c) { return t + (net[c] ? net[c].N : 0); }, 0); };
+          var I = function (cs) { return cs.reduce(function (t, c) { return t + karneIsaret(net, c); }, 0); };
+          turler = [['SAY', N(KARNE_SAY) > 0], ['SÖZ', N(KARNE_SOZ) > 0], ['EA', N(KARNE_EA) > 0]].filter(function (x) { return x[1]; }).map(function (x) { return x[0]; }).concat(['TYT']);
+          if (turler.length !== gr.length) {
+            turler = [['SAY', I(KARNE_SAY) > 0], ['SÖZ', I(KARNE_SOZ) > 0], ['EA', I(KARNE_EA) > 0]].filter(function (x) { return x[1]; }).map(function (x) { return x[0]; }).concat(['TYT']);
+            if (turler.length > gr.length && gr.length === 2) turler = [turler[0], 'TYT'];
+            if (turler.length !== gr.length) turler = ['SAY', 'SÖZ', 'EA', 'TYT'].slice(-gr.length);
+          }
+        } else turler = [/NELER/.test(b) ? 'NHS' : 'ING'];
+        turler.forEach(function (t, i) {
+          var g = gr[i]; if (!g) return;
+          ex.puan[t] = { p: karneSayi(g[0]), sinif: karneSira(g[1]), okul: karneSira(g[2]), genel: karneSira(g[3]), dilim: karneSayi(g[4]) };
+        });
+      });
+    });
+    return s;
+  });
+
+  var yks = [];
+  ogr.forEach(function (s) { Object.keys(s.sinavlar).forEach(function (k) { if (/^YKS/.test(k) && yks.indexOf(k) < 0) yks.push(k); }); });
+  yks.sort();
+  var sinavlar = yks.slice();
+  ['NHS', 'ING'].forEach(function (e) { if (ogr.some(function (s) { return s.sinavlar[e]; })) sinavlar.push(e); });
+  var sinavAd = {};
+  yks.forEach(function (e) { sinavAd[e] = 'YKS Deneme ' + e.slice(4); });
+  sinavAd.NHS = 'Neler Hatırlıyorum (' + alan + ')'; sinavAd.ING = 'İngilizce AGİS';
+
+  ogr.forEach(function (s) {
+    yks.forEach(function (k) {
+      var ex = s.sinavlar[k]; if (!ex) return;
+      var net = ex.net;
+      ex.tyt = {}; KARNE_TYT_BLOK.forEach(function (b) { ex.tyt[b[0]] = karneBlok(net, b[1]); });
+      ex.tytN = karneYuv(KARNE_TYT_BLOK.reduce(function (t, b) { return t + ex.tyt[b[0]].N; }, 0));
+      var alanda = A.kodlar.reduce(function (t, c) { return t + karneIsaret(net, c); }, 0);
+      var fen = ['FIZAYT', 'KIMAYT', 'BIYAYT'].reduce(function (t, c) { return t + karneIsaret(net, c); }, 0);
+      var soz = KARNE_SOZ.reduce(function (t, c) { return t + karneIsaret(net, c); }, 0);
+      if (alanda >= 3) { ex.ayt = {}; A.bloklar.forEach(function (b) { ex.ayt[b[0]] = karneBlok(net, b[1]); }); ex.aytN = karneYuv(A.bloklar.reduce(function (t, b) { return t + ex.ayt[b[0]].N; }, 0)); }
+      else { ex.ayt = null; ex.aytN = null; }
+      if (alan === 'MF') ex.aytGirdi = fen >= 3 ? 'SAY' : (soz >= 3 ? 'SÖZ' : (alanda >= 3 ? 'SAY' : null));
+      else ex.aytGirdi = (soz >= 3 || alanda >= 3) ? 'EA' : (fen >= 3 ? 'SAY' : null);
+      ex.alanDisi = (alan === 'MF' && ex.aytGirdi === 'SÖZ') || (alan === 'TM' && ex.aytGirdi === 'SAY');
+    });
+  });
+
+  function girdi(s, e, c) {
+    var v = s.sinavlar[e] && s.sinavlar[e].net[c];
+    if (!v || !KARNE_DERS[c]) return null;
+    if (KARNE_DERS[c][1] === 'AYT') {
+      var a = v.D + v.Y;
+      if (A.kodlar.indexOf(c) < 0) return a >= Math.max(3, v.S * 0.4) ? v : null;
+      return a > 0 ? v : null;
+    }
+    return v;
+  }
+
+  var ist = {};
+  sinavlar.forEach(function (e) {
+    var I = ist[e] = { katilan: ogr.filter(function (s) { return s.sinavlar[e]; }).map(function (s) { return s.no; }), ders: {}, puan: {} };
+    var kodlar = {};
+    ogr.forEach(function (s) { if (s.sinavlar[e]) Object.keys(s.sinavlar[e].net).forEach(function (c) { kodlar[c] = 1; }); });
+    Object.keys(kodlar).forEach(function (c) {
+      if (!KARNE_DERS[c]) return;
+      var l = ogr.map(function (s) { return [s.no, girdi(s, e, c)]; }).filter(function (x) { return x[1]; });
+      if (!l.length) return;
+      var ns = l.map(function (x) { return x[1].N; });
+      I.ders[c] = { ort: karneYuv(karneOrt(ns)), max: Math.max.apply(null, ns), min: Math.min.apply(null, ns), S: l[0][1].S, n: l.length,
+        sira: karneSiraliNo(l.map(function (x) { return [x[0], x[1].N]; })) };
+    });
+    ['SAY', 'SÖZ', 'EA', 'TYT', 'NHS', 'ING'].forEach(function (t) {
+      var l = ogr.filter(function (s) { var x = s.sinavlar[e]; return x && x.puan[t] && x.puan[t].p != null; }).map(function (s) { return [s.no, s.sinavlar[e].puan[t].p]; });
+      if (l.length) I.puan[t] = { ort: karneYuv(karneOrt(l.map(function (x) { return x[1]; }))), max: Math.max.apply(null, l.map(function (x) { return x[1]; })), n: l.length, sira: karneSiraliNo(l) };
+    });
+    if (/^YKS/.test(e)) {
+      ['tytN', 'aytN'].forEach(function (k) {
+        var l = ogr.filter(function (s) { return s.sinavlar[e] && s.sinavlar[e][k] != null; }).map(function (s) { return [s.no, s.sinavlar[e][k]]; });
+        if (l.length) I.puan[k] = { ort: karneYuv(karneOrt(l.map(function (x) { return x[1]; }))), max: Math.max.apply(null, l.map(function (x) { return x[1]; })), n: l.length, sira: karneSiraliNo(l) };
+      });
+      KARNE_TYT_BLOK.forEach(function (b) {
+        var l = ogr.filter(function (s) { return s.sinavlar[e]; }).map(function (s) { return s.sinavlar[e].tyt[b[0]].N; });
+        if (l.length) I.puan['tyt_' + b[0]] = { ort: karneYuv(karneOrt(l)) };
+      });
+      A.bloklar.forEach(function (b) {
+        var l = ogr.filter(function (s) { return s.sinavlar[e] && s.sinavlar[e].ayt; }).map(function (s) { return s.sinavlar[e].ayt[b[0]].N; });
+        if (l.length) I.puan['ayt_' + b[0]] = { ort: karneYuv(karneOrt(l)) };
+      });
+    }
+  });
+  function sinifSira(e, k, no) {
+    var o = ist[e] && ist[e].puan[k] && ist[e].puan[k].sira;
+    return o && o.indexOf(no) > -1 ? [o.indexOf(no) + 1, o.length] : null;
+  }
+  var GR = { TYT: 'TYT', AYT: 'AYT', NHS: 'NHS', ING: 'AGİS' };
+
+  ogr.forEach(function (s) {
+    var no = s.no, X = s.sinavlar;
+    var ev = { guclu: [], gelisim: [], dikkat: [], gundem: [], ogretmen: {} };
+    s.ev = ev;
+    var ogretmeneYaz = function (c, m) { dersOgretmen(c).forEach(function (t) { (ev.ogretmen[t] = ev.ogretmen[t] || []).push(m); }); };
+    var benimY = yks.filter(function (e) { return X[e]; });
+    if (!Object.keys(X).length) {
+      ev.dikkat.push('Karnede hiçbir sınav sonucu yok — öğrenci denemelere katılmamış görünüyor.');
+      ev.gundem.push('Hiçbir denemeye katılmamış: nedeni ve devam durumu');
+      s.egilim = {}; s.seviye = 'Veri yok'; s.dilimOrt = null; s.sira = {}; return;
+    }
+    var eksik = sinavlar.filter(function (e) { return !X[e]; }).map(function (e) { return sinavAd[e]; });
+    if (eksik.length) {
+      ev.dikkat.push('Katılmadığı sınav: ' + eksik.join(', ') + '. Nedeni netleştirilmeli.');
+      ev.gundem.push('Sınav katılımı (' + eksik.join(', ') + ')');
+    }
+    var satir = [];
+    benimY.slice().reverse().concat(['NHS', 'ING'].filter(function (e) { return X[e]; })).forEach(function (e) {
+      Object.keys(X[e].net).forEach(function (c) {
+        var v = girdi(s, e, c), cs = ist[e].ders[c];
+        if (!v || !cs || v.S < 5 || cs.n < 4) return;
+        var d = karneOran(v.N, v.S) - karneOran(cs.ort, cs.S);
+        var r = cs.sira.indexOf(no) > -1 ? cs.sira.indexOf(no) + 1 : null;
+        satir.push({ e: e, c: c, v: v, cs: cs, d: d, r: r });
+      });
+    });
+    var gor = {}, en = [];
+    satir.forEach(function (x) { var k = KARNE_DERS[x.c][0] + '|' + KARNE_DERS[x.c][1]; if (!gor[k]) { gor[k] = 1; en.push(x); } });
+    var et = function (x) { return KARNE_DERS[x.c][0] + ' (' + GR[KARNE_DERS[x.c][1]] + ', ' + sinavAd[x.e] + ')'; };
+    var ac = function (x) { return karneG(x.v.N) + '/' + x.v.S + ' net, sınıf ort. ' + karneG(x.cs.ort) + ' — sınıfta ' + x.r + './' + x.cs.n; };
+    en.slice().sort(function (a, b) { return b.d * Math.sqrt(b.v.S) - a.d * Math.sqrt(a.v.S); }).forEach(function (x) {
+      var esik = x.v.S >= 10 ? 12 : 30;
+      if (x.d >= esik || (x.r && x.r <= 2 && x.cs.n >= 8 && x.d > esik / 2)) ev.guclu.push(et(x) + ': ' + ac(x));
+    });
+    en.slice().sort(function (a, b) { return a.d * Math.sqrt(a.v.S) - b.d * Math.sqrt(b.v.S); }).forEach(function (x) {
+      var esik = x.v.S >= 10 ? 12 : 25;
+      if (x.d <= -esik || (x.r && x.cs.n >= 8 && x.r >= x.cs.n - 1 && x.d < -esik / 2)) {
+        ev.gelisim.push(et(x) + ': ' + ac(x));
+        ogretmeneYaz(x.c, KARNE_DERS[x.c][0] + ' ' + GR[KARNE_DERS[x.c][1]] + ' (' + sinavAd[x.e] + '): ' + karneG(x.v.N) + '/' + x.v.S + ' net, sınıf ort. ' + karneG(x.cs.ort) + ', sınıfta ' + x.r + './' + x.cs.n);
+      }
+    });
+    ev.guclu = ev.guclu.slice(0, 5); ev.gelisim = ev.gelisim.slice(0, 5);
+    var sonY = benimY[benimY.length - 1];
+    if (sonY) {
+      Object.keys(X[sonY].net).forEach(function (c) {
+        var v = X[sonY].net[c];
+        if (!KARNE_DERS[c] || v.S < 10 || !girdi(s, sonY, c)) return;
+        if (KARNE_DERS[c][1] === 'AYT' && A.kodlar.indexOf(c) < 0 && !X[sonY].alanDisi) return;
+        var a = v.D + v.Y, bos = v.S - a, ad = KARNE_DERS[c][0] + ' ' + KARNE_DERS[c][1] + ' (' + sinavAd[sonY] + ')';
+        if (a >= 6 && v.Y / a >= 0.3) {
+          ev.dikkat.push(ad + ': ' + a + ' işaretlemede ' + v.Y + ' yanlış (%' + Math.round(100 * v.Y / a) + ') — kavram yanılgısı ya da riskli işaretleme.');
+          ogretmeneYaz(c, ad + ': yanlış oranı %' + Math.round(100 * v.Y / a) + ' (' + v.Y + 'Y/' + v.D + 'D)');
+        }
+        if (bos / v.S >= 0.5) {
+          ev.dikkat.push(ad + ': ' + v.S + ' sorudan ' + bos + ' boş (%' + Math.round(100 * bos / v.S) + ') — konu eksiği veya süre yönetimi.');
+          ogretmeneYaz(c, ad + ': ' + bos + '/' + v.S + ' soru boş');
+        }
+      });
+    }
+    var eg = {};
+    if (benimY.length >= 2) {
+      var a = X[benimY[0]], b = X[sonY], ara = benimY[0] + ' → ' + sonY;
+      eg = { ilk: benimY[0], son: sonY, tytN: karneYuv(b.tytN - a.tytN),
+        tytP: a.puan.TYT && b.puan.TYT ? karneYuv(b.puan.TYT.p - a.puan.TYT.p) : null, bloklar: {} };
+      KARNE_TYT_BLOK.forEach(function (k) { eg.bloklar[k[0]] = karneYuv(b.tyt[k[0]].N - a.tyt[k[0]].N); });
+      if (a.aytN != null && b.aytN != null) eg.aytN = karneYuv(b.aytN - a.aytN);
+      if (eg.tytN >= 5) ev.guclu.unshift('TYT neti yükselişte (' + ara + '): ' + karneG(a.tytN) + ' → ' + karneG(b.tytN) + ' (+' + karneG(eg.tytN) + ').');
+      else if (eg.tytN <= -5) { ev.gelisim.unshift('TYT neti düşüşte (' + ara + '): ' + karneG(a.tytN) + ' → ' + karneG(b.tytN) + ' (' + karneG(eg.tytN) + '). Nedeni konuşulmalı.'); ev.gundem.push('TYT netindeki düşüş'); }
+      Object.keys(eg.bloklar).forEach(function (n) {
+        var d = eg.bloklar[n];
+        if (d <= -4) ev.dikkat.push('TYT ' + n + ' bloğunda ' + karneG(-d) + ' net kayıp (' + ara + ').');
+        if (d >= 5) ev.guclu.push('TYT ' + n + ' bloğunda +' + karneG(d) + ' net artış (' + ara + ').');
+      });
+      if (eg.aytN != null) {
+        if (eg.aytN <= -5) ev.dikkat.push('AYT ' + A.ad + ' neti ' + karneG(a.aytN) + ' → ' + karneG(b.aytN) + ' (' + karneG(eg.aytN) + ').');
+        if (eg.aytN >= 5) ev.guclu.push('AYT ' + A.ad + ' neti ' + karneG(a.aytN) + ' → ' + karneG(b.aytN) + ' (+' + karneG(eg.aytN) + ').');
+      }
+    }
+    s.egilim = eg;
+    var aytYok = benimY.filter(function (e) { return X[e].aytGirdi === null; });
+    if (aytYok.length) {
+      ev.dikkat.push(aytYok.join(', ') + '’de AYT oturumuna katılmamış — yalnızca TYT puanı oluşmuş.');
+      ev.gundem.push('AYT oturumuna katılmaması (' + aytYok.join(', ') + ')');
+    }
+    var disi = benimY.filter(function (e) { return X[e].alanDisi; });
+    if (disi.length) {
+      var diger = alan === 'MF' ? 'sözel' : 'sayısal (fen)';
+      ev.dikkat.push(disi.join(', ') + '’de AYT’de kendi alanı yerine ' + diger + ' testleri çözmüş. Alan/hedef tercihi konuşulmalı.');
+      ev.gundem.push('Alan tercihi: AYT’de ' + diger + ' testlere girmesi');
+    }
+    if (alan === 'MF') {
+      for (var i = 0; i < benimY.length; i++) {
+        var so = X[benimY[i]].puan['SÖZ'];
+        if (so && so.sinif && so.sinif[0] <= 2 && !X[benimY[i]].alanDisi) { ev.guclu.push(benimY[i] + ' SÖZ puanında sınıf ' + so.sinif[0] + '.si — sözel alanda belirgin potansiyel.'); break; }
+      }
+    }
+    var ig = X.ING && X.ING.puan.ING;
+    if (ig && ig.p != null && ig.sinif) {
+      if (ig.p >= 85) ev.guclu.push('İngilizce AGİS ' + karneG(ig.p) + ' puan — sınıf ' + ig.sinif[0] + './' + ig.sinif[1] + ', genelde ilk %' + karneG(ig.dilim) + '.');
+      else if (ig.p < 40) {
+        ev.gelisim.push('İngilizce AGİS ' + karneG(ig.p) + ' puan — sınıf ' + ig.sinif[0] + './' + ig.sinif[1] + ', genel dilim %' + karneG(ig.dilim) + '.');
+        dersOgretmen('ING').forEach(function (t) { (ev.ogretmen[t] = ev.ogretmen[t] || []).push('İngilizce AGİS ' + karneG(ig.p) + ' puan (' + ig.sinif[0] + './' + ig.sinif[1] + ')'); });
+      }
+    }
+    var dil = benimY.map(function (e) { var p = X[e].puan[ANA] || X[e].puan.TYT; return p && p.dilim != null ? p.dilim : null; }).filter(function (x) { return x != null; });
+    var lv = karneOrt(dil);
+    s.dilimOrt = karneYuv(lv);
+    s.seviye = lv == null ? 'Veri yok' : lv <= 10 ? 'Üst düzey' : lv <= 25 ? 'İyi' : lv <= 45 ? 'Orta' : lv <= 65 ? 'Gelişmeli' : 'Destek gerekli';
+    if (s.seviye === 'Destek gerekli') ev.gundem.unshift('Kurum genelinde alt %35’te (ortalama dilim %' + Math.round(lv) + ') — bireysel destek/etüt planı');
+    var zay = [];
+    ev.gelisim.forEach(function (x) { var n = x.split(':')[0].split(' (')[0]; if (zay.indexOf(n) < 0 && !/^TYT neti|^İngilizce AGİS/.test(n)) zay.push(n); });
+    if (zay.length) ev.gundem.push('Zayıf dersler: ' + zay.slice(0, 4).join(', '));
+    if (!ev.gundem.length) ev.gundem.push('Belirgin risk yok — mevcut tempoyu koruma ve hedef üniversite/bölüm görüşmesi');
+    s.sira = {};
+    benimY.forEach(function (e) { ['tytN', 'aytN', ANA, 'TYT'].forEach(function (k) { var r = sinifSira(e, k, no); if (r) s.sira[e + ':' + k] = r; }); });
+    var rn = sinifSira('NHS', 'NHS', no); if (rn) s.sira['NHS:NHS'] = rn;
+  });
+  var dizi = ogr.filter(function (s) { return s.dilimOrt != null; }).sort(function (a, b) { return a.dilimOrt - b.dilimOrt; });
+  dizi.forEach(function (s, i) { s.sinifIci = [i + 1, dizi.length]; s.grup = i < dizi.length / 3 ? 'üst' : (i < 2 * dizi.length / 3 ? 'orta' : 'alt'); });
+  var oharita = {};
+  Object.keys(KARNE_DERS).forEach(function (c) { dersOgretmen(c).forEach(function (t) { (oharita[t] = oharita[t] || []).push(c); }); });
+  var sube = ogr[0] ? ogr[0].sube : '';
+  return {
+    kimlik: (etiket + '|' + sube).toLocaleUpperCase('tr'), etiket: etiket, sube: sube, alan: alan, ana: ANA, alanAd: A.ad,
+    aytBloklar: A.bloklar, aytKodlar: A.kodlar, yks: yks, sinavlar: sinavlar, sinavAd: sinavAd,
+    nhsKodlar: alan === 'TM' ? ['TUR', 'TAR', 'COG', 'FEL', 'DKA', 'MAT'] : ['TUR', 'MAT', 'FIZ', 'KIM', 'BIO'],
+    ogrenciler: ogr, ist: ist, ogretmenler: ogretmenler, ogretmenDers: oharita, kaynak: kaynak || '', eklenme: Date.now()
+  };
+}
+</script>

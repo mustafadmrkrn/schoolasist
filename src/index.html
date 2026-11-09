@@ -423,6 +423,10 @@
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5h9l3.5 3.5v13.5H6z"/><path d="M14.5 3.5V7.5h4"/><path d="M9 12.5h6M9 15.5h4"/></svg>
           Öğrenci değerlendirme
         </button>
+        <button type="button" class="nav-btn" id="nav-karne">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M8 16v-3M12 16V9M16 16v-5"/><path d="M8 6.5h8"/></svg>
+          Veli karnesi
+        </button>
         <p class="yan-baslik yan-baslik-ara" id="yonetim-baslik" hidden>Yönetim</p>
         <button type="button" class="nav-btn" id="nav-okul" hidden>
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 9.5 12 4l8.5 5.5"/><path d="M5.5 9v10.5h13V9"/><path d="M10 19.5v-5h4v5"/></svg>
@@ -463,6 +467,11 @@
       <?!= include('degerlendirme-panel') ?>
     </section>
 
+    <section class="arac" id="panel-karne" aria-label="Veli karnesi değerlendirme" hidden>
+      <?!= include('karne-cekirdek') ?>
+      <?!= include('karne-panel') ?>
+    </section>
+
     <section class="arac" id="panel-okul" aria-label="Okul yönetimi" hidden>
       <?!= include('okul-panel') ?>
     </section>
@@ -479,7 +488,7 @@
 
 <script>
   (function () {
-    var ARACLAR = ['nobet', 'sinav', 'mentor', 'yillik', 'degerlendirme'];
+    var ARACLAR = ['nobet', 'sinav', 'mentor', 'yillik', 'degerlendirme', 'karne'];
     var PANELLER = ['veri', 'okul', 'admin'];
     var TUMU = ARACLAR.concat(PANELLER);
     var gorunur = ARACLAR.slice();
@@ -508,6 +517,8 @@
     function rolUygula(b) {
       b = b || MDEA.bilgi || {};
       var araclar = (b.araclar || []).filter(function (x) { return ARACLAR.indexOf(x) > -1; });
+      // Sunucu "karne" aracını henüz tanımıyorsa (eski Apps Script sürümü), sınav analizi açık olanlara göster.
+      if ((!b.bilinenAraclar || b.bilinenAraclar.indexOf('karne') < 0) && araclar.indexOf('sinav') > -1 && araclar.indexOf('karne') < 0) araclar.push('karne');
       var paneller = (b.paneller || []).filter(function (x) { return PANELLER.indexOf(x) > -1; });
       gorunur = araclar.concat(paneller);
       ARACLAR.forEach(function (k) { $('nav-' + k).hidden = araclar.indexOf(k) < 0; });

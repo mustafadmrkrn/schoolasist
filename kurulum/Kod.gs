@@ -713,7 +713,8 @@ var ROL_ARACLAR = [
   { id: 'sinav', ad: 'Sınav analizi' },
   { id: 'mentor', ad: 'Mentörlük' },
   { id: 'yillik', ad: 'Yıllık plan' },
-  { id: 'degerlendirme', ad: 'Öğrenci değerlendirme' }
+  { id: 'degerlendirme', ad: 'Öğrenci değerlendirme' },
+  { id: 'karne', ad: 'Veli karnesi değerlendirme' }
 ];
 var ROL_KOD_HARF = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
@@ -766,6 +767,7 @@ function rolKullaniciBilgisi(k, u) {
     rolAdi: ROL_ADLARI[rol],
     okul: okul ? { id: u.okul, ad: okul.ad } : null,
     araclar: araclar,
+    bilinenAraclar: rolAracIdleri(),
     paneller: paneller,
     basvuru: u && u.basvuru ? { okulAdi: u.basvuru.okulAdi } : null
   };

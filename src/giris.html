@@ -312,7 +312,8 @@
     goster('uygulama');
     MDEA.bilgi = {
       kullanici: r.kullanici, ad: r.ad, rol: r.rol || 'ogretmen', rolAdi: r.rolAdi || 'Öğretmen',
-      okul: r.okul || null, araclar: r.araclar || ['nobet', 'sinav', 'mentor', 'yillik'], paneller: r.paneller || [], basvuru: r.basvuru || null
+      okul: r.okul || null, araclar: r.araclar || ['nobet', 'sinav', 'mentor', 'yillik'], paneller: r.paneller || [], basvuru: r.basvuru || null,
+      bilinenAraclar: r.bilinenAraclar || null
     };
     document.dispatchEvent(new CustomEvent('mdea:giris', { detail: MDEA.bilgi }));
   }

@@ -65,6 +65,15 @@ tarayıcıda kalır).
     puan etkisine göre öncelikli dersler, puanı en çok artıracak testler, öneriler; tek tıkla kopyalanan
     öğrenci raporu. Konu bazında eksik için soru/konu analizi dosyası gerekir (henüz yok).
 
+- **Veli karnesi değerlendirme:** deneme platformunun "VELİ KARNE" sayfaları (tarayıcıda "Farklı kaydet → Web sayfası")
+  bir ya da birden çok dosya olarak yüklenir; sınıf adı karneden okunur, aynı sınıfın yeni karnesi eskisinin yerine geçer.
+  Sınıf seçici; **sınıf özeti** (başarı dağılımı, öncelikli öğrenciler, sıralanabilir sınıf listesi, ders bazında ortalamalar),
+  **öğrenci detayı** (toplantı gündemi, güçlü yönler, gelişim alanları, dikkat edilecekler, deneme deneme gelişim, TYT/AYT
+  blokları, puan ve sıralamalar, ders ders D/Y/B/net, öğretmenlere düşen notlar, toplantı notu), **öğretmen görünümü**
+  (öğretmenin derslerinde sınıfın tüm netleri) ve **tüm sınıflar** karşılaştırması. MF/FEN sınıfları SAY, TM sınıfları EA
+  puanına göre değerlendirilir. Karnedeki YKS puan satırları yalnız oluşan puan türlerini içerdiği için puan türü netlerden
+  çıkarılır. Veriler ve notlar kullanıcıya özel olarak tarayıcıda saklanır, sunucuya gönderilmez.
+
 ## Yapı
 
 ```
@@ -89,6 +98,8 @@ src/yillik-panel.html  Yıllık plan paneli
 src/Veri.gs            Okul verileri (E-Tablo) ve değerlendirme notları sunucusu
 src/veri-panel.html    Okul verileri paneli (sınıf, öğrenci, öğretmen, ders, atama)
 src/degerlendirme-panel.html  Öğrenci değerlendirme
+src/karne-cekirdek.html  Veli karnesi okuma ve değerlendirme (saf fonksiyonlar; testli)
+src/karne-panel.html   Veli karnesi değerlendirme paneli
 src/tablo-taklit.js    Testler ve önizleme için SpreadsheetApp taklidi
 tests/                 Algoritma ve giriş testleri (Node ile çalışır)
 scripts/preview.js     Parçaları birleştirip tarayıcıda açılabilir önizleme üretir
@@ -113,6 +124,7 @@ node tests/yillik.test.js    # yıllık plan testleri
 node tests/veri.test.js      # okul verileri ve değerlendirme testleri
 node tests/auth.test.js      # giriş testleri (Apps Script servisleri taklit edilir)
 node tests/roller.test.js    # rol, okul ve araç izni testleri
+node tests/karne.test.js     # veli karnesi okuma ve değerlendirme testleri
 node scripts/preview.js docs/onizleme.html   # önizlemeyi yeniden derle
 node scripts/kurulum.js                    # Apps Script kurulum paketini yeniden üret
 ```
