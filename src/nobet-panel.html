@@ -1,7 +1,7 @@
 <div class="top">
     <div>
       <p class="panel-ad">Nöbet Çizelgesi</p>
-      <p class="alt">Öğretmenlerin okulda olduğu günlere göre, aynı gün çakışmadan ve eşit dağılımlı nöbet planı. İsterseniz birkaç haftalık planlayın; adları sürükleyip bırakarak elle düzenleyin.</p>
+      <p class="alt">Öğretmenlerin nöbet tutabileceği günlere göre, aynı gün çakışmadan ve eşit dağılımlı nöbet planı. Sabit nöbetçiler (ör. servis), yer kapsamları, görev tanımları ve onay bölümüyle resmî çizelge; öğretmenleri sürükleyip bırakarak elle düzenleyin.</p>
     </div>
     <div class="top-actions">
       <span class="badge" id="ornek-etiket">Örnek veri</span>
@@ -19,19 +19,42 @@
 
       <div class="blok">
         <div class="blok-baslik"><h2>Nöbet yerleri</h2><span class="say">yer · kişi/gün</span></div>
+        <p class="mini nb-not">Her yerin altındaki “Kapsam ve görev tanımı”na çizelgede görünecek kapsamı ve nöbetçinin görevini yazın.</p>
         <div id="yerler" class="og-liste"></div>
         <div><button type="button" class="btn" id="yer-ekle">Yer ekle</button></div>
       </div>
 
       <div class="blok">
         <div class="blok-baslik"><h2>Öğretmenler</h2><span class="say" id="og-sayi">0</span></div>
+        <p class="mini nb-not">Günler: öğretmenin nöbet tutabileceği günler (ör. 5. veya 6. dersi boş olan günler). “Sabit” seçilen öğretmen her gün yalnız o yerde nöbet tutar (ör. servis).</p>
+        <details class="toplu" id="toplu-kutu">
+          <summary>Toplu öğretmen ekle</summary>
+          <label class="mini" for="toplu">Her satıra bir öğretmen. Excel'den sütunlarıyla yapıştırabilirsiniz: <strong>Ad Soyad · Günler · Haftada en fazla · Sabit yer</strong> (ad dışındakiler isteğe bağlı). Günler “Pzt Sal Çar” ya da “Pazartesi, Cuma” biçiminde; boşsa tüm günler.</label>
+          <textarea class="inp" id="toplu" placeholder="Ayşe Demir&#10;Mehmet Kaya; Pzt Sal Çar; 1&#10;Selin Aydın; ; ; Servis giriş-çıkışı"></textarea>
+          <div class="alt-aksiyon"><button type="button" class="btn btn-primary" id="toplu-ekle">Listeye ekle</button><span class="mini" id="toplu-sonuc"></span></div>
+        </details>
         <div id="ogretmenler" class="og-liste"></div>
-        <div class="alt-aksiyon"><button type="button" class="btn" id="og-ekle">Öğretmen ekle</button></div>
-        <details class="toplu">
-          <summary>Listeyi toplu yapıştır</summary>
-          <label class="mini" for="toplu">Her satıra bir ad soyad. Hepsi tüm günler müsait eklenir.</label>
-          <textarea class="inp" id="toplu" placeholder="Ayşe Demir&#10;Mehmet Kaya"></textarea>
-          <div><button type="button" class="btn" id="toplu-ekle">Listeye ekle</button></div>
+        <div class="alt-aksiyon"><button type="button" class="btn" id="og-ekle">Öğretmen ekle</button><button type="button" class="btn" id="og-sirala">A–Z sırala</button></div>
+      </div>
+
+      <div class="blok">
+        <div class="blok-baslik"><h2>Kurallar</h2></div>
+        <label class="nb-kural"><input type="checkbox" id="kr-ardisik"> Mümkünse arka arkaya iki gün nöbet yazma</label>
+        <label class="nb-kural">Herkes için haftada en fazla <input class="inp inp-sayi" type="number" min="0" max="5" id="kr-max" placeholder="–"> nöbet <span class="mini">(öğretmene ayrı sınır yazılırsa o geçerli)</span></label>
+      </div>
+
+      <div class="blok">
+        <details class="toplu" id="belge-kutu">
+          <summary>Çizelge belgesi: başlık, notlar ve onay</summary>
+          <label class="nb-alan">Okul / kurum adı<input class="inp" id="bl-okul" placeholder="Örn. Özel … Anadolu Lisesi"></label>
+          <label class="nb-alan">Çizelge başlığı<input class="inp" id="bl-baslik" placeholder="2026/2027 Eğitim Öğretim Dönemi Nöbet Çizelgesi"></label>
+          <label class="nb-alan">Notlar <span class="mini">(her satır bir not)</span><textarea class="inp" id="bl-notlar" rows="3"></textarea></label>
+          <div class="nb-ayar">
+            <label class="nb-alan">Onay tarihi<input class="inp" type="date" id="bl-tarih"></label>
+            <label class="nb-alan">Onaylayan<input class="inp" id="bl-unvan" placeholder="Okul Müdürü"></label>
+            <label class="nb-alan">Ad soyad<input class="inp" id="bl-mudur"></label>
+            <label class="nb-alan">Onay ifadesi<input class="inp" id="bl-onay" placeholder="UYGUNDUR"></label>
+          </div>
         </details>
       </div>
     </section>
@@ -43,12 +66,18 @@
           <label class="nb-alan">Hafta sayısı
             <select class="inp" id="nb-hafta">
               <option value="1">1 hafta</option><option value="2">2 hafta</option><option value="3">3 hafta</option>
-              <option value="4">4 hafta</option><option value="5">5 hafta</option><option value="6" selected>6 hafta</option>
+              <option value="4" selected>4 hafta</option><option value="5">5 hafta</option><option value="6">6 hafta</option>
               <option value="8">8 hafta</option><option value="10">10 hafta</option><option value="12">12 hafta</option>
             </select>
           </label>
           <label class="nb-alan">Başlangıç (pazartesi)
             <input class="inp" type="date" id="nb-baslangic">
+          </label>
+          <label class="nb-alan">Görünüm
+            <select class="inp" id="nb-gorunum"><option value="resmi">Resmî çizelge (yer × gün)</option><option value="hepsi">Tüm haftalar yan yana</option></select>
+          </label>
+          <label class="nb-alan" id="nb-hafta-sec-kap">Hafta
+            <select class="inp" id="nb-hafta-sec"></select>
           </label>
           <div class="nb-ayar-dugme">
             <button type="button" class="btn" id="nb-genis" aria-pressed="false">Geniş görünüm</button>
@@ -57,11 +86,12 @@
           </div>
         </div>
         <p class="nb-elle" id="nb-elle" hidden>Çizelgeyi elle düzenlediniz; girdilerdeki değişiklikler çizelgeye uygulanmıyor. Yeni girdilerle baştan dağıtmak için “Yeniden dağıt”a basın.</p>
-        <p class="mini nb-ipucu">Bir adı sürükleyip başka bir hücreye bırakın: boş yere bırakırsanız taşınır, başka bir adın üstüne bırakırsanız ikisi yer değiştirir. Dokunmatik ekranda önce ada, sonra gideceği yere dokunun.</p>
+        <p class="mini nb-ipucu">Öğretmen listesindeki bir adı çizelgeye sürükleyin: boş yere bırakırsanız eklenir, bir adın üstüne bırakırsanız onun yerine geçer. Çizelgedeki bir adı başka hücreye taşıyın ya da başka bir adla yer değiştirin; listeye geri bırakırsanız nöbetten çıkar. Dokunmatik ekranda önce ada, sonra gideceği yere dokunun; seçili adı Delete ile silebilirsiniz.</p>
         <div id="sonuc" class="blok" aria-live="polite"></div>
         <div class="alt-aksiyon">
           <button type="button" class="btn btn-primary" id="kopyala">Çizelgeyi kopyala</button>
-          <button type="button" class="btn" id="nb-yazdir">Yazdır / PDF</button>
+          <button type="button" class="btn" id="nb-yazdir">Bu haftayı yazdır / PDF</button>
+          <button type="button" class="btn" id="nb-yazdir-hepsi">Tüm haftaları yazdır</button>
         </div>
         <textarea class="inp" id="kopya-alan" readonly hidden aria-label="Çizelge metni"></textarea>
       </div>
@@ -102,6 +132,38 @@
   .nb-ad.vurgu { box-shadow: 0 0 0 2px var(--ink); }
   .ad.acik { cursor: pointer; font-size: 0.78rem; }
   .nb-yuk-n small { color: var(--muted); }
+  .nb-not { margin: 0; }
+  .nb-kural { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; font-size: 0.9rem; }
+  .nb-kural .inp-sayi { width: 3.2rem; }
+  .nb-kural input[type=checkbox] { width: auto; margin: 0; accent-color: var(--accent); }
+  .yer-kart { display: grid; gap: 0.4rem; padding: 0.55rem; border: 1px solid var(--line); border-radius: 6px; }
+  .yer-kart details summary { cursor: pointer; font-size: 0.82rem; color: var(--accent); font-weight: 600; }
+  .yer-kart details[open] { display: grid; gap: 0.35rem; }
+  .yer-kart textarea.inp { min-height: 3.6rem; font-size: 0.85rem; }
+  .og-satir { grid-template-areas: "ad sil" "gun max" "sabit sabit"; }
+  .og-sabit { grid-area: sabit; display: flex; gap: 0.4rem; align-items: center; }
+  .og-sabit select { font-size: 0.85rem; padding-block: 0.25rem; }
+  .og-satir.sabit-og { border-color: var(--accent); background: var(--accent-soft); }
+  .nb-havuz { display: flex; flex-wrap: wrap; gap: 0.3rem; padding: 0.55rem; border: 1px dashed var(--line); border-radius: 8px; background: var(--surface-2); }
+  .nb-havuz.hedef { outline: 2px dashed var(--warn); background: var(--warn-soft); }
+  .nb-havuz-bas { width: 100%; display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.78rem; color: var(--muted); }
+  .nb-og { cursor: grab; user-select: none; font-size: 0.8rem; padding: 0.15rem 0.5rem; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); touch-action: manipulation; white-space: nowrap; }
+  .nb-og b { font-family: var(--font-mono); font-weight: 500; color: var(--muted); margin-left: 0.25rem; }
+  .nb-og:hover { border-color: var(--accent); }
+  .nb-og.secili { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .nb-og.secili b { color: var(--accent-ink); }
+  .nb-og.sabit { border-style: dashed; }
+  .nb-resmi { min-width: 0; width: 100%; }
+  .nb-resmi thead th { text-align: center; font-size: 0.82rem; }
+  .nb-resmi thead th small { display: block; font-family: var(--font-mono); font-weight: 500; font-size: 0.7rem; color: var(--muted); }
+  .nb-resmi .yer-hucre { font-family: var(--font-display); font-size: 0.82rem; background: var(--surface-2); min-width: 6.5rem; }
+  .nb-resmi .yer-hucre small { display: block; font-family: var(--font-mono); font-weight: 500; font-size: 0.7rem; color: var(--muted); }
+  .nb-resmi .kapsam { font-size: 0.78rem; font-weight: 600; min-width: 8rem; white-space: pre-line; }
+  .nb-resmi .nb-hucre { min-width: 6.2rem; text-align: center; }
+  .nb-resmi .nb-ad { font-size: 0.76rem; white-space: nowrap; }
+  .nb-resmi .adlar { flex-direction: column; align-items: stretch; }
+  .nb-belge-alt { display: grid; gap: 0.4rem; font-size: 0.85rem; }
+  .nb-belge-alt p { margin: 0; }
 </style>
 
 <script>
@@ -114,10 +176,11 @@
     return {
       gunler: [0, 1, 2, 3, 4],
       yerler: [
-        { ad: 'Bahçe', kisi: 2 },
-        { ad: 'Zemin kat', kisi: 1 },
-        { ad: '1. kat', kisi: 1 },
-        { ad: 'Kantin', kisi: 1 }
+        { ad: 'Bahçe', kisi: 2, kapsam: 'Okul bahçesi ve spor alanları', tanim: 'Bahçe ve oyun alanındaki öğrencilerle ilgili olası olumsuzluklarda müdahale eder; ders başladığında öğrencileri derslere yönlendirir.' },
+        { ad: 'Zemin kat', kisi: 1, kapsam: 'Zemin kat koridoru ve kantin', tanim: 'Teneffüslerde koridorda öğrencilerin güvenliğinden sorumludur; teneffüs bitince kantini boşaltır.' },
+        { ad: '1. kat', kisi: 1, kapsam: '1. kat koridoru', tanim: 'Teneffüslerde koridorda bulunur; ders başlarken öğrencileri sınıflara yönlendirir.' },
+        { ad: 'Yemekhane', kisi: 1, kapsam: 'Yemekhane', tanim: 'Öğle yemeğinde yemekhanede bulunur; yemek sırası ve düzenden sorumludur.' },
+        { ad: 'Servis', kisi: 1, kapsam: 'Servis giriş-çıkış alanı', tanim: 'Servis çıkışlarının kontrollü yapılmasını sağlar; son servis çıkana kadar alanda bekler.' }
       ],
       ogretmenler: [
         { ad: 'Ayşe Demir', gunler: [0, 1, 2, 3, 4], max: 0 },
@@ -131,14 +194,29 @@
         { ad: 'Selin Aydın', gunler: [2, 3, 4], max: 0 },
         { ad: 'Murat Polat', gunler: [0, 1, 2, 3, 4], max: 0 },
         { ad: 'Derya Güneş', gunler: [0, 1, 3, 4], max: 0 },
-        { ad: 'Emre Kılıç', gunler: [1, 2, 3], max: 1 }
-      ]
+        { ad: 'Emre Kılıç', gunler: [1, 2, 3], max: 1 },
+        { ad: 'Canan Er', gunler: [0, 1, 2, 3, 4], max: 0, sabit: 'Servis' }
+      ],
+      kurallar: { ardisik: true, max: 0 },
+      belge: { okul: '', baslik: 'Nöbet Çizelgesi', notlar: 'Nöbet listesi 4 haftada bir yenilenir.\nNöbetler öğretmenin 5. veya 6. ders saati boş olan günlerine yazılmıştır.', tarih: '', unvan: 'Okul Müdürü', mudur: '', onay: 'UYGUNDUR' }
     };
+  }
+  /** Eski kayıtlarda olmayan alanları tamamlar. */
+  function tamamla(st) {
+    st.gunler = Array.isArray(st.gunler) ? st.gunler : TUM.slice();
+    st.yerler = (st.yerler || []).map(function (y) { return { ad: y.ad || '', kisi: Number(y.kisi) || 1, kapsam: y.kapsam || '', tanim: y.tanim || '' }; });
+    st.ogretmenler = (st.ogretmenler || []).map(function (o) { return { ad: o.ad || '', gunler: Array.isArray(o.gunler) ? o.gunler : TUM.slice(), max: Number(o.max) || 0, sabit: o.sabit || '' }; });
+    st.kurallar = st.kurallar || { ardisik: true, max: 0 };
+    st.belge = st.belge || { okul: '', baslik: 'Nöbet Çizelgesi', notlar: '', tarih: '', unvan: 'Okul Müdürü', mudur: '', onay: 'UYGUNDUR' };
+    return st;
   }
 
   var state = ornek();
   /* plan: çizelgenin kendisi. Algoritma doldurur, kullanıcı sürükle-bırak ile değiştirir. */
-  var plan = { haftaSayisi: 6, baslangic: '', atamalar: [], elle: false };
+  var plan = { haftaSayisi: 4, baslangic: '', atamalar: [], elle: false };
+  var gorunum = 'resmi', seciliHafta = 0;
+  var surukleOg = null;   // listeden sürüklenen öğretmen adı
+  var seciliOg = null;    // dokunmatik ile seçilen öğretmen adı
   var gecmis = [];
   var secili = null;      // dokunmatik/klavye ile taşıma için seçilen atama indeksi
   var surukle = null;     // sürüklenen atama indeksi
@@ -179,7 +257,12 @@
     state.yerler.forEach(function (y, i) {
       var ad = el('input', {
         type: 'text', id: 'yer-ad-' + i, class: 'inp', value: y.ad, placeholder: 'Nöbet yeri',
-        'aria-label': 'Nöbet yeri adı', oninput: function () { y.ad = this.value; planla(); }
+        'aria-label': 'Nöbet yeri adı', oninput: function () {
+          var eski = y.ad; y.ad = this.value;
+          state.ogretmenler.forEach(function (o) { if (o.sabit && o.sabit === eski) o.sabit = y.ad; });
+          plan.atamalar.forEach(function (a) { if (a.yer === eski) a.yer = y.ad; });
+          planla();
+        }, onchange: function () { renderOgretmenler(); }
       });
       var kisi = el('input', {
         type: 'number', id: 'yer-kisi-' + i, class: 'inp inp-sayi', min: '1', max: '20', value: String(y.kisi),
@@ -187,11 +270,19 @@
       });
       var sil = el('button', {
         type: 'button', class: 'ikon-btn', 'aria-label': (y.ad || 'Bu yeri') + ' sil', text: '×',
-        onclick: function () { state.yerler.splice(i, 1); renderYerler(); planla(); }
+        onclick: function () { state.yerler.splice(i, 1); renderYerler(); renderOgretmenler(); planla(); }
       });
-      kap.appendChild(el('div', { class: 'yer-satir' }, [ad, el('label', { class: 'mini', for: 'yer-kisi-' + i, text: 'kişi' }), kisi, sil]));
+      var kapsam = el('input', { type: 'text', class: 'inp', value: y.kapsam || '', placeholder: 'Kapsamı (ör. 11-12. sınıflar önü, kantin)', 'aria-label': 'Kapsamı',
+        oninput: function () { y.kapsam = this.value; kaydetGecikmeli(); cizGecikmeli(); } });
+      var tanim = el('textarea', { class: 'inp', placeholder: 'Görev tanımı (yazdırılan çizelgenin altında çıkar)', 'aria-label': 'Görev tanımı',
+        oninput: function () { y.tanim = this.value; kaydetGecikmeli(); } });
+      tanim.value = y.tanim || '';
+      var det = el('details', {}, [el('summary', { text: 'Kapsam ve görev tanımı' + (y.kapsam || y.tanim ? ' ✓' : '') }), kapsam, tanim]);
+      kap.appendChild(el('div', { class: 'yer-kart' }, [el('div', { class: 'yer-satir' }, [ad, el('label', { class: 'mini', for: 'yer-kisi-' + i, text: 'kişi' }), kisi, sil]), det]));
     });
   }
+  var cizZaman = null;
+  function cizGecikmeli() { clearTimeout(cizZaman); cizZaman = setTimeout(ciz, 200); }
 
   function renderOgretmenler() {
     var kap = $('ogretmenler');
@@ -225,14 +316,29 @@
         value: o.max > 0 ? String(o.max) : '', 'aria-label': 'Haftada en fazla nöbet sayısı',
         oninput: function () { o.max = parseInt(this.value, 10) || 0; planla(); }
       });
-      kap.appendChild(el('div', { class: 'og-satir' }, [
+      var sabit = el('select', { class: 'inp', id: 'og-sabit-' + i, 'aria-label': 'Sabit nöbet yeri',
+        onchange: function () { o.sabit = this.value; satir.classList.toggle('sabit-og', !!o.sabit); planla(); } },
+        [el('option', { value: '', text: 'Dönüşümlü (tüm yerler)' })].concat(state.yerler.filter(function (y) { return y.ad.trim(); }).map(function (y) {
+          return el('option', { value: y.ad, text: 'Sabit: ' + y.ad });
+        })));
+      sabit.value = state.yerler.some(function (y) { return y.ad === o.sabit; }) ? o.sabit : '';
+      var satir = el('div', { class: 'og-satir' + (sabit.value ? ' sabit-og' : '') }, [
         ad, sil, gunler,
-        el('div', { class: 'og-max' }, [el('label', { class: 'mini', for: 'og-max-' + i, text: 'en fazla' }), max])
-      ]));
+        el('div', { class: 'og-max' }, [el('label', { class: 'mini', for: 'og-max-' + i, text: 'en fazla' }), max]),
+        el('div', { class: 'og-sabit' }, [el('label', { class: 'mini', for: 'og-sabit-' + i, text: 'Nöbet' }), sabit])
+      ]);
+      kap.appendChild(satir);
     });
   }
 
-  function renderGirdi() { renderGunler(); renderYerler(); renderOgretmenler(); }
+  function renderKurallar() {
+    $('kr-ardisik').checked = !!state.kurallar.ardisik;
+    $('kr-max').value = state.kurallar.max > 0 ? String(state.kurallar.max) : '';
+    var b = state.belge;
+    $('bl-okul').value = b.okul || ''; $('bl-baslik').value = b.baslik || ''; $('bl-notlar').value = b.notlar || '';
+    $('bl-tarih').value = b.tarih || ''; $('bl-unvan').value = b.unvan || ''; $('bl-mudur').value = b.mudur || ''; $('bl-onay').value = b.onay || '';
+  }
+  function renderGirdi() { renderGunler(); renderYerler(); renderOgretmenler(); renderKurallar(); }
 
   /* ---------- Hesaplama ---------- */
   function girdiOlustur() {
@@ -240,11 +346,14 @@
       gunler: state.gunler.slice().sort(),
       yerler: state.yerler
         .filter(function (y) { return y.ad.trim() && y.kisi > 0; })
-        .map(function (y) { return { ad: y.ad.trim(), kisi: y.kisi }; }),
+        .map(function (y) { return { ad: y.ad.trim(), kisi: y.kisi, kapsam: (y.kapsam || '').trim(), tanim: (y.tanim || '').trim() }; }),
       ogretmenler: state.ogretmenler
         .filter(function (o) { return o.ad.trim(); })
-        .map(function (o) { return { ad: o.ad.trim(), gunler: o.gunler.slice(), haftalikMax: o.max > 0 ? o.max : 0 }; }),
-      haftaSayisi: plan.haftaSayisi
+        .map(function (o) {
+          return { ad: o.ad.trim(), gunler: o.gunler.slice(), haftalikMax: o.max > 0 ? o.max : (state.kurallar.max > 0 ? state.kurallar.max : 0), sabitYer: (o.sabit || '').trim() };
+        }),
+      haftaSayisi: plan.haftaSayisi,
+      ardisikKacin: !!state.kurallar.ardisik
     };
   }
 
@@ -321,12 +430,38 @@
     elleDegisti(a.ogretmen + ' ile ' + b.ogretmen + ' yer değiştirdi');
   }
 
+  /** Listeden gelen öğretmeni hücreye ekler. */
+  function ekle(ad, hedef) {
+    anlik();
+    plan.atamalar.push({ hafta: hedef.hafta, gun: hedef.gun, yer: hedef.yer, ogretmen: ad });
+    seciliOg = null;
+    elleDegisti(ad + ' eklendi');
+  }
+  /** i. atamadaki öğretmeni listeden gelenle değiştirir. */
+  function yerine(i, ad) {
+    var a = plan.atamalar[i]; if (!a) return;
+    if (a.ogretmen === ad) { seciliOg = null; ciz(); return; }
+    anlik();
+    var eski = a.ogretmen; a.ogretmen = ad;
+    seciliOg = null;
+    elleDegisti(eski + ' yerine ' + ad + ' yazıldı');
+  }
+  /** i. atamayı siler (yer açık kalır). */
+  function cikar(i) {
+    var a = plan.atamalar[i]; if (!a) return;
+    anlik();
+    plan.atamalar.splice(i, 1);
+    elleDegisti(a.ogretmen + ' nöbetten çıkarıldı');
+  }
+
   /** Elle düzenlemeden doğan sorunlar: müsait olmadığı gün, aynı gün iki görev, haftalık sınır aşımı. */
   function cakismalar(girdi) {
     var og = {};
     girdi.ogretmenler.forEach(function (o) { og[o.ad] = o; });
-    var gunSay = {}, haftaSay = {};
+    var gunSay = {}, haftaSay = {}, hucreSay = {}, kisi = {};
+    girdi.yerler.forEach(function (y) { kisi[y.ad] = y.kisi; });
     plan.atamalar.forEach(function (a) {
+      var hk = a.hafta + '|' + a.gun + '|' + a.yer; hucreSay[hk] = (hucreSay[hk] || 0) + 1;
       var k = a.hafta + '|' + a.gun + '|' + a.ogretmen; gunSay[k] = (gunSay[k] || 0) + 1;
       var h = a.hafta + '|' + a.ogretmen; haftaSay[h] = (haftaSay[h] || 0) + 1;
     });
@@ -335,6 +470,8 @@
       if (o && o.gunler.indexOf(a.gun) < 0) n.push('o gün okulda değil');
       if (gunSay[a.hafta + '|' + a.gun + '|' + a.ogretmen] > 1) n.push('aynı gün iki nöbet');
       if (o && o.haftalikMax > 0 && haftaSay[a.hafta + '|' + a.ogretmen] > o.haftalikMax) n.push('haftalık sınır (' + o.haftalikMax + ') aşıldı');
+      if (kisi[a.yer] && hucreSay[a.hafta + '|' + a.gun + '|' + a.yer] > kisi[a.yer]) n.push(a.yer + ' için ' + kisi[a.yer] + ' kişi yeterli');
+      if (o && o.sabitYer && o.sabitYer !== a.yer && kisi[o.sabitYer]) n.push('sabit yeri ' + o.sabitYer);
       return n;
     });
   }
@@ -348,6 +485,7 @@
     son = null;
     $('kopyala').disabled = true;
     $('nb-yazdir').disabled = true;
+    $('nb-yazdir-hepsi').disabled = true;
     $('kopya-alan').hidden = true;
     $('nb-elle').hidden = !plan.elle;
     $('nb-geri').disabled = !gecmis.length;
@@ -421,6 +559,29 @@
       kap.appendChild(kutu);
     }
 
+    /* Öğretmen havuzu: sürükleyip çizelgeye bırakılır */
+    var havuz = el('div', { class: 'nb-havuz', id: 'nb-havuz', 'aria-label': 'Öğretmenler: sürükleyip çizelgeye bırakın' },
+      [el('div', { class: 'nb-havuz-bas' }, [el('span', { text: 'Öğretmenler — sürükleyip çizelgeye bırakın · parantezde ' + (gorunum === 'resmi' && H > 1 ? (seciliHafta + 1) + '. haftadaki / toplam' : 'toplam') + ' nöbet' }), el('span', { text: 'Buraya bırakılan ad nöbetten çıkar' })])]);
+    girdi.ogretmenler.forEach(function (o) {
+      var bu = gecerli.filter(function (a) { return a.ogretmen === o.ad && a.hafta === seciliHafta; }).length;
+      havuz.appendChild(el('span', {
+        class: 'nb-og' + (o.sabitYer ? ' sabit' : '') + (seciliOg === o.ad ? ' secili' : ''), draggable: 'true', tabindex: '0', role: 'button', 'data-og': o.ad,
+        title: o.ad + (o.sabitYer ? ' (sabit: ' + o.sabitYer + ')' : '') + ' — çizelgeye sürükleyin'
+      }, [o.ad, el('b', { text: gorunum === 'resmi' && H > 1 ? bu + '/' + (sayac[o.ad] || 0) : String(sayac[o.ad] || 0) })]));
+    });
+    kap.appendChild(havuz);
+
+    var hs = $('nb-hafta-sec');
+    if (seciliHafta >= H) seciliHafta = 0;
+    hs.textContent = '';
+    for (var w = 0; w < H; w++) { var ar0 = haftaAraligi(w, girdi.gunler); hs.appendChild(el('option', { value: String(w), text: (w + 1) + '. hafta' + (ar0 ? ' (' + ar0 + ')' : '') })); }
+    hs.value = String(seciliHafta);
+    $('nb-hafta-sec-kap').hidden = gorunum !== 'resmi' || H < 2;
+    $('nb-gorunum').value = gorunum;
+
+    if (gorunum === 'resmi') {
+      kap.appendChild(el('div', { class: 'tablo-kap' }, [resmiTablo(girdi, hucreler, sorun, seciliHafta, true)]));
+    } else {
     /* Tablo: satırlar gün × yer, sütunlar haftalar */
     var basliklar = [el('th', { scope: 'col', text: 'Gün' }), el('th', { scope: 'col', text: 'Yer' })];
     for (var hh = 0; hh < H; hh++) {
@@ -441,6 +602,7 @@
     kap.appendChild(el('div', { class: 'tablo-kap' }, [
       el('table', { class: 'nb-tablo' + (H === 1 ? ' tek' : '') }, [el('thead', {}, [el('tr', {}, basliklar)]), govde])
     ]));
+    }
 
     /* Nöbet yükü */
     var olcek = Math.max(enCok, 1);
@@ -457,6 +619,7 @@
     son = metinUret(girdi, hucreler);
     $('kopyala').disabled = false;
     $('nb-yazdir').disabled = false;
+    $('nb-yazdir-hepsi').disabled = false;
   }
 
   function hucreCiz(konum, kisi, idler, sorun) {
@@ -481,11 +644,44 @@
     td.setAttribute('data-y', konum.yer);
     return td;
   }
+  /** Resmî çizelge: satırlar nöbet yeri, sütunlar günler, son sütun kapsamı. */
+  function resmiTablo(girdi, hucreler, sorun, h, duzenlenebilir) {
+    var bas = [el('th', { scope: 'col', text: 'Nöbet yeri' })];
+    girdi.gunler.forEach(function (g) {
+      var d = gunTarihi(h, g);
+      bas.push(el('th', { scope: 'col' }, [GUN[g], d ? el('small', { text: d.getDate() + ' ' + AY[d.getMonth()] }) : null]));
+    });
+    var kapsamVar = girdi.yerler.some(function (y) { return y.kapsam; });
+    if (kapsamVar) bas.push(el('th', { scope: 'col', text: 'Kapsamı' }));
+    var govde = el('tbody');
+    girdi.yerler.forEach(function (y) {
+      var tr = el('tr', {}, [el('th', { scope: 'row', class: 'yer-hucre' }, [y.ad, y.kisi > 1 ? el('small', { text: y.kisi + ' kişi' }) : null])]);
+      girdi.gunler.forEach(function (g) {
+        if (duzenlenebilir) tr.appendChild(hucreCiz({ hafta: h, gun: g, yer: y.ad }, y.kisi, hucreler[h + '|' + g + '|' + y.ad] || [], sorun));
+        else {
+          var adlar = (hucreler[h + '|' + g + '|' + y.ad] || []).map(function (i) { return plan.atamalar[i].ogretmen; });
+          tr.appendChild(el('td', { class: 'hucre' }, adlar.map(function (a) { return el('span', { class: 'ad', text: a }); })));
+        }
+      });
+      if (kapsamVar) tr.appendChild(el('td', { class: 'kapsam', text: y.kapsam || '' }));
+      govde.appendChild(tr);
+    });
+    return el('table', { class: 'nb-resmi' }, [el('thead', {}, [el('tr', {}, bas)]), govde]);
+  }
+
   function hucreKonum(td) { return { hafta: Number(td.getAttribute('data-h')), gun: Number(td.getAttribute('data-g')), yer: td.getAttribute('data-y') }; }
 
   /* Sürükle-bırak (fare) ve dokun-seç-dokun (dokunmatik, klavye) */
   var sonuc = $('sonuc');
   sonuc.addEventListener('dragstart', function (e) {
+    var og = e.target.closest && e.target.closest('.nb-og');
+    if (og) {
+      surukleOg = og.getAttribute('data-og'); surukle = null;
+      og.classList.add('surukleniyor');
+      try { e.dataTransfer.setData('text/plain', surukleOg); e.dataTransfer.effectAllowed = 'copy'; } catch (x) {}
+      Array.prototype.forEach.call(sonuc.querySelectorAll('.nb-ad'), function (x) { if (x.textContent === surukleOg) x.classList.add('vurgu'); });
+      return;
+    }
     var c = e.target.closest && e.target.closest('.nb-ad');
     if (!c) return;
     surukle = Number(c.getAttribute('data-i'));
@@ -496,20 +692,36 @@
     Array.prototype.forEach.call(sonuc.querySelectorAll('.nb-ad'), function (x) { if (x !== c && x.textContent === ad) x.classList.add('vurgu'); });
   });
   sonuc.addEventListener('dragend', function () {
-    surukle = null;
+    surukle = null; surukleOg = null;
     Array.prototype.forEach.call(sonuc.querySelectorAll('.surukleniyor, .vurgu, .hedef'), function (x) { x.classList.remove('surukleniyor', 'vurgu', 'hedef'); });
   });
   sonuc.addEventListener('dragover', function (e) {
-    if (surukle === null) return;
+    if (surukle === null && surukleOg === null) return;
+    var hv = e.target.closest && e.target.closest('.nb-havuz');
+    if (hv && surukle !== null) {
+      e.preventDefault();
+      hv.classList.add('hedef');
+      return;
+    }
     var td = e.target.closest && e.target.closest('.nb-hucre');
-    if (!td) return;
+    if (!td) { Array.prototype.forEach.call(sonuc.querySelectorAll('.hedef'), function (x) { x.classList.remove('hedef'); }); return; }
     e.preventDefault();
-    try { e.dataTransfer.dropEffect = 'move'; } catch (x) {}
+    try { e.dataTransfer.dropEffect = surukleOg !== null ? 'copy' : 'move'; } catch (x) {}
     Array.prototype.forEach.call(sonuc.querySelectorAll('.hedef'), function (x) { if (x !== td) x.classList.remove('hedef'); });
     td.classList.add('hedef');
   });
   sonuc.addEventListener('drop', function (e) {
+    if (surukleOg !== null) {
+      var tdo = e.target.closest && e.target.closest('.nb-hucre');
+      if (!tdo) return;
+      e.preventDefault();
+      var ad = surukleOg; surukleOg = null;
+      var ust = e.target.closest('.nb-ad');
+      if (ust) yerine(Number(ust.getAttribute('data-i')), ad); else ekle(ad, hucreKonum(tdo));
+      return;
+    }
     if (surukle === null) return;
+    if (e.target.closest && e.target.closest('.nb-havuz')) { e.preventDefault(); var k = surukle; surukle = null; cikar(k); return; }
     var td = e.target.closest && e.target.closest('.nb-hucre');
     if (!td) return;
     e.preventDefault();
@@ -520,8 +732,24 @@
     else tasi(i, hucreKonum(td));
   });
   function dokun(hedef) {
+    var og = hedef.closest && hedef.closest('.nb-og');
+    var hv = hedef.closest && hedef.closest('.nb-havuz');
     var c = hedef.closest && hedef.closest('.nb-ad');
     var td = hedef.closest && hedef.closest('.nb-hucre');
+    if (og) {
+      if (secili !== null) { cikar(secili); return; }
+      var ad = og.getAttribute('data-og');
+      seciliOg = seciliOg === ad ? null : ad;
+      ciz();
+      if (seciliOg) bildir(ad + ' seçildi; yazılacağı hücreye dokunun');
+      return;
+    }
+    if (hv && secili !== null) { cikar(secili); return; }
+    if (seciliOg !== null) {
+      if (c) yerine(Number(c.getAttribute('data-i')), seciliOg);
+      else if (td) ekle(seciliOg, hucreKonum(td));
+      return;
+    }
     if (secili === null) {
       if (c) { secili = Number(c.getAttribute('data-i')); ciz(); bildir(plan.atamalar[secili].ogretmen + ' seçildi; gideceği yere dokunun'); odakla(secili); }
       return;
@@ -530,10 +758,11 @@
     else if (td) tasi(secili, hucreKonum(td));
   }
   function odakla(i) { var x = sonuc.querySelector('.nb-ad[data-i="' + i + '"]'); if (x) x.focus(); }
-  sonuc.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('.nb-hucre')) dokun(e.target); });
+  sonuc.addEventListener('click', function (e) { if (e.target.closest && (e.target.closest('.nb-hucre') || e.target.closest('.nb-havuz'))) dokun(e.target); });
   sonuc.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && secili !== null) { secili = null; ciz(); return; }
-    if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('.nb-hucre')) { e.preventDefault(); dokun(e.target); }
+    if (e.key === 'Escape' && (secili !== null || seciliOg !== null)) { secili = null; seciliOg = null; ciz(); return; }
+    if ((e.key === 'Delete' || e.key === 'Backspace') && secili !== null) { e.preventDefault(); cikar(secili); return; }
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && (e.target.closest('.nb-hucre') || e.target.closest('.nb-havuz'))) { e.preventDefault(); dokun(e.target); }
   });
 
   function metinUret(girdi, hucreler) {
@@ -555,20 +784,45 @@
     return satirlar.join('\n').trim();
   }
 
-  function yazdir() {
-    var tablo = sonuc.querySelector('.nb-tablo');
-    if (!tablo) return;
+  /** Resmî çizelgeyi yazdırır: başlık, yer × gün tablosu, görev tanımları, notlar ve onay. */
+  function yazdir(hepsi) {
+    var girdi = sonGirdi || girdiOlustur();
+    if (!girdi.yerler.length) return;
+    var hucreler = {};
+    plan.atamalar.forEach(function (a, i) { if (a.hafta < plan.haftaSayisi) { var k = a.hafta + '|' + a.gun + '|' + a.yer; (hucreler[k] = hucreler[k] || []).push(i); } });
+    var haftalar = hepsi ? Array.apply(null, Array(plan.haftaSayisi)).map(function (_, i) { return i; }) : [seciliHafta];
+    var b = state.belge || {};
+    var e = function (x) { return String(x == null ? '' : x).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+    var tanimlar = girdi.yerler.filter(function (y) { return y.tanim; });
+    var notlar = String(b.notlar || '').split(/\n/).map(function (x) { return x.trim(); }).filter(Boolean);
+    var tarih = '';
+    if (b.tarih) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(b.tarih); if (m) tarih = m[3] + '.' + m[2] + '.' + m[1]; }
+    var sayfalar = haftalar.map(function (h) {
+      var tablo = resmiTablo(girdi, hucreler, [], h, false).outerHTML;
+      var ar = haftaAraligi(h, girdi.gunler);
+      return '<section class="sayfa">' +
+        '<header>' + (b.okul ? '<div class="okul">' + e(b.okul) + '</div>' : '') + '<div class="baslik">' + e(b.baslik || 'Nöbet Çizelgesi') + '</div>' +
+        (plan.haftaSayisi > 1 || ar ? '<div class="hafta">' + (plan.haftaSayisi > 1 ? (h + 1) + '. hafta' : '') + (ar ? (plan.haftaSayisi > 1 ? ' · ' : '') + e(ar) : '') + '</div>' : '') + '</header>' +
+        tablo +
+        '<div class="alt"><div class="metin">' +
+          tanimlar.map(function (y) { return '<p><b>' + e(y.ad.toLocaleUpperCase('tr')) + ':</b> ' + e(y.tanim) + '</p>'; }).join('') +
+          notlar.map(function (n, i) { return '<p class="not"><b>NOT' + (notlar.length > 1 ? i + 1 : '') + ':</b> ' + e(n) + '</p>'; }).join('') +
+        '</div>' + (b.mudur || b.onay || tarih ? '<div class="onay">' + (tarih ? '<div>' + e(tarih) + '</div>' : '') + '<div>' + e(b.unvan || '') + '</div><div>' + e(b.mudur || '') + '</div><div class="uy">' + e(b.onay || '') + '</div></div>' : '') +
+        '</div></section>';
+    }).join('');
     var w = window.open('', '_blank');
     if (!w) { bildir('Yazdırma penceresi açılamadı (açılır pencere engeli)'); return; }
-    var kopya = tablo.cloneNode(true);
-    Array.prototype.forEach.call(kopya.querySelectorAll('.kisa'), function (x) { x.remove(); });
     w.document.open();
-    w.document.write('<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Nöbet çizelgesi</title><style>' +
-      'body{font-family:"Segoe UI",system-ui,sans-serif;color:#10264A;margin:1cm}h1{font-size:1.2rem;margin:0 0 .6rem}' +
-      'table{border-collapse:collapse;width:100%}th,td{border:1px solid #B9C9E4;padding:4px 6px;font-size:10pt;vertical-align:top;text-align:left}' +
-      'thead th{background:#EAF1FB;text-align:center}thead small,th small{display:block;color:#566B8C;font-size:8pt;font-weight:400}' +
-      '.ad{display:block;white-space:nowrap}.ad.acik{color:#A64B0B;font-style:italic}@page{size:A4 landscape;margin:1cm}' +
-      '</style></head><body><h1>' + $('nb-baslik').textContent + '</h1>' + kopya.outerHTML +
+    w.document.write('<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>' + e(b.baslik || 'Nöbet çizelgesi') + '</title><style>' +
+      'body{font-family:"Segoe UI",Calibri,system-ui,sans-serif;color:#10264A;margin:0}' +
+      '.sayfa{page-break-after:always;padding:.2cm}.sayfa:last-child{page-break-after:auto}' +
+      'header{text-align:center;border:2px solid #1D3F8F;padding:.25cm;margin-bottom:.25cm}header .okul{font-weight:700;color:#1D5FD8;font-size:14pt}header .baslik{font-weight:700;color:#1D5FD8;font-size:13pt}header .hafta{font-size:10pt;color:#566B8C}' +
+      'table{border-collapse:collapse;width:100%;table-layout:fixed}th,td{border:1.5px solid #10264A;padding:7px 5px;font-size:10.5pt;text-align:center;vertical-align:middle}' +
+      'thead th{color:#C00000;font-weight:700}thead th small{display:block;color:#566B8C;font-weight:400;font-size:8pt}' +
+      'tbody th{text-align:left;font-weight:700}tbody th small{display:block;font-weight:400;font-size:8pt;color:#566B8C}td.kapsam{text-align:left;font-weight:700;white-space:pre-line}' +
+      '.ad{display:block}.alt{display:grid;grid-template-columns:1fr 5cm;border:1.5px solid #10264A;border-top:0}.metin{padding:6px 8px;font-size:8.5pt;border-right:1.5px solid #10264A}' +
+      '.metin p{margin:0 0 3px}.metin .not{color:#C00000;font-weight:600}.onay{display:grid;place-content:center;text-align:center;font-weight:700;font-size:10pt;gap:4px;padding:6px}.onay .uy{margin-top:4px}' +
+      '@page{size:A4 landscape;margin:1cm}</style></head><body>' + sayfalar +
       '<script>window.onload=function(){setTimeout(function(){window.print()},300)}<\/script></body></html>');
     w.document.close();
   }
@@ -591,12 +845,12 @@
     var v = null;
     try { v = JSON.parse(localStorage.getItem(anahtar()) || 'null'); } catch (e) {}
     if (v && v.state && v.plan && Array.isArray(v.state.ogretmenler)) {
-      state = v.state;
-      plan = { haftaSayisi: Number(v.plan.haftaSayisi) || 6, baslangic: v.plan.baslangic || isoGun(pazartesi(new Date())), atamalar: v.plan.atamalar || [], elle: !!v.plan.elle };
+      state = tamamla(v.state);
+      plan = { haftaSayisi: Number(v.plan.haftaSayisi) || 4, baslangic: v.plan.baslangic || isoGun(pazartesi(new Date())), atamalar: v.plan.atamalar || [], elle: !!v.plan.elle };
       $('ornek-etiket').hidden = true;
     } else {
       state = ornek();
-      plan = { haftaSayisi: 6, baslangic: isoGun(pazartesi(new Date())), atamalar: [], elle: false };
+      plan = { haftaSayisi: 4, baslangic: isoGun(pazartesi(new Date())), atamalar: [], elle: false };
       $('ornek-etiket').hidden = false;
     }
     gecmis = []; secili = null;
@@ -621,7 +875,8 @@
       navigator.clipboard.writeText(son).then(function () { bildir('Kopyalandı'); }, yedek);
     } catch (e) { yedek(); }
   });
-  $('nb-yazdir').addEventListener('click', yazdir);
+  $('nb-yazdir').addEventListener('click', function () { yazdir(false); });
+  $('nb-yazdir-hepsi').addEventListener('click', function () { yazdir(true); });
   $('nb-genis').addEventListener('click', function () {
     var lay = document.querySelector('.nb-layout');
     var acik = !lay.classList.contains('genis');
@@ -652,27 +907,75 @@
   });
 
   $('yer-ekle').addEventListener('click', function () {
-    state.yerler.push({ ad: '', kisi: 1 });
+    state.yerler.push({ ad: '', kisi: 1, kapsam: '', tanim: '' });
     renderYerler();
     $('yer-ad-' + (state.yerler.length - 1)).focus();
     planla();
   });
 
   $('og-ekle').addEventListener('click', function () {
-    state.ogretmenler.push({ ad: '', gunler: TUM.slice(), max: 0 });
+    state.ogretmenler.push({ ad: '', gunler: TUM.slice(), max: 0, sabit: '' });
     renderOgretmenler();
     $('og-ad-' + (state.ogretmenler.length - 1)).focus();
     planla();
   });
 
-  $('toplu-ekle').addEventListener('click', function () {
-    $('toplu').value.split(/\n/).map(function (s) { return s.trim(); }).filter(Boolean).forEach(function (ad) {
-      state.ogretmenler.push({ ad: ad, gunler: TUM.slice(), max: 0 });
+  /** Toplu yapıştırma: satır başına öğretmen; sütunlar sekme ya da ; ile: ad, günler, haftada en fazla, sabit yer. */
+  function gunleriOku(t) {
+    t = String(t || '').toLocaleLowerCase('tr').trim();
+    if (!t || /^(hepsi|tüm|tum|her gün|hergün)/.test(t)) return TUM.slice();
+    var bul = [['pt', 0], ['pzt', 0], ['paz', 0], ['sa', 1], ['sal', 1], ['ça', 2], ['çar', 2], ['car', 2], ['pe', 3], ['per', 3], ['cu', 4], ['cum', 4]];
+    var g = [];
+    t.split(/[\s,\/.\-]+/).filter(Boolean).forEach(function (p) {
+      if (/^[1-5]$/.test(p)) { g.push(+p - 1); return; }
+      for (var i = bul.length - 1; i >= 0; i--) if (p.indexOf(bul[i][0]) === 0) { if (!(bul[i][0] === 'paz' && /^pazar$/.test(p))) g.push(bul[i][1]); break; }
     });
+    g = g.filter(function (x, i) { return g.indexOf(x) === i; }).sort();
+    return g.length ? g : TUM.slice();
+  }
+  function topluOku(metin) {
+    var eklenen = 0, guncel = 0;
+    var adNorm = function (a) { return a.toLocaleLowerCase('tr').replace(/\s+/g, ' ').trim(); };
+    String(metin || '').split(/\r?\n/).forEach(function (satir) {
+      if (!satir.trim()) return;
+      var p = satir.indexOf('\t') > -1 ? satir.split('\t') : satir.split(';');
+      var adlar = p.length === 1 && satir.indexOf(',') > -1 ? satir.split(',') : [p[0]];
+      adlar.forEach(function (ad) {
+        ad = ad.replace(/\s+/g, ' ').trim();
+        if (!ad || /^(ad|ad soyad|adı soyadı|öğretmen)$/i.test(ad)) return;
+        var o = { ad: ad, gunler: gunleriOku(adlar.length > 1 ? '' : p[1]), max: parseInt(adlar.length > 1 ? '' : p[2], 10) || 0, sabit: '' };
+        var sy = adlar.length > 1 ? '' : String(p[3] || '').trim();
+        if (sy) {
+          var y = state.yerler.filter(function (x) { return adNorm(x.ad) === adNorm(sy); })[0];
+          if (!y) { y = { ad: sy, kisi: 1, kapsam: '', tanim: '' }; state.yerler.push(y); }
+          o.sabit = y.ad;
+        }
+        var var_ = state.ogretmenler.filter(function (x) { return adNorm(x.ad) === adNorm(ad); })[0];
+        if (var_) { var_.gunler = o.gunler; var_.max = o.max; if (o.sabit) var_.sabit = o.sabit; guncel++; }
+        else { state.ogretmenler.push(o); eklenen++; }
+      });
+    });
+    return { eklenen: eklenen, guncel: guncel };
+  }
+  $('toplu-ekle').addEventListener('click', function () {
+    var r = topluOku($('toplu').value);
     $('toplu').value = '';
+    $('toplu-sonuc').textContent = r.eklenen + ' öğretmen eklendi' + (r.guncel ? ', ' + r.guncel + ' öğretmen güncellendi' : '') + '.';
+    renderYerler();
     renderOgretmenler();
     planla();
   });
+  $('og-sirala').addEventListener('click', function () {
+    state.ogretmenler.sort(function (a, b) { return a.ad.localeCompare(b.ad, 'tr'); });
+    renderOgretmenler(); planla();
+  });
+  $('kr-ardisik').addEventListener('change', function () { state.kurallar.ardisik = this.checked; planla(); });
+  $('kr-max').addEventListener('input', function () { state.kurallar.max = parseInt(this.value, 10) || 0; planla(); });
+  [['bl-okul', 'okul'], ['bl-baslik', 'baslik'], ['bl-notlar', 'notlar'], ['bl-tarih', 'tarih'], ['bl-unvan', 'unvan'], ['bl-mudur', 'mudur'], ['bl-onay', 'onay']].forEach(function (x) {
+    $(x[0]).addEventListener('input', function () { state.belge[x[1]] = this.value; kaydetGecikmeli(); });
+  });
+  $('nb-gorunum').addEventListener('change', function () { gorunum = this.value; ciz(); });
+  $('nb-hafta-sec').addEventListener('change', function () { seciliHafta = Number(this.value) || 0; ciz(); });
 
   $('btn-ornek').addEventListener('click', function () {
     if (plan.elle && !window.confirm('Örnek veri yüklensin mi? Mevcut çizelge silinir.')) return;
@@ -684,7 +987,7 @@
 
   $('btn-temizle').addEventListener('click', function () {
     if (!window.confirm('Tüm yerler, öğretmenler ve çizelge silinsin mi?')) return;
-    state = { gunler: TUM.slice(), yerler: [], ogretmenler: [] };
+    state = tamamla({ gunler: TUM.slice(), yerler: [], ogretmenler: [], belge: state.belge, kurallar: state.kurallar });
     renderGirdi();
     hesapla();
     $('ornek-etiket').hidden = true;

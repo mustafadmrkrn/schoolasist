@@ -21,8 +21,13 @@ tarayıcıda kalır).
   - **Öğrenci:** okul kodu zorunlu; okulun öğrencilere açtığı araçları görür (başlangıçta hiçbiri).
   - Araç izinleri menüyü ve sunucu çağrılarını belirler; hesaplamalar tarayıcıda yapıldığı için kullanıcının
     kendi dosyasını işlemesine karşı bir güvenlik sınırı değildir.
-- **Nöbet çizelgesi:** öğretmenlerin okulda olduğu günlere göre, aynı gün çakışmadan ve eşit
-  dağılımlı haftalık nöbet planı.
+- **Nöbet çizelgesi:** öğretmenlerin nöbet tutabileceği günlere (ör. 5. veya 6. dersi boş olan günler) göre, aynı gün
+  çakışmadan ve eşit dağılımlı, varsayılan 4 haftalık nöbet planı. Sabit nöbetçiler (ör. servis giriş-çıkışı her gün aynı
+  kişiler) dönüşümlü dağıtıma katılmaz; mümkünse arka arkaya iki gün nöbet yazılmaz; herkes için ya da kişiye özel haftalık
+  sınır. Yerlerin kapsamı ve görev tanımı, okul adı, başlık, notlar ve onay (tarih, müdür, "UYGUNDUR") ile resmî
+  yer × gün çizelgesi; bu hafta ya da tüm haftalar yazdırılır. Öğretmenler listeden çizelgeye sürüklenip bırakılır
+  (boş yere eklenir, bir adın üstüne bırakılınca onun yerine geçer), çizelgedeki adlar taşınır/yer değiştirir, listeye
+  geri bırakılınca nöbetten çıkar. Toplu ekleme Excel'den sütunlarıyla yapıştırılabilir (ad, günler, haftada en fazla, sabit yer).
 - **Sınav analizi:** Excel (.xlsx, .xls) veya CSV dosyasından sınıf özeti, puan dağılımı, soru güçlüğü,
   ayırt edicilik, kazanım başarısı ve sıralama. Başlık satırı, ad soyad sütunu, soru sütunları ve
   soru puanları otomatik bulunur, gerekirse elle düzeltilir. Deneme için `ornekler/sinav-ornegi.xlsx`.

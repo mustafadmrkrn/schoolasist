@@ -132,3 +132,43 @@ function ogretmenUret(n, gunler) {
 })();
 
 console.log('Tüm testler geçti.');
+
+// Sabit nöbetçiler: her müsait günde kendi yerlerinde, dönüşümlü dağıtıma katılmazlar
+(function () {
+  var og = ogretmenUret(8);
+  og.push({ ad: 'Servis A', gunler: tumGunler(), sabitYer: 'Servis' });
+  og.push({ ad: 'Servis B', gunler: [0, 1, 2, 3], sabitYer: 'Servis' });
+  var s = ctx.olusturNobetCizelgesi({ yerler: [{ ad: 'Bahçe', kisi: 1 }, { ad: 'Kat', kisi: 1 }, { ad: 'Servis', kisi: 2 }], ogretmenler: og, haftaSayisi: 4 });
+  var servis = s.atamalar.filter(function (a) { return a.yer === 'Servis'; });
+  assert.strictEqual(servis.length, 40, 'servis her gün 2 kişi');
+  assert.ok(s.atamalar.every(function (a) { return (a.ogretmen.indexOf('Servis') === 0) === (a.yer === 'Servis') || a.yer === 'Servis'; }), 'sabitler başka yere yazılmaz');
+  assert.strictEqual(servis.filter(function (a) { return a.ogretmen === 'Servis A'; }).length, 20);
+  assert.strictEqual(servis.filter(function (a) { return a.ogretmen === 'Servis B'; }).length, 16, 'B cuma okulda değil');
+  // B'nin olmadığı cuma günü servisin ikinci kişisi dönüşümlü öğretmenlerden tamamlanır
+  assert.strictEqual(servis.filter(function (a) { return a.gun === 4 && a.ogretmen.indexOf('Servis') !== 0; }).length, 4);
+  assert.strictEqual(s.uyarilar.length, 0);
+  // Tanımlı olmayan sabit yer yok sayılır
+  var s2 = ctx.olusturNobetCizelgesi({ yerler: [{ ad: 'Bahçe', kisi: 1 }], ogretmenler: [{ ad: 'X', gunler: tumGunler(), sabitYer: 'Yok' }] });
+  assert.strictEqual(s2.atamalar.length, 5);
+})();
+
+// Ardışık günlerden kaçınma: eşit dağılımda aynı hafta arka arkaya iki gün nöbet yazılmaz
+(function () {
+  var girdi = { yerler: [{ ad: 'Bahçe', kisi: 2 }, { ad: 'Kat', kisi: 2 }], ogretmenler: ogretmenUret(10), haftaSayisi: 4, ardisikKacin: true };
+  var s = ctx.olusturNobetCizelgesi(girdi);
+  var ardisik = 0;
+  var gor = {};
+  s.atamalar.forEach(function (a) { gor[a.hafta + '|' + a.ogretmen + '|' + a.gun] = 1; });
+  s.atamalar.forEach(function (a) { if (gor[a.hafta + '|' + a.ogretmen + '|' + (a.gun - 1)]) ardisik++; });
+  var kapali = ctx.olusturNobetCizelgesi({ yerler: girdi.yerler, ogretmenler: ogretmenUret(10), haftaSayisi: 4 });
+  var ardisik2 = 0, gor2 = {};
+  kapali.atamalar.forEach(function (a) { gor2[a.hafta + '|' + a.ogretmen + '|' + a.gun] = 1; });
+  kapali.atamalar.forEach(function (a) { if (gor2[a.hafta + '|' + a.ogretmen + '|' + (a.gun - 1)]) ardisik2++; });
+  assert.ok(ardisik <= ardisik2, 'kural açıkken ardışık nöbet artmaz (' + ardisik + ' / ' + ardisik2 + ')');
+  assert.strictEqual(ardisik, 0, 'yeterli öğretmen varken ardışık nöbet olmaz');
+  var say = {};
+  s.atamalar.forEach(function (a) { say[a.ogretmen] = (say[a.ogretmen] || 0) + 1; });
+  var v = Object.keys(say).map(function (k) { return say[k]; });
+  assert.ok(Math.max.apply(null, v) - Math.min.apply(null, v) <= 1, 'denge korunur');
+})();
+console.log('sabit ve ardışık kuralı testleri geçti');
