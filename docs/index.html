@@ -1934,7 +1934,7 @@ function denemeYazi(n) { return String(Math.round(n * 100) / 100).replace('.', '
       return;
     }
     $('surum').textContent = 'Sürüm ' + istemci;
-    sunucuCagri('sistemDurumu', []).then(function (r) {
+    cagir('sistemDurumu', []).then(function (r) {
       var parca = ['Sürüm ' + istemci];
       if (r && r.surum && r.surum !== istemci) parca.push('sunucu ' + r.surum);
       if (r && r.epostaIzni) parca.push('e-posta hazır (bugün kalan ' + r.kota + ')');
